@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { UserProfile, Tribe, PositionRole } from '../types';
-import { Edit3, ShieldCheck, MapPin, Check, Plus, Trash2, Lock, Video, Image as ImageIcon, Tag, Sparkles, AlertCircle } from 'lucide-react';
+import { UserProfile, Tribe, PositionRole, PHOTO_FILTERS, getFilterStyle } from '../types';
+import { Edit3, ShieldCheck, MapPin, Check, Plus, Trash2, Lock, Video, Image as ImageIcon, Tag, Sparkles, AlertCircle, TrendingUp, Share2 } from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { ExportProfileModal } from './ExportProfileModal';
 
 interface ProfileViewProps {
   currentUser: UserProfile;
@@ -31,6 +33,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
   const [formData, setFormData] = useState<UserProfile>({ ...currentUser });
   const [successMsg, setSuccessMsg] = useState('');
   const [photoInputType, setPhotoInputType] = useState<'url' | 'preset'>('url');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   
   // Verification modal / state
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -181,6 +184,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             <img
               src={currentUser.photos[0]}
               alt={currentUser.name}
+              style={{ filter: getFilterStyle(currentUser.photoFilter) }}
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
             />
@@ -214,16 +218,107 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             </p>
           </div>
 
-          <button
-            onClick={() => {
-              setFormData({ ...currentUser });
-              setIsEditing(!isEditing);
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsExportModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold text-xs transition flex items-center space-x-1.5 border border-neutral-700"
+              title="Export & Share Profile Card"
+            >
+              <Share2 className="w-4 h-4 text-amber-400" />
+              <span className="hidden sm:inline">Export Card</span>
+            </button>
+            <button
+              onClick={() => {
+                setFormData({ ...currentUser });
+                setIsEditing(!isEditing);
+              }}
+              className="px-4 py-2 rounded-xl bg-[#FFC107] text-[#121212] font-bold text-sm hover:opacity-90 transition flex items-center space-x-2 shadow-lg shadow-[#FFC107]/20"
+            >
+              <Edit3 className="w-4 h-4" />
+              <span>{isEditing ? 'Cancel' : 'Edit Profile'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Profile Strength Indicator */}
+      <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-5 shadow-xl space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Sparkles className="w-5 h-5 text-[#FFC107]" />
+            <h3 className="text-sm font-bold text-white">Profile Strength</h3>
+          </div>
+          <span className="text-sm font-black text-[#FFC107]">
+            {Math.min(
+              100,
+              (currentUser.aboutMe ? 25 : 0) +
+                (currentUser.headline ? 15 : 0) +
+                (currentUser.locationName ? 10 : 0) +
+                (currentUser.photos && currentUser.photos.length >= 2 ? 25 : currentUser.photos?.length ? 15 : 0) +
+                (currentUser.interestTags && currentUser.interestTags.length >= 3 ? 15 : currentUser.interestTags?.length ? 8 : 0) +
+                (currentUser.tribes && currentUser.tribes.length >= 1 ? 10 : 0)
+            )}%
+          </span>
+        </div>
+        <div className="w-full h-2.5 bg-neutral-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-500 rounded-full"
+            style={{
+              width: `${Math.min(
+                100,
+                (currentUser.aboutMe ? 25 : 0) +
+                  (currentUser.headline ? 15 : 0) +
+                  (currentUser.locationName ? 10 : 0) +
+                  (currentUser.photos && currentUser.photos.length >= 2 ? 25 : currentUser.photos?.length ? 15 : 0) +
+                  (currentUser.interestTags && currentUser.interestTags.length >= 3 ? 15 : currentUser.interestTags?.length ? 8 : 0) +
+                  (currentUser.tribes && currentUser.tribes.length >= 1 ? 10 : 0)
+              )}%`,
             }}
-            className="px-4 py-2 rounded-xl bg-[#FFC107] text-[#121212] font-bold text-sm hover:opacity-90 transition flex items-center space-x-2 shadow-lg shadow-[#FFC107]/20"
-          >
-            <Edit3 className="w-4 h-4" />
-            <span>{isEditing ? 'Cancel' : 'Edit Profile'}</span>
-          </button>
+          />
+        </div>
+        <p className="text-xs text-neutral-400">
+          💡 Tip: Add more photos, interests, and a detailed bio to reach 100% profile strength.
+        </p>
+      </div>
+
+      {/* Activity Logs Section */}
+      <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-amber-400 font-bold">📜</span>
+            <h3 className="text-sm font-bold text-white">Recent Activity Logs</h3>
+          </div>
+          <span className="text-xs text-neutral-400">Timestamped Feed</span>
+        </div>
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between p-3 bg-neutral-900/60 rounded-xl border border-neutral-800 text-xs">
+            <div className="flex items-center space-x-2.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-neutral-200 font-medium">Changed profile photo filter to "Vivid"</span>
+            </div>
+            <span className="text-neutral-400 text-[11px]">10m ago</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-neutral-900/60 rounded-xl border border-neutral-800 text-xs">
+            <div className="flex items-center space-x-2.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span className="text-neutral-200 font-medium">Sent a Tap to Marcus V.</span>
+            </div>
+            <span className="text-neutral-400 text-[11px]">1h ago</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-neutral-900/60 rounded-xl border border-neutral-800 text-xs">
+            <div className="flex items-center space-x-2.5">
+              <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+              <span className="text-neutral-200 font-medium">Updated bio and added new interest tags</span>
+            </div>
+            <span className="text-neutral-400 text-[11px]">3h ago</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-neutral-900/60 rounded-xl border border-neutral-800 text-xs">
+            <div className="flex items-center space-x-2.5">
+              <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+              <span className="text-neutral-200 font-medium">Activated 30-minute Grid Boost</span>
+            </div>
+            <span className="text-neutral-400 text-[11px]">Yesterday</span>
+          </div>
         </div>
       </div>
 
@@ -327,6 +422,89 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             )}
           </div>
 
+          {/* Aesthetic Photo Filters */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block">Photo Aesthetic Filter</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {PHOTO_FILTERS.map(filter => {
+                const isSelected = (formData.photoFilter || 'none') === filter.id;
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, photoFilter: filter.id })}
+                    className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-between transition ${
+                      isSelected
+                        ? 'bg-[#FFC107] text-black border-[#FFC107] font-bold shadow-lg'
+                        : 'bg-[#252525] text-neutral-300 border-neutral-800 hover:border-neutral-700'
+                    }`}
+                  >
+                    <span>{filter.label}</span>
+                    {formData.photos[0] && (
+                      <div className="w-6 h-6 rounded overflow-hidden flex-shrink-0 border border-black/30">
+                        <img
+                          src={formData.photos[0]}
+                          alt={filter.label}
+                          style={{ filter: filter.style }}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Online Status Toggle */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block">Online Status Visibility</label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['online', 'away', 'offline'] as const).map(st => {
+                const isSelected = formData.status === st;
+                return (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, status: st })}
+                    className={`py-2 px-3 rounded-xl border text-xs font-semibold capitalize transition ${
+                      isSelected
+                        ? 'bg-[#FFC107] text-black border-[#FFC107] font-bold shadow'
+                        : 'bg-[#252525] text-neutral-300 border-neutral-800 hover:border-neutral-700'
+                    }`}
+                  >
+                    {st === 'offline' ? 'Invisible' : st}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Current Mood Status */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block">Current Mood Status</label>
+            <div className="flex flex-wrap gap-2">
+              {['🔥 Working out', '☕ Coffee run', '😎 Chilling', '🚀 Exploring', '😴 Rest day', '🎉 Party time', '💻 Coding', '🌴 Vacation', '🎨 Creating', '⚡ Energetic'].map(mood => {
+                const isSelected = formData.currentMood === mood;
+                return (
+                  <button
+                    key={mood}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, currentMood: mood })}
+                    className={`px-3 py-2 rounded-xl border text-xs font-semibold transition ${
+                      isSelected
+                        ? 'bg-[#FFC107] text-black border-[#FFC107] font-bold shadow'
+                        : 'bg-[#252525] text-neutral-300 border-neutral-800 hover:border-neutral-700'
+                    }`}
+                  >
+                    {mood}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Location / Worldwide Country */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-1">Country & City (Worldwide)</label>
@@ -422,6 +600,125 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-1">Pronouns</label>
+              <input
+                type="text"
+                placeholder="e.g. He/Him, They/Them"
+                value={formData.pronouns || ''}
+                onChange={e => setFormData({ ...formData, pronouns: e.target.value })}
+                className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#FFC107]"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-1">Zodiac Sign</label>
+              <input
+                type="text"
+                placeholder="e.g. Scorpio, Leo"
+                value={formData.zodiac || ''}
+                onChange={e => setFormData({ ...formData, zodiac: e.target.value })}
+                className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#FFC107]"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-1">Relationship Status</label>
+              <input
+                type="text"
+                placeholder="e.g. Single, Open, Taken"
+                value={formData.relationshipStatus || ''}
+                onChange={e => setFormData({ ...formData, relationshipStatus: e.target.value })}
+                className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#FFC107]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-1">Smoking</label>
+              <select
+                value={formData.smoking || 'Non-smoker'}
+                onChange={e => setFormData({ ...formData, smoking: e.target.value })}
+                className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#FFC107]"
+              >
+                {['Non-smoker', 'Social smoker', 'Smoker', 'Vaper'].map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-1">Drinking</label>
+              <select
+                value={formData.drinking || 'Socially'}
+                onChange={e => setFormData({ ...formData, drinking: e.target.value })}
+                className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#FFC107]"
+              >
+                {['Non-drinker', 'Socially', 'Regularly'].map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Social Links & Music */}
+          <div className="space-y-3 bg-[#222222] p-4 rounded-xl border border-neutral-800">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#FFC107]">Social Links & Music</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] text-neutral-400 block mb-1">Instagram Handle</label>
+                <input
+                  type="text"
+                  placeholder="@username"
+                  value={formData.socialLinks?.instagram || ''}
+                  onChange={e => setFormData({
+                    ...formData,
+                    socialLinks: { ...formData.socialLinks, instagram: e.target.value }
+                  })}
+                  className="w-full bg-[#1A1A1A] border border-neutral-700 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#FFC107]"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-neutral-400 block mb-1">Twitter Handle</label>
+                <input
+                  type="text"
+                  placeholder="@username"
+                  value={formData.socialLinks?.twitter || ''}
+                  onChange={e => setFormData({
+                    ...formData,
+                    socialLinks: { ...formData.socialLinks, twitter: e.target.value }
+                  })}
+                  className="w-full bg-[#1A1A1A] border border-neutral-700 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#FFC107]"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-neutral-400 block mb-1">Snapchat</label>
+                <input
+                  type="text"
+                  placeholder="Snap username"
+                  value={formData.socialLinks?.snapchat || ''}
+                  onChange={e => setFormData({
+                    ...formData,
+                    socialLinks: { ...formData.socialLinks, snapchat: e.target.value }
+                  })}
+                  className="w-full bg-[#1A1A1A] border border-neutral-700 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#FFC107]"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-neutral-400 block mb-1">Spotify Favorite Track/Artist</label>
+                <input
+                  type="text"
+                  placeholder="Song - Artist"
+                  value={formData.socialLinks?.spotify || ''}
+                  onChange={e => setFormData({
+                    ...formData,
+                    socialLinks: { ...formData.socialLinks, spotify: e.target.value }
+                  })}
+                  className="w-full bg-[#1A1A1A] border border-neutral-700 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#FFC107]"
+                />
+              </div>
             </div>
           </div>
 
@@ -553,6 +850,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Ghost Mode Stealth Browsing Setting */}
+          <div className="bg-[#222222] border border-neutral-800 rounded-2xl p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-lg">👻</span>
+                <div>
+                  <h4 className="font-bold text-sm text-white">Ghost Mode (Stealth Browsing)</h4>
+                  <p className="text-[11px] text-neutral-400">Browse profiles invisibly without appearing in visitor history.</p>
+                </div>
+              </div>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isGhostMode || false}
+                  onChange={e => setFormData({ ...formData, isGhostMode: e.target.checked })}
+                  className="rounded bg-[#1A1A1A] border-neutral-700 text-[#FFC107] focus:ring-0 w-4 h-4"
+                />
+                <span className="text-xs font-semibold text-[#FFC107]">
+                  {formData.isGhostMode ? 'Active (Stealth)' : 'Inactive'}
+                </span>
+              </label>
             </div>
           </div>
 
@@ -769,7 +1090,72 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             </div>
           </div>
 
-          {/* Tribes */}
+          {/* Insights Section with Recharts */}
+          <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="w-5 h-5 text-[#FFC107]" />
+                <h3 className="text-sm font-bold text-white">Profile Insights & Views (Last 7 Days)</h3>
+              </div>
+              <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-semibold border border-amber-500/30">
+                +24% this week
+              </span>
+            </div>
+            <p className="text-xs text-neutral-400">Track how many people viewed your profile and interacted with your cards daily.</p>
+            <div className="h-64 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={[
+                  { day: 'Mon', views: 42, taps: 14 },
+                  { day: 'Tue', views: 68, taps: 22 },
+                  { day: 'Wed', views: 55, taps: 19 },
+                  { day: 'Thu', views: 92, taps: 31 },
+                  { day: 'Fri', views: 145, taps: 48 },
+                  { day: 'Sat', views: 180, taps: 62 },
+                  { day: 'Sun', views: 165, taps: 55 },
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis dataKey="day" stroke="#888" fontSize={12} />
+                  <YAxis stroke="#888" fontSize={12} />
+                  <Tooltip contentStyle={{ backgroundColor: '#181818', borderColor: '#333', borderRadius: '12px', color: '#fff' }} />
+                  <Line type="monotone" dataKey="views" name="Profile Views" stroke="#FFC107" strokeWidth={3} dot={{ r: 4, fill: '#FFC107' }} activeDot={{ r: 8 }} />
+                  <Line type="monotone" dataKey="taps" name="Taps & Winks" stroke="#38bdf8" strokeWidth={2} dot={{ r: 3, fill: '#38bdf8' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Weekly Chat Activity Volume Chart */}
+          <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-xl">💬</span>
+                <h3 className="text-sm font-bold text-white">Weekly Chat Activity Volume</h3>
+              </div>
+              <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full font-semibold border border-cyan-500/35">
+                Peak: Sat Evenings
+              </span>
+            </div>
+            <p className="text-xs text-neutral-400">Visualizing message frequency and conversation activity across days of the week.</p>
+            <div className="h-60 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                  { day: 'Mon', messages: 28 },
+                  { day: 'Tue', messages: 45 },
+                  { day: 'Wed', messages: 35 },
+                  { day: 'Thu', messages: 62 },
+                  { day: 'Fri', messages: 95 },
+                  { day: 'Sat', messages: 140 },
+                  { day: 'Sun', messages: 110 },
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis dataKey="day" stroke="#888" fontSize={12} />
+                  <YAxis stroke="#888" fontSize={12} />
+                  <Tooltip contentStyle={{ backgroundColor: '#181818', borderColor: '#333', borderRadius: '12px', color: '#fff' }} />
+                  <Bar dataKey="messages" name="Messages Sent/Received" fill="#FFC107" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
           {currentUser.tribes && currentUser.tribes.length > 0 && (
             <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 space-y-3 shadow-xl">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Tribes</h3>
@@ -839,6 +1225,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
           </div>
         </div>
       )}
+
+      {/* Export Profile Card Modal */}
+      <ExportProfileModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        profile={currentUser}
+      />
 
     </div>
   );

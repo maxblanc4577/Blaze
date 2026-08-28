@@ -1,5 +1,5 @@
-import React from 'react';
-import { SlidersHorizontal, Flame, Sparkles, MapPin, Bell, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { SlidersHorizontal, Flame, Sparkles, MapPin, Bell, Users, Sun, Moon, Globe, Zap, EyeOff, Settings } from 'lucide-react';
 import { BuzzSimulator } from './BuzzSimulator';
 import { UserProfile } from '../types';
 import { BuzzEvent } from '../utils/buzz';
@@ -9,6 +9,7 @@ interface NavbarProps {
   onOpenAI: () => void;
   onShareLocation: () => void;
   onOpenContacts: () => void;
+  onOpenSettings: () => void;
   gridColumns: number;
   setGridColumns: (cols: number) => void;
   activeTab: string;
@@ -18,6 +19,13 @@ interface NavbarProps {
   onTriggerBuzzEvent: (event: BuzzEvent) => void;
   autoSimulatorActive: boolean;
   setAutoSimulatorActive: (active: boolean) => void;
+  isDarkMode: boolean;
+  onToggleTheme: () => void;
+  currentLanguage: string;
+  onLanguageChange: (lang: string) => void;
+  boostActiveUntil: number | null;
+  onActivateBoost: () => void;
+  currentUser?: UserProfile;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -25,6 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAI,
   onShareLocation,
   onOpenContacts,
+  onOpenSettings,
   gridColumns,
   setGridColumns,
   activeTab,
@@ -34,7 +43,39 @@ export const Navbar: React.FC<NavbarProps> = ({
   onTriggerBuzzEvent,
   autoSimulatorActive,
   setAutoSimulatorActive,
+  isDarkMode,
+  onToggleTheme,
+  currentLanguage,
+  onLanguageChange,
+  boostActiveUntil,
+  onActivateBoost,
+  currentUser,
 }) => {
+  const [timeLeft, setTimeLeft] = useState<string>('');
+
+  useEffect(() => {
+    if (!boostActiveUntil) return;
+    const interval = setInterval(() => {
+      const remaining = boostActiveUntil - Date.now();
+      if (remaining <= 0) {
+        setTimeLeft('');
+        clearInterval(interval);
+      } else {
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        setTimeLeft(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [boostActiveUntil]);
+
+  const languages = [
+    { code: 'en', label: 'English' },
+    { code: 'es', label: 'Español' },
+    { code: 'fr', label: 'Français' },
+    { code: 'de', label: 'Deutsch' },
+    { code: 'ja', label: '日本語' },
+  ];
   return (
     <header className="sticky top-0 z-30 bg-[#1A1A1A] border-b border-neutral-800 text-white px-4 py-3 flex items-center justify-between">
       <div className="flex items-center space-x-3">
@@ -53,6 +94,47 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       <div className="flex items-center space-x-2">
+        {/* Ghost Mode Stealth Badge */}
+        {currentUser?.isGhostMode && (
+          <div className="flex items-center gap-1 bg-neutral-800 text-purple-300 border border-purple-500/40 px-2.5 py-1 rounded-full text-xs font-bold shadow-md" title="Ghost Mode Active: Browsing stealthily">
+            <EyeOff className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden sm:inline">Ghost</span>
+          </div>
+        )}
+
+        {/* Language Selector */}
+        <div className="relative flex items-center bg-[#252525] border border-neutral-700 rounded-xl px-2 py-1 text-xs">
+          <Globe className="w-3.5 h-3.5 text-neutral-400 mr-1" />
+          <select
+            value={currentLanguage}
+            onChange={(e) => onLanguageChange(e.target.value)}
+            className="bg-transparent text-white text-xs outline-none cursor-pointer"
+            title="Select App Language"
+          >
+            {languages.map((lang) => (
+              <option key={lang.code} value={lang.code} className="bg-[#1A1A1A] text-white">
+                {lang.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Boost Feature Button / Countdown */}
+        {boostActiveUntil && boostActiveUntil > Date.now() ? (
+          <div className="flex items-center gap-1 bg-amber-500 text-black px-3 py-1 rounded-full text-xs font-black shadow-lg animate-pulse">
+            <Zap className="w-3.5 h-3.5 fill-current" />
+            <span>Boost: {timeLeft || '30:00'}</span>
+          </div>
+        ) : (
+          <button
+            onClick={onActivateBoost}
+            className="flex items-center gap-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 text-black px-3 py-1.5 rounded-full text-xs font-extrabold shadow transition active:scale-95"
+            title="Boost profile for 30 minutes"
+          >
+            <Zap className="w-3.5 h-3.5 fill-current" />
+            <span>Boost</span>
+          </button>
+        )}
         {/* Buzz Simulator */}
         <BuzzSimulator
           profiles={profiles}
@@ -129,6 +211,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           title="Filter profiles"
         >
           <SlidersHorizontal className="w-5 h-5 text-[#FFC107]" />
+        </button>
+
+        {/* Settings button */}
+        <button
+          onClick={onOpenSettings}
+          className="p-2 rounded-xl bg-[#252525] hover:bg-[#333333] border border-neutral-700 text-neutral-200 transition relative"
+          title="App Settings & Privacy"
+        >
+          <Settings className="w-5 h-5 text-[#FFC107]" />
         </button>
       </div>
     </header>

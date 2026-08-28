@@ -18,6 +18,7 @@ export const CURRENT_USER: UserProfile = {
   lookingFor: ['Chat', 'Friends', 'Dates'],
   tribes: ['Geek', 'Clean'],
   interestTags: ['Tech', 'Coffee', 'Design', 'Travel'],
+  styleTags: ['Minimalist', 'Cyberpunk'],
   isVerified: true,
   lockedAlbum: {
     photos: [
@@ -53,6 +54,7 @@ export const MOCK_PROFILES: UserProfile[] = [
     lookingFor: ['Dates', 'Chat', 'Friends'],
     tribes: ['Geek', 'Clean'],
     interestTags: ['Coding', 'Gym', 'Coffee', 'Gaming'],
+    styleTags: ['Minimalist', 'Athleisure'],
     isVerified: true,
     lockedAlbum: {
       photos: [
@@ -90,6 +92,7 @@ export const MOCK_PROFILES: UserProfile[] = [
     lookingFor: ['Friends', 'Chat', 'Right Now'],
     tribes: ['Jock', 'Clean'],
     interestTags: ['Photography', 'Travel', 'Art', 'Fitness'],
+    styleTags: ['Vintage', 'Boho'],
     isVerified: false,
     lockedAlbum: {
       photos: [],
@@ -122,6 +125,7 @@ export const MOCK_PROFILES: UserProfile[] = [
     lookingFor: ['Dates', 'Friends'],
     tribes: ['Bear', 'Daddy'],
     interestTags: ['Hiking', 'Beer', 'Dogs', 'Cooking'],
+    styleTags: ['Vintage', 'Preppy'],
     isVerified: true,
     lockedAlbum: {
       photos: [

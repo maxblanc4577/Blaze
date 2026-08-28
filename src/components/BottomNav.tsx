@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid, Flame, Star, MessageSquare, User, MapPin } from 'lucide-react';
+import { Grid, Flame, Star, MessageSquare, User, MapPin, Compass } from 'lucide-react';
 
 interface BottomNavProps {
   activeTab: string;
@@ -17,6 +17,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const tabs = [
     { id: 'grid', label: 'Grid', icon: Grid },
     { id: 'map', label: 'Map', icon: MapPin },
+    { id: 'tribes', label: 'Tribes', icon: Compass },
     { id: 'taps', label: 'Taps', icon: Flame, badge: unreadTapsCount },
     { id: 'favorites', label: 'Favorites', icon: Star },
     { id: 'chats', label: 'Chats', icon: MessageSquare, badge: unreadChatCount },

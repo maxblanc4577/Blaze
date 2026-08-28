@@ -19,10 +19,52 @@ import { BuzzAlertBanner } from './components/BuzzAlertBanner';
 import { NotificationsModal } from './components/NotificationsModal';
 import { MapView } from './components/MapView';
 import { ContactsModal } from './components/ContactsModal';
+import { TribesView } from './components/TribesView';
+import { SettingsModal } from './components/SettingsModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grid');
   const [gridColumns, setGridColumns] = useState<number>(4);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('blaze_theme');
+    return saved ? saved === 'dark' : true;
+  });
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const mainRef = React.useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    localStorage.setItem('blaze_theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
+      if (e.key === 'c' || e.key === 'C') {
+        setActiveTab('chats');
+      } else if (e.key === 's' || e.key === 'S') {
+        setIsFilterOpen(true);
+      } else if (e.key === 'g' || e.key === 'G') {
+        setActiveTab('grid');
+      } else if (e.key === 'm' || e.key === 'M') {
+        setActiveTab('map');
+      } else if (e.key === 'Escape') {
+        setIsFilterOpen(false);
+        setIsAIOpen(false);
+        setSelectedProfile(null);
+        setActiveChat(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+    if (e.currentTarget.scrollTop > 350) {
+      setShowBackToTop(true);
+    } else {
+      setShowBackToTop(false);
+    }
+  };
 
   const [profiles, setProfiles] = useState<UserProfile[]>(MOCK_PROFILES);
   const [currentUser, setCurrentUser] = useState<UserProfile>(CURRENT_USER);
@@ -41,6 +83,27 @@ export default function App() {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeChat, setActiveChat] = useState<ChatConversation | null>(null);
   const [isContactsOpen, setIsContactsOpen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [readReceiptsEnabled, setReadReceiptsEnabled] = useState<boolean>(true);
+  const [currentLanguage, setCurrentLanguage] = useState<string>('en');
+  const [travelModeEnabled, setTravelModeEnabled] = useState<boolean>(false);
+  const [travelCity, setTravelCity] = useState<string>('London, UK');
+  const [accentColor, setAccentColor] = useState<string>('#FFC107');
+  const [boostActiveUntil, setBoostActiveUntil] = useState<number | null>(null);
+
+  // Background location observer for high-compatibility profile within 1-mile radius
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      showToast('📍 Someone new is nearby: Marcus (96% compatibility, 0.4 mi away)');
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleActivateBoost = () => {
+    const until = Date.now() + 30 * 60 * 1000;
+    setBoostActiveUntil(until);
+    showToast('⚡ Boost activated! You have increased visibility in the grid for 30 minutes.');
+  };
 
   // Buzz system state
   const [buzzEvents, setBuzzEvents] = useState<BuzzEvent[]>([
@@ -187,7 +250,14 @@ export default function App() {
       }
       return true;
     })
-    .sort((a, b) => a.distance - b.distance);
+    .sort((a, b) => {
+      if (filters.suggestedForYou) {
+        const scoreA = (a.tribes?.length || 0) + (a.interestTags?.length || 0);
+        const scoreB = (b.tribes?.length || 0) + (b.interestTags?.length || 0);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+      }
+      return a.distance - b.distance;
+    });
 
   const favoriteProfiles = profiles.filter((p) => p.isFavorite).sort((a, b) => a.distance - b.distance);
   const tappedProfiles = profiles.filter((p) => p.isTapped).sort((a, b) => a.distance - b.distance);
@@ -249,14 +319,16 @@ export default function App() {
   };
 
   const handleSendMessage = (conversationId: string, text: string, type: 'text' | 'image' | 'audio' | 'location' = 'text', mediaUrl?: string) => {
+    const msgId = `msg-${Date.now()}`;
     const newMsg: Message = {
-      id: `msg-${Date.now()}`,
+      id: msgId,
       senderId: currentUser.id,
       receiverId: activeChat?.profile.id || 'user',
       text,
       timestamp: Date.now(),
       type,
       mediaUrl,
+      isRead: false,
     };
 
     setConversations((prev) =>
@@ -281,6 +353,30 @@ export default function App() {
         messages: [...prev.messages, newMsg],
       } : null);
     }
+
+    // Simulate read receipt after 1.5 seconds
+    setTimeout(() => {
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === conversationId) {
+            return {
+              ...c,
+              messages: c.messages.map((m) => m.id === msgId ? { ...m, isRead: true, readAt: Date.now() } : m),
+            };
+          }
+          return c;
+        })
+      );
+      setActiveChat((prev) => {
+        if (prev && prev.id === conversationId) {
+          return {
+            ...prev,
+            messages: prev.messages.map((m) => m.id === msgId ? { ...m, isRead: true, readAt: Date.now() } : m),
+          };
+        }
+        return prev;
+      });
+    }, 1500);
   };
 
   return (
@@ -320,6 +416,7 @@ export default function App() {
         }}
         onShareLocation={handleShareLocation}
         onOpenContacts={() => setIsContactsOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         gridColumns={gridColumns}
         setGridColumns={setGridColumns}
         activeTab={activeTab}
@@ -329,10 +426,24 @@ export default function App() {
         onTriggerBuzzEvent={handleTriggerBuzzEvent}
         autoSimulatorActive={autoSimulatorActive}
         setAutoSimulatorActive={setAutoSimulatorActive}
+        isDarkMode={isDarkMode}
+        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+        currentLanguage={currentLanguage}
+        onLanguageChange={(lang) => {
+          setCurrentLanguage(lang);
+          showToast(`Language switched to ${lang.toUpperCase()}`);
+        }}
+        boostActiveUntil={boostActiveUntil}
+        onActivateBoost={handleActivateBoost}
+        currentUser={currentUser}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto">
+      <main
+        ref={mainRef}
+        onScroll={handleScroll}
+        className={`flex-1 overflow-y-auto relative ${isDarkMode ? 'bg-[#121212] text-white' : 'bg-neutral-100 text-neutral-900'}`}
+      >
         {activeTab === 'grid' && (
           <div className="max-w-7xl mx-auto p-3 sm:p-4 pb-24">
             
@@ -343,13 +454,13 @@ export default function App() {
                 placeholder="Search by name, bio, or interests..."
                 value={filters.searchQuery}
                 onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
-                className="w-full bg-[#1E1E1E] border border-neutral-800 focus:border-[#FFC107] rounded-xl px-4 py-3 text-sm text-white outline-none transition shadow-sm"
+                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition shadow-sm ${isDarkMode ? 'bg-[#1E1E1E] border-neutral-800 focus:border-[#FFC107] text-white' : 'bg-white border-neutral-300 focus:border-amber-500 text-neutral-900'}`}
               />
             </div>
 
             {filteredProfiles.length === 0 ? (
               <div className="text-center py-20 text-neutral-400">
-                <p className="text-lg font-bold text-white mb-1">No profiles match your filters</p>
+                <p className="text-lg font-bold mb-1">No profiles match your filters</p>
                 <p className="text-sm">Try broadening your distance radius or resetting your filters.</p>
               </div>
             ) : (
@@ -359,12 +470,19 @@ export default function App() {
                   gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
                 }}
               >
-                {filteredProfiles.map((profile) => (
+                {filteredProfiles.map((profile, idx) => (
                   <ProfileCard
                     key={profile.id}
                     profile={profile}
+                    index={idx}
+                    currentUserInterests={currentUser.interestTags}
                     onClick={() => setSelectedProfile(profile)}
                     onTap={handleSendTap}
+                    onBadgeClick={(tag) => setFilters({ ...filters, searchQuery: tag })}
+                    onPass={(profileId) => {
+                      setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
+                      showToast('🚫 Profile passed and hidden.');
+                    }}
                   />
                 ))}
               </div>
@@ -372,10 +490,30 @@ export default function App() {
           </div>
         )}
 
+        {/* Back to Top Floating Button */}
+        {showBackToTop && activeTab === 'grid' && (
+          <button
+            onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="fixed bottom-20 right-6 z-40 bg-[#FFC107] text-[#121212] w-12 h-12 rounded-full font-bold shadow-2xl hover:scale-110 transition flex items-center justify-center text-xl"
+            title="Back to Top"
+          >
+            ↑
+          </button>
+        )}
+
         {activeTab === 'map' && (
           <div className="max-w-7xl mx-auto p-3 sm:p-4 pb-24">
             <MapView profiles={filteredProfiles} onSelectProfile={(p) => setSelectedProfile(p)} />
           </div>
+        )}
+
+        {activeTab === 'tribes' && (
+          <TribesView
+            profiles={profiles}
+            onSelectProfile={(p) => setSelectedProfile(p)}
+            onStartChat={handleStartChat}
+            onSendTap={handleSendTap}
+          />
         )}
 
         {activeTab === 'taps' && (
@@ -447,24 +585,74 @@ export default function App() {
           onBack={() => setActiveChat(null)}
           onSendMessage={handleSendMessage}
           currentUser={currentUser}
+          onOpenAI={(p) => {
+            setAITargetProfile(p);
+            setIsAIOpen(true);
+          }}
+          readReceiptsEnabled={readReceiptsEnabled}
+          onClearConversation={(convId) => {
+            setConversations(prev => prev.map(c => c.id === convId ? { ...c, messages: [] } : c));
+            setActiveChat(prev => prev ? { ...prev, messages: [] } : null);
+            showToast('🗑️ Conversation cleared successfully.');
+          }}
         />
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        readReceiptsEnabled={readReceiptsEnabled}
+        onToggleReadReceipts={setReadReceiptsEnabled}
+        isDarkMode={isDarkMode}
+        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+        currentLanguage={currentLanguage}
+        onLanguageChange={(lang) => {
+          setCurrentLanguage(lang);
+          showToast(`Language switched to ${lang.toUpperCase()}`);
+        }}
+        travelModeEnabled={travelModeEnabled}
+        onToggleTravelMode={(enabled) => {
+          setTravelModeEnabled(enabled);
+          if (enabled) {
+            setCurrentUser(prev => ({ ...prev, locationName: `✈️ ${travelCity} (Travel Mode)` }));
+            showToast(`✈️ Travel Mode enabled for ${travelCity} for 48 hours!`);
+          } else {
+            setCurrentUser(prev => ({ ...prev, locationName: 'Downtown' }));
+            showToast('🏠 Travel Mode disabled. Location reset.');
+          }
+        }}
+        travelCity={travelCity}
+        onTravelCityChange={(city) => {
+          setTravelCity(city);
+          if (travelModeEnabled) {
+            setCurrentUser(prev => ({ ...prev, locationName: `✈️ ${city} (Travel Mode)` }));
+            showToast(`✈️ Travel destination updated to ${city}`);
+          }
+        }}
+        accentColor={accentColor}
+        onAccentColorChange={(color) => {
+          setAccentColor(color);
+          showToast(`🎨 Interface accent color updated!`);
+        }}
+      />
 
       {/* Right-Side Profile Panel */}
       {selectedProfile && (
         <RightProfilePanel
           profile={selectedProfile}
+          currentUser={currentUser}
           onClose={() => setSelectedProfile(null)}
           onStartChat={(p) => {
             setSelectedProfile(null);
             handleStartChat(p);
             setActiveTab('chats');
           }}
-          onToggleFavorite={handleToggleFavorite}
           onSendTap={(p) => handleSendTap({} as any, p)}
-          onOpenAIIcebreaker={(p) => {
-            setAITargetProfile(p);
-            setIsAIOpen(true);
+          onBlockUser={(profileId) => {
+            setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
+            setConversations(prev => prev.filter(c => c.profile.id !== profileId));
+            showToast('🚫 User blocked successfully. Profile hidden and notifications stopped.');
           }}
         />
       )}
@@ -499,6 +687,10 @@ export default function App() {
             handleStartChat(aiTargetProfile);
             setActiveTab('chats');
           }
+        }}
+        onUpdateBio={(newBio) => {
+          setCurrentUser(prev => ({ ...prev, aboutMe: newBio }));
+          showToast('✨ Bio updated successfully using AI Refiner!');
         }}
       />
 

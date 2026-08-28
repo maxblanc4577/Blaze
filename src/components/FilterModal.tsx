@@ -59,6 +59,26 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         {/* Content */}
         <div className="p-5 overflow-y-auto space-y-6 flex-1">
           
+          {/* Suggested For You Toggle */}
+          <div className="bg-[#222222] border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <span className="text-xl">✨</span>
+              <div>
+                <h4 className="font-bold text-sm text-white">Suggested for You</h4>
+                <p className="text-[11px] text-neutral-400">Prioritize high compatibility scores and common interests.</p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.suggestedForYou || false}
+                onChange={e => setFilters(prev => ({ ...prev, suggestedForYou: e.target.checked }))}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FFC107]"></div>
+            </label>
+          </div>
+
           {/* Status Filter (Online, Offline, Away) */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Online Status</h3>
@@ -157,7 +177,38 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             </div>
           </div>
 
-          {/* Looking For */}
+          {/* Interest Cloud Filter */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Interest Cloud</h3>
+            <div className="flex flex-wrap gap-2">
+              {['Fitness', 'Coffee', 'Music', 'Travel', 'Tech', 'Design', 'Art', 'Food', 'Gaming', 'Yoga', 'Photography'].map(tag => {
+                const selected = filters.selectedTribes.includes(tag as any);
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => {
+                      setFilters(prev => {
+                        const exists = prev.selectedTribes.includes(tag as any);
+                        return {
+                          ...prev,
+                          selectedTribes: exists
+                            ? prev.selectedTribes.filter(t => t !== tag)
+                            : [...prev.selectedTribes, tag as any],
+                        };
+                      });
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                      selected
+                        ? 'bg-purple-500 text-white font-bold shadow'
+                        : 'bg-[#252525] text-neutral-300 hover:bg-[#333333] border border-neutral-800'
+                    }`}
+                  >
+                    ✨ {tag}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Looking For</h3>
             <div className="flex flex-wrap gap-2">
