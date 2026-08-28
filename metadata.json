@@ -1,0 +1,7 @@
+{
+  "name": "Blaze",
+  "description": "A location-based social and dating web application featuring profile grids, filters, direct messaging, taps, and AI-powered icebreakers.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
