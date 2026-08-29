@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UserProfile, getFilterStyle } from '../types';
 import { ShieldAlert, Sparkles, Heart, Share2, Check, ShieldCheck, Flag, AlertTriangle, Music, Play, Pause, Smile, Mic } from 'lucide-react';
-import { VennDiagram } from './VennDiagram';
 
 interface RightProfilePanelProps {
   profile: UserProfile | null;
@@ -479,16 +478,6 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
             </div>
           </div>
         )}
-
-        {/* D3 Shared Interest Venn Diagram Visualization */}
-        <div className="mb-4">
-          <VennDiagram
-            currentUserInterests={currentUser?.interestTags || ['Tech', 'Coffee', 'Design', 'Travel']}
-            targetUserInterests={profile.interestTags || []}
-            currentUserName={currentUser?.name || 'You'}
-            targetUserName={profile.name}
-          />
-        </div>
 
         {/* Mutual Contacts Section */}
         {mutualContacts.length > 0 && (

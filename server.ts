@@ -227,16 +227,8 @@ async function startServer() {
     });
   }
 
-  const server = app.listen(PORT, "0.0.0.0", () => {
+  app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
-  });
-
-  server.on('error', (err: any) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`Port ${PORT} is already in use. Retrying or shutting down gracefully.`);
-    } else {
-      console.error('Server error:', err);
-    }
   });
 }
 

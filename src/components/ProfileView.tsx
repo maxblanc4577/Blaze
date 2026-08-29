@@ -7,7 +7,6 @@ import { ExportProfileModal } from './ExportProfileModal';
 interface ProfileViewProps {
   currentUser: UserProfile;
   onUpdateUser: (updated: UserProfile) => void;
-  onOpenAI: () => void;
   onOpenCompanionModal: () => void;
 }
 
@@ -28,7 +27,7 @@ const COMPANION_SERVICE_OPTIONS = [
   'Activity Partner'
 ];
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateUser, onOpenAI, onOpenCompanionModal }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateUser, onOpenCompanionModal }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<UserProfile>({ ...currentUser });
   const [successMsg, setSuccessMsg] = useState('');

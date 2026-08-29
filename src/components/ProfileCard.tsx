@@ -19,9 +19,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeX, setSwipeX] = useState(0);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
-  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
 
-  const photos = profile.photos && profile.photos.length > 0 ? profile.photos : ['https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=800&q=80'];
   const minSwipeDistance = 60;
 
   // Shared interests computation
@@ -136,56 +134,20 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
         </div>
       )}
 
-      {/* Photo with scroll/cycle */}
-      <div className="absolute inset-0 w-full h-full bg-neutral-900 overflow-hidden">
+      {/* Photo */}
+      <div className="absolute inset-0 w-full h-full bg-neutral-900">
         <img
-          src={photos[activePhotoIdx]}
+          src={profile.photos[0]}
           alt={profile.name}
           style={{ filter: getFilterStyle(profile.photoFilter) }}
-          className={`w-full h-full object-cover transition-all duration-300 ${
+          className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 pointer-events-none ${
             isPrivacyBlurred ? 'blur-[8px] group-hover:blur-none' : ''
           }`}
           referrerPolicy="no-referrer"
         />
         {/* Gradient overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
-
-        {/* Click zones for photo navigation */}
-        {photos.length > 1 && (
-          <>
-            <div
-              className="absolute inset-y-0 left-0 w-1/2 z-10 cursor-w-resize"
-              onClick={(e) => {
-                e.stopPropagation();
-                setActivePhotoIdx(prev => (prev > 0 ? prev - 1 : photos.length - 1));
-              }}
-              title="Previous Photo"
-            />
-            <div
-              className="absolute inset-y-0 right-0 w-1/2 z-10 cursor-e-resize"
-              onClick={(e) => {
-                e.stopPropagation();
-                setActivePhotoIdx(prev => (prev < photos.length - 1 ? prev + 1 : 0));
-              }}
-              title="Next Photo"
-            />
-          </>
-        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
       </div>
-
-      {/* Photo Indicator Bars */}
-      {photos.length > 1 && (
-        <div className="relative z-20 px-3 pt-2 flex gap-1 w-full">
-          {photos.map((_, pIdx) => (
-            <div
-              key={pIdx}
-              className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                pIdx === activePhotoIdx ? 'bg-white shadow-md' : 'bg-white/40'
-              }`}
-            />
-          ))}
-        </div>
-      )}
 
       {/* Top badges: Online status & Distance & Mood */}
       <div className="relative z-10 p-2 flex items-center justify-between">

@@ -8,7 +8,6 @@ interface ProfileModalProps {
   onStartChat: (profile: UserProfile) => void;
   onToggleFavorite: (profileId: string) => void;
   onSendTap: (profile: UserProfile) => void;
-  onOpenAIIcebreaker: (profile: UserProfile) => void;
   onBlockUser?: (profileId: string) => void;
   onSuspendUser?: (profileId: string) => void;
   onSendWink: (profile: UserProfile) => void;
@@ -23,7 +22,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onStartChat,
   onToggleFavorite,
   onSendTap,
-  onOpenAIIcebreaker,
   onBlockUser,
   onSuspendUser,
   onSendWink,
@@ -441,14 +439,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </div>
             )}
 
-            {/* AI Icebreaker generator suggestion button */}
-            <button
-              onClick={() => onOpenAIIcebreaker(profile)}
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-[#FFC107]/40 text-[#FFC107] font-bold text-sm flex items-center justify-center space-x-2 hover:bg-[#FFC107]/10 transition"
-            >
-              <Sparkles className="w-4 h-4 fill-current" />
-              <span>Generate AI Icebreaker for {profile.name}</span>
-            </button>
+
 
             {/* Moderation: Block & Suspend */}
             <div className="flex items-center justify-between pt-2 border-t border-neutral-800">

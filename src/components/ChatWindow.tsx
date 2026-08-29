@@ -8,7 +8,6 @@ interface ChatWindowProps {
   onBack: () => void;
   onSendMessage: (conversationId: string, text: string, type?: 'text' | 'image' | 'audio' | 'location', mediaUrl?: string) => void;
   currentUser: UserProfile;
-  onOpenAI?: (profile: UserProfile) => void;
   onClearConversation?: (conversationId: string) => void;
   readReceiptsEnabled?: boolean;
 }
@@ -18,7 +17,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onBack,
   onSendMessage,
   currentUser,
-  onOpenAI,
   onClearConversation,
   readReceiptsEnabled = true,
 }) => {
@@ -322,17 +320,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <Zap className="w-4 h-4 text-cyan-400" />
             <span className="hidden sm:inline">Reply Speed</span>
           </button>
-
-          {onOpenAI && (
-            <button
-              onClick={() => onOpenAI(profile)}
-              className="flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 text-xs px-3 py-2 rounded-xl font-semibold transition shadow-sm"
-              title="Get AI Icebreaker Suggestions"
-            >
-              <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400/30" />
-              <span className="hidden sm:inline">Get Icebreaker</span>
-            </button>
-          )}
         </div>
       </header>
 

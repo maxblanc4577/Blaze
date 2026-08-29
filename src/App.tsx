@@ -13,7 +13,7 @@ import { ChatWindow } from './components/ChatWindow';
 import { TapsView } from './components/TapsView';
 import { FavoritesView } from './components/FavoritesView';
 import { ProfileView } from './components/ProfileView';
-import { AIAssistModal } from './components/AIAssistModal';
+
 import { CompanionMembershipModal } from './components/CompanionMembershipModal';
 import { BuzzAlertBanner } from './components/BuzzAlertBanner';
 import { NotificationsModal } from './components/NotificationsModal';
@@ -49,7 +49,6 @@ export default function App() {
         setActiveTab('map');
       } else if (e.key === 'Escape') {
         setIsFilterOpen(false);
-        setIsAIOpen(false);
         setSelectedProfile(null);
         setActiveChat(null);
       }
@@ -88,15 +87,36 @@ export default function App() {
   const [currentLanguage, setCurrentLanguage] = useState<string>('en');
   const [travelModeEnabled, setTravelModeEnabled] = useState<boolean>(false);
   const [travelCity, setTravelCity] = useState<string>('London, UK');
-  const [accentColor, setAccentColor] = useState<string>('#FFC107');
+  const [accentColor, setAccentColor] = useState<string>(() => {
+    return localStorage.getItem('spark_accent_color') || '#FFC107';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('spark_accent_color', accentColor);
+    document.documentElement.style.setProperty('--accent-color', accentColor);
+  }, [accentColor]);
+
   const [boostActiveUntil, setBoostActiveUntil] = useState<number | null>(null);
 
   // Background location observer for high-compatibility profile within 1-mile radius
   useEffect(() => {
     const timer = setTimeout(() => {
+      setProfiles(prev => prev.map(p => p.id === 'user-3' ? { ...p, distance: 0.4 } : p));
       showToast('📍 Someone new is nearby: Marcus (96% compatibility, 0.4 mi away)');
-    }, 12000);
+    }, 8000);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Focus mode deletion of 14th element (profile card)
+  useEffect(() => {
+    const unblocked = profiles.filter(p => !p.isBlocked);
+    if (unblocked.length >= 14) {
+      const targetProfile = unblocked[13];
+      if (targetProfile) {
+        setProfiles(prev => prev.filter(p => p.id !== targetProfile.id));
+        showToast('🗑️ Profile removed from the platform.');
+      }
+    }
   }, []);
 
   const handleActivateBoost = () => {
@@ -123,9 +143,7 @@ export default function App() {
   const [autoSimulatorActive, setAutoSimulatorActive] = useState(false);
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [isAIOpen, setIsAIOpen] = useState(false);
   const [isCompanionModalOpen, setIsCompanionModalOpen] = useState(false);
-  const [aiTargetProfile, setAITargetProfile] = useState<UserProfile | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -246,7 +264,10 @@ export default function App() {
         const matchName = p.name.toLowerCase().includes(q);
         const matchBio = p.aboutMe.toLowerCase().includes(q);
         const matchHeadline = p.headline?.toLowerCase().includes(q) || false;
-        if (!matchName && !matchBio && !matchHeadline) return false;
+        const matchInterest = p.interestTags?.some(t => t.toLowerCase().includes(q)) || false;
+        const matchStyle = p.styleTags?.some(s => s.toLowerCase().includes(q)) || false;
+        const matchTribe = p.tribes?.some(t => t.toLowerCase().includes(q)) || false;
+        if (!matchName && !matchBio && !matchHeadline && !matchInterest && !matchStyle && !matchTribe) return false;
       }
       return true;
     })
@@ -410,10 +431,6 @@ export default function App() {
       {/* Navbar */}
       <Navbar
         onOpenFilters={() => setIsFilterOpen(true)}
-        onOpenAI={() => {
-          setAITargetProfile(null);
-          setIsAIOpen(true);
-        }}
         onShareLocation={handleShareLocation}
         onOpenContacts={() => setIsContactsOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -478,7 +495,10 @@ export default function App() {
                     currentUserInterests={currentUser.interestTags}
                     onClick={() => setSelectedProfile(profile)}
                     onTap={handleSendTap}
-                    onBadgeClick={(tag) => setFilters({ ...filters, searchQuery: tag })}
+                    onBadgeClick={(tag) => {
+                      setFilters({ ...filters, searchQuery: tag });
+                      showToast(`✨ Filtered discovery grid by interest: ${tag}`);
+                    }}
                     onPass={(profileId) => {
                       setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
                       showToast('🚫 Profile passed and hidden.');
@@ -543,7 +563,6 @@ export default function App() {
           <ProfileView
             currentUser={currentUser}
             onUpdateUser={(updated) => setCurrentUser(updated)}
-            onOpenAI={() => setIsAIOpen(true)}
             onOpenCompanionModal={() => setIsCompanionModalOpen(true)}
           />
         )}
@@ -585,10 +604,6 @@ export default function App() {
           onBack={() => setActiveChat(null)}
           onSendMessage={handleSendMessage}
           currentUser={currentUser}
-          onOpenAI={(p) => {
-            setAITargetProfile(p);
-            setIsAIOpen(true);
-          }}
           readReceiptsEnabled={readReceiptsEnabled}
           onClearConversation={(convId) => {
             setConversations(prev => prev.map(c => c.id === convId ? { ...c, messages: [] } : c));
@@ -676,23 +691,7 @@ export default function App() {
         }
       />
 
-      {/* AI Assistant Modal */}
-      <AIAssistModal
-        isOpen={isAIOpen}
-        onClose={() => setIsAIOpen(false)}
-        currentUser={currentUser}
-        targetProfile={aiTargetProfile}
-        onSelectIcebreaker={(text) => {
-          if (aiTargetProfile) {
-            handleStartChat(aiTargetProfile);
-            setActiveTab('chats');
-          }
-        }}
-        onUpdateBio={(newBio) => {
-          setCurrentUser(prev => ({ ...prev, aboutMe: newBio }));
-          showToast('✨ Bio updated successfully using AI Refiner!');
-        }}
-      />
+
 
       {/* Google Contacts Modal */}
       <ContactsModal

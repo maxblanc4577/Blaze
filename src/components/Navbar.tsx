@@ -6,7 +6,6 @@ import { BuzzEvent } from '../utils/buzz';
 
 interface NavbarProps {
   onOpenFilters: () => void;
-  onOpenAI: () => void;
   onShareLocation: () => void;
   onOpenContacts: () => void;
   onOpenSettings: () => void;
@@ -30,7 +29,6 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenFilters,
-  onOpenAI,
   onShareLocation,
   onOpenContacts,
   onOpenSettings,
@@ -167,25 +165,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span>Location</span>
         </button>
 
-        {/* Contacts Button */}
-        <button
-          onClick={onOpenContacts}
-          className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-[#252525] hover:bg-[#333333] border border-neutral-700 text-[#FFC107] font-semibold text-xs shadow transition active:scale-95"
-          title="Sync Google Contacts"
-        >
-          <Users className="w-3.5 h-3.5" />
-          <span>Contacts</span>
-        </button>
 
-        {/* AI Assistant Button */}
-        <button
-          onClick={onOpenAI}
-          className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-[#121212] font-semibold text-xs shadow hover:opacity-90 transition active:scale-95"
-          title="AI Icebreaker & Matchmaker"
-        >
-          <Sparkles className="w-3.5 h-3.5 fill-current" />
-          <span>AI Match</span>
-        </button>
+
+
 
         {/* Grid size toggler */}
         <div className="hidden lg:flex items-center bg-[#252525] rounded-lg p-0.5 border border-neutral-700">
