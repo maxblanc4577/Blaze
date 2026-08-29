@@ -13,7 +13,6 @@ interface ProfileModalProps {
   onSendWink: (profile: UserProfile) => void;
   onSendLetsMeet: (profile: UserProfile) => void;
   onMarkInterested: (profileId: string, interested: boolean) => void;
-  onMatchUp: (profileId: string) => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -27,7 +26,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   onSendWink,
   onSendLetsMeet,
   onMarkInterested,
-  onMatchUp,
 }) => {
   if (!profile) return null;
 
@@ -544,18 +542,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 <span>Chat</span>
               </button>
             </div>
-
-            <button
-              onClick={() => onMatchUp(profile.id)}
-              className={`w-full py-3 px-4 rounded-xl font-black text-sm flex items-center justify-center space-x-2 transition shadow-lg ${
-                profile.isMatchedUp
-                  ? 'bg-emerald-600 text-white shadow-emerald-600/30'
-                  : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black shadow-amber-500/20 hover:opacity-95'
-              }`}
-            >
-              <span>🔥</span>
-              <span>{profile.isMatchedUp ? 'Matched Up! (Accepted)' : `Match Up with ${profile.name}`}</span>
-            </button>
           </div>
 
         </div>

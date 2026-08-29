@@ -1,4 +1,4 @@
-export type OnlineStatus = 'online' | 'away' | 'offline';
+export type OnlineStatus = 'online' | 'away' | 'offline' | 'dnd';
 
 export type BodyType = 'Average' | 'Athletic' | 'Muscular' | 'Stocky' | 'Slim' | 'Tone' | 'A Few Extra Pounds';
 
@@ -61,6 +61,7 @@ export interface UserProfile {
   isMatchedUp?: boolean;
   lastPhotoUpdated?: number;
   photoFilter?: string;
+  cardGradient?: string;
   currentMood?: string; // e.g. '🔥', '😎', '☕', '🚀', '😴', '🎉'
   stickers?: string[]; // e.g. ['🚀 VIP', '👑 Elite', '⚡ Fast Responder', '🔥 Hot']
   profileSong?: { title: string; artist: string; url: string };
@@ -74,7 +75,33 @@ export interface UserProfile {
   introVideoUrl?: string;
   voiceIntroUrl?: string;
   stories?: { id: string; url?: string; text?: string; timestamp: number }[]; // 24-hour ephemeral stories
+  privateNote?: string;
 }
+
+export interface ReportRecord {
+  id: string;
+  profileId: string;
+  profileName: string;
+  profilePhoto: string;
+  reason: string;
+  timestamp: number;
+  status: 'Pending Review' | 'Under Investigation' | 'Resolved';
+}
+
+export interface CardGradientOption {
+  id: string;
+  label: string;
+  value: string;
+}
+
+export const CARD_GRADIENTS: CardGradientOption[] = [
+  { id: 'default', label: 'Default Dark', value: 'bg-[#1E1E1E]' },
+  { id: 'amber', label: 'Amber Gold', value: 'bg-gradient-to-b from-amber-950/70 to-[#1E1E1E]' },
+  { id: 'emerald', label: 'Emerald Glow', value: 'bg-gradient-to-b from-emerald-950/70 to-[#1E1E1E]' },
+  { id: 'cyberpunk', label: 'Cyberpunk Neon', value: 'bg-gradient-to-b from-purple-950/80 to-cyan-950/80' },
+  { id: 'rose', label: 'Rose Velvet', value: 'bg-gradient-to-b from-rose-950/70 to-[#1E1E1E]' },
+  { id: 'ocean', label: 'Ocean Breeze', value: 'bg-gradient-to-b from-blue-950/80 to-teal-950/80' },
+];
 
 export interface PhotoFilterOption {
   id: string;
@@ -142,6 +169,7 @@ export interface FilterState {
   statusFilter?: 'all' | 'online' | 'offline' | 'away';
   positionFilter?: PositionRole | 'all';
   suggestedForYou?: boolean;
+  sortBy?: 'distance' | 'compatibility';
 }
 
 export interface Group {

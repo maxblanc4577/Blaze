@@ -79,6 +79,19 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             </label>
           </div>
 
+          {/* Sort By Section */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Sort By</h3>
+            <div>
+              <button
+                onClick={() => setFilters(prev => ({ ...prev, sortBy: 'distance' }))}
+                className="w-full py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-[#FFC107] text-[#121212]"
+              >
+                <span>📍 Distance (Nearest)</span>
+              </button>
+            </div>
+          </div>
+
           {/* Status Filter (Online, Offline, Away) */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Online Status</h3>

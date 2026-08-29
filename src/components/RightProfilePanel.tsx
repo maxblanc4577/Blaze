@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { UserProfile, getFilterStyle } from '../types';
-import { ShieldAlert, Sparkles, Heart, Share2, Check, ShieldCheck, Flag, AlertTriangle, Music, Play, Pause, Smile, Mic } from 'lucide-react';
+import { UserProfile, getFilterStyle, PHOTO_FILTERS } from '../types';
+import { ShieldAlert, Sparkles, Heart, Share2, Check, ShieldCheck, Flag, AlertTriangle, Music, Play, Pause, Smile, Mic, Sliders } from 'lucide-react';
 
 interface RightProfilePanelProps {
   profile: UserProfile | null;
@@ -9,6 +9,8 @@ interface RightProfilePanelProps {
   onStartChat: (profile: UserProfile) => void;
   onSendTap: (profile: UserProfile) => void;
   onBlockUser?: (profileId: string) => void;
+  onReportUser?: (profileId: string, profileName: string, profilePhoto: string, reason: string) => void;
+  onSaveNote?: (profileId: string, noteText: string) => void;
 }
 
 export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
@@ -18,9 +20,12 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   onStartChat,
   onSendTap,
   onBlockUser,
+  onReportUser,
+  onSaveNote,
 }) => {
   const [copied, setCopied] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const [reportReason, setReportReason] = useState('Inappropriate Content');
   const [alsoBlock, setAlsoBlock] = useState(true);
   const [reportSubmitted, setReportSubmitted] = useState(false);
@@ -29,10 +34,19 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const [quickReactionSent, setQuickReactionSent] = useState<string | null>(null);
-  const [showMatchBreakdown, setShowMatchBreakdown] = useState(false);
   const [isDateNightLoading, setIsDateNightLoading] = useState(false);
   const [dateNightIdeas, setDateNightIdeas] = useState<any[] | null>(null);
   const [showDateNightModal, setShowDateNightModal] = useState(false);
+  const [noteText, setNoteText] = useState(profile?.privateNote || '');
+  const [savedNoteStatus, setSavedNoteStatus] = useState(false);
+
+  const [activePhotoFilter, setActivePhotoFilter] = useState(profile?.photoFilter || 'none');
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    setNoteText(profile?.privateNote || '');
+  }, [profile?.id, profile?.privateNote]);
 
   if (!profile) return null;
 
@@ -65,16 +79,15 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   };
 
   const handleBlock = () => {
-    if (
-      window.confirm(
-        `Are you sure you want to block ${profile.name}? They will be permanently hidden from your view and all notifications from them will be stopped.`
-      )
-    ) {
-      if (onBlockUser) {
-        onBlockUser(profile.id);
-      }
-      onClose();
+    setShowBlockConfirm(true);
+  };
+
+  const confirmBlock = () => {
+    if (onBlockUser) {
+      onBlockUser(profile.id);
     }
+    setShowBlockConfirm(false);
+    onClose();
   };
 
   const handleSendReport = (e: React.FormEvent) => {
@@ -83,6 +96,9 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
     setTimeout(() => {
       setReportSubmitted(false);
       setShowReportModal(false);
+      if (onReportUser) {
+        onReportUser(profile.id, profile.name, profile.photos[0], reportReason);
+      }
       if (alsoBlock && onBlockUser) {
         onBlockUser(profile.id);
       }
@@ -282,24 +298,81 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </button>
         </div>
 
-        {/* Photo Carousel */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-3 snap-x scrollbar-thin">
-          {profile.photos.map((photoUrl, idx) => (
-            <div key={idx} className="flex-shrink-0 w-full h-64 snap-center rounded-xl overflow-hidden relative bg-neutral-950">
-              <img
-                src={photoUrl}
-                alt={`${profile.name} photo ${idx + 1}`}
-                style={{ filter: getFilterStyle(profile.photoFilter) }}
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-              {profile.photos.length > 1 && (
-                <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-bold text-white">
-                  {idx + 1} / {profile.photos.length}
-                </div>
-              )}
+        {/* Photo Filter Selection Overlay */}
+        <div className="bg-neutral-800/90 border border-neutral-700/80 rounded-xl p-3 mb-3 shadow">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Photo Filter Effect</span>
+            </span>
+            <span className="text-[10px] text-neutral-400">Stylistic preference</span>
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+            {PHOTO_FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setActivePhotoFilter(f.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
+                  activePhotoFilter === f.id
+                    ? 'bg-amber-500 text-black font-bold shadow'
+                    : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-700 border border-neutral-700'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Photo Carousel with Horizontal Swipe-to-Scroll & Navigation Dots */}
+        <div className="relative mb-3 group">
+          <div 
+            ref={carouselRef}
+            onScroll={(e) => {
+              if (carouselRef.current) {
+                const scrollLeft = carouselRef.current.scrollLeft;
+                const width = carouselRef.current.clientWidth;
+                const idx = Math.round(scrollLeft / width);
+                setActivePhotoIdx(idx);
+              }
+            }}
+            className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scroll-smooth rounded-2xl"
+          >
+            {profile.photos.map((photoUrl, idx) => (
+              <div key={idx} className="flex-shrink-0 w-full h-72 snap-center rounded-2xl overflow-hidden relative bg-neutral-950 shadow-inner border border-neutral-800">
+                <img
+                  src={photoUrl}
+                  alt={`${profile.name} photo ${idx + 1}`}
+                  style={{ filter: getFilterStyle(activePhotoFilter) }}
+                  className="w-full h-full object-cover transition-all duration-300"
+                  referrerPolicy="no-referrer"
+                />
+                {profile.photos.length > 1 && (
+                  <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full text-[11px] font-bold text-white shadow border border-white/10">
+                    {idx + 1} / {profile.photos.length}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Swipe Scroll Dots Indicator */}
+          {profile.photos.length > 1 && (
+            <div className="flex items-center justify-center gap-1.5 mt-2">
+              {profile.photos.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (carouselRef.current) {
+                      carouselRef.current.scrollTo({ left: idx * carouselRef.current.clientWidth, behavior: 'smooth' });
+                    }
+                  }}
+                  className={`h-1.5 rounded-full transition-all ${activePhotoIdx === idx ? 'w-6 bg-amber-400' : 'w-1.5 bg-neutral-600'}`}
+                  title={`Go to photo ${idx + 1}`}
+                />
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         {profile.currentMood && (
@@ -336,85 +409,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </div>
         )}
 
-        {/* Compatibility Score Card */}
-        <div
-          onClick={() => setShowMatchBreakdown(!showMatchBreakdown)}
-          className="bg-neutral-800/80 border border-neutral-700/60 hover:border-amber-500/50 rounded-2xl p-4 mb-3 flex items-center gap-4 shadow-md cursor-pointer transition group"
-          title="Click to view full match breakdown"
-        >
-          <div className="relative flex items-center justify-center flex-shrink-0">
-            <svg className="w-20 h-20 transform -rotate-90">
-              <circle
-                cx="40"
-                cy="40"
-                r={radius}
-                stroke="currentColor"
-                strokeWidth="6"
-                className="text-neutral-700"
-                fill="transparent"
-              />
-              <circle
-                cx="40"
-                cy="40"
-                r={radius}
-                stroke="currentColor"
-                strokeWidth="6"
-                className="text-[#FFC107] transition-all duration-1000 ease-out"
-                fill="transparent"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute flex flex-col items-center justify-center text-center">
-              <span className="text-sm font-black text-white">{compatibilityScore}%</span>
-            </div>
-          </div>
 
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#FFC107]">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Compatibility Match</span>
-              </div>
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold border border-amber-500/30 group-hover:underline">
-                🔍 Click for Breakdown
-              </span>
-            </div>
-            <p className="text-xs text-neutral-300 leading-relaxed">
-              Based on <span className="font-semibold text-white">{sharedTribes.length} shared tribes</span> and{' '}
-              <span className="font-semibold text-white">{sharedInterests.length} common interests</span>.
-            </p>
-          </div>
-        </div>
-
-        {/* Expandable Match Breakdown Tooltip / Section */}
-        {showMatchBreakdown && (
-          <div className="bg-neutral-900 border border-amber-500/40 rounded-2xl p-4 mb-4 space-y-2 text-xs animate-in fade-in zoom-in">
-            <div className="flex items-center justify-between text-amber-300 font-bold border-b border-neutral-800 pb-2">
-              <span>📊 Match Breakdown & Transparency</span>
-              <button onClick={() => setShowMatchBreakdown(false)} className="text-neutral-400 hover:text-white">✕</button>
-            </div>
-            <div className="space-y-1.5 text-neutral-300">
-              <div className="flex justify-between">
-                <span>Base Compatibility Score</span>
-                <span className="font-semibold text-white">42%</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Shared Tribes ({sharedTribes.join(', ') || 'None'})</span>
-                <span className="font-semibold text-emerald-400">+{sharedTribes.length * 16}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Common Interests ({sharedInterests.join(', ') || 'None'})</span>
-                <span className="font-semibold text-purple-400">+{sharedInterests.length * 10}%</span>
-              </div>
-              <div className="border-t border-neutral-800 pt-1.5 flex justify-between font-bold text-amber-300">
-                <span>Total Calculated Score</span>
-                <span>{compatibilityScore}%</span>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Date Night AI Button */}
         <div className="mb-4">
@@ -532,6 +527,56 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           >
             <span>💬 Send Icebreaker: "Hey! Saw we're both into {sharedInterests[0] || profile.interestTags?.[0] || 'Design'}!"</span>
           </button>
+        </div>
+
+        {/* Private Notes Section */}
+        <div className="bg-neutral-800/80 border border-neutral-700/60 rounded-xl p-3.5 mb-4 shadow">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <span>📝 Private Notes</span>
+            </span>
+            <span className="text-[10px] text-neutral-400">Only visible to you</span>
+          </div>
+          <textarea
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="Add private details, reminders, or conversation notes about this person..."
+            className="w-full h-20 bg-neutral-900 border border-neutral-700 rounded-lg p-2.5 text-xs text-white placeholder-neutral-500 outline-none focus:border-amber-500 resize-none"
+          />
+          <div className="flex items-center justify-between mt-2">
+            {savedNoteStatus && (
+              <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" /> Note saved!
+              </span>
+            )}
+            <div className="ml-auto flex gap-2">
+              {noteText && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNoteText('');
+                    if (onSaveNote) onSaveNote(profile.id, '');
+                    setSavedNoteStatus(true);
+                    setTimeout(() => setSavedNoteStatus(false), 2000);
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-neutral-700 hover:bg-neutral-600 text-neutral-300 text-xs font-medium transition"
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSaveNote) onSaveNote(profile.id, noteText);
+                  setSavedNoteStatus(true);
+                  setTimeout(() => setSavedNoteStatus(false), 2000);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold transition shadow"
+              >
+                Save Note
+              </button>
+            </div>
+          </div>
         </div>
 
         <p className="text-stone-300 mb-4 text-sm leading-relaxed">{profile.aboutMe || profile.headline}</p>
@@ -689,6 +734,39 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
                 className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs transition shadow"
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Block Confirmation Modal */}
+      {showBlockConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4 animate-in fade-in zoom-in">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 mx-auto">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-white">Block {profile.name}?</h3>
+              <p className="text-xs text-neutral-400">
+                They will be permanently hidden from your view and all notifications from them will be stopped. This action can be undone anytime in Settings.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowBlockConfirm(false)}
+                className="flex-1 bg-neutral-800 hover:bg-neutral-700 py-2.5 rounded-xl text-xs font-semibold text-neutral-300 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmBlock}
+                className="flex-1 bg-red-600 hover:bg-red-700 py-2.5 rounded-xl text-xs font-bold text-white transition shadow"
+              >
+                Yes, Block
               </button>
             </div>
           </div>
