@@ -9,7 +9,6 @@ interface NavbarProps {
   onShareLocation: () => void;
   onOpenContacts: () => void;
   onOpenSettings: () => void;
-  onOpenGettingStarted?: () => void;
   gridColumns: number;
   setGridColumns: (cols: number) => void;
   activeTab: string;
@@ -38,7 +37,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onShareLocation,
   onOpenContacts,
   onOpenSettings,
-  onOpenGettingStarted,
   gridColumns,
   setGridColumns,
   activeTab,
@@ -226,18 +224,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
 
-
-
-        {/* Getting Started Guide button */}
-        {onOpenGettingStarted && (
-          <button
-            onClick={onOpenGettingStarted}
-            className="p-2 rounded-xl bg-[#252525] hover:bg-[#333333] border border-neutral-700 text-neutral-200 transition relative"
-            title="Getting Started Guide"
-          >
-            <Sparkles className="w-5 h-5 text-[#FFC107]" />
-          </button>
-        )}
+        {/* Grid size toggler */}
+        <div className="hidden lg:flex items-center bg-[#252525] rounded-lg p-0.5 border border-neutral-700">
+          {[3, 4, 5].map((cols) => (
+            <button
+              key={cols}
+              onClick={() => setGridColumns(cols)}
+              className={`px-2.5 py-1 text-xs rounded-md transition ${
+                gridColumns === cols
+                  ? 'bg-[#FFC107] text-[#121212] font-bold'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              {cols}x
+            </button>
+          ))}
+        </div>
 
         {/* Filter button */}
         <button

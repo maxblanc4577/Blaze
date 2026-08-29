@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, FilterState, ChatConversation, Message, ReportRecord } from './types';
+import { UserProfile, FilterState, ChatConversation, Message } from './types';
 import { MOCK_PROFILES, CURRENT_USER } from './data/mockProfiles';
 import { calculateDistance } from './utils/geo';
 import { BuzzEvent, executeBuzz } from './utils/buzz';
@@ -22,61 +22,10 @@ import { ContactsModal } from './components/ContactsModal';
 import { TribesView } from './components/TribesView';
 import { SettingsModal } from './components/SettingsModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
-import { GettingStartedModal } from './components/GettingStartedModal';
-import { MatchCelebrationModal } from './components/MatchCelebrationModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grid');
-  const [gridColumns, setGridColumns] = useState<number>(3);
-  const [isGettingStartedOpen, setIsGettingStartedOpen] = useState<boolean>(() => {
-    return !localStorage.getItem('spark_getting_started_seen');
-  });
-  const [matchedProfile, setMatchedProfile] = useState<UserProfile | null>(null);
-  const [customQuickReplies, setCustomQuickReplies] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('spark_custom_quick_replies');
-      return saved ? JSON.parse(saved) : [
-        "Hey! How's your week going so far? ✨",
-        "Loved your profile! What brought you to Blaze? 🔥",
-        "Where is your favorite spot around town? ☕"
-      ];
-    } catch {
-      return [
-        "Hey! How's your week going so far? ✨",
-        "Loved your profile! What brought you to Blaze? 🔥",
-        "Where is your favorite spot around town? ☕"
-      ];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('spark_custom_quick_replies', JSON.stringify(customQuickReplies));
-  }, [customQuickReplies]);
-  const [reportedProfiles, setReportedProfiles] = useState<ReportRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem('spark_reported_profiles');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('spark_reported_profiles', JSON.stringify(reportedProfiles));
-  }, [reportedProfiles]);
-
-  const handleReportUser = (profileId: string, profileName: string, profilePhoto: string, reason: string) => {
-    const newRecord: ReportRecord = {
-      id: 'rep_' + Date.now(),
-      profileId,
-      profileName,
-      profilePhoto,
-      reason,
-      timestamp: Date.now(),
-      status: 'Pending Review'
-    };
-    setReportedProfiles(prev => [newRecord, ...prev]);
-  };
+  const [gridColumns, setGridColumns] = useState<number>(4);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('blaze_theme');
     return saved ? saved === 'dark' : true;
@@ -403,11 +352,6 @@ export default function App() {
     setProfiles((prev) =>
       prev.map((p) => (p.id === profile.id ? { ...p, isTapped: true } : p))
     );
-    // Trigger Match Celebration Modal after 1.5s
-    setTimeout(() => {
-      setMatchedProfile(profile);
-    }, 1500);
-
     // Also trigger a playful reciprocal wink/interest buzz simulation
     setTimeout(() => {
       handleTriggerBuzzEvent({
@@ -553,7 +497,6 @@ export default function App() {
         onShareLocation={handleShareLocation}
         onOpenContacts={() => setIsContactsOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenGettingStarted={() => setIsGettingStartedOpen(true)}
         gridColumns={gridColumns}
         setGridColumns={setGridColumns}
         activeTab={activeTab}
@@ -643,17 +586,6 @@ export default function App() {
                       }}
                       viewedCount={viewedProfileIds.length}
                       hasActiveSubscription={hasActiveSubscription}
-                      onRemove={(profileId) => {
-                        setProfiles(prev => prev.filter(p => p.id !== profileId));
-                        showToast('🗑️ Profile permanently removed from the platform.');
-                      }}
-                      onVerify={(profileId) => {
-                        setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isVerified: true } : p));
-                        showToast('🛡️ Profile identity successfully verified!');
-                      }}
-                      onSpark={(profile) => {
-                        showToast(`⚡ Super-Like Spark sent to ${profile.name}! They have been notified with a high-priority alert.`);
-                      }}
                     />
                   ))}
                 </div>
@@ -766,7 +698,6 @@ export default function App() {
           onSendMessage={handleSendMessage}
           currentUser={currentUser}
           readReceiptsEnabled={readReceiptsEnabled}
-          customQuickReplies={customQuickReplies}
           onClearConversation={(convId) => {
             setConversations(prev => prev.map(c => c.id === convId ? { ...c, messages: [] } : c));
             setActiveChat(prev => prev ? { ...prev, messages: [] } : null);
@@ -815,22 +746,6 @@ export default function App() {
         subscription={subscription}
         viewedCount={viewedProfileIds.length}
         onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
-        blockedProfiles={profiles.filter(p => p.isBlocked)}
-        onUnblockUser={(profileId) => {
-          setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: false } : p));
-          showToast('🔓 User unblocked successfully.');
-        }}
-        customQuickReplies={customQuickReplies}
-        onUpdateQuickReplies={setCustomQuickReplies}
-        reportedProfiles={reportedProfiles}
-        allProfiles={profiles}
-        viewedProfileIds={viewedProfileIds}
-        onSelectProfile={(p) => setSelectedProfile(p)}
-        currentUserStatus={currentUser.status}
-        onStatusChange={(status) => {
-          setCurrentUser(prev => ({ ...prev, status }));
-          showToast(`🟢 Status updated to ${status === 'dnd' ? 'Do Not Disturb' : status.toUpperCase()}`);
-        }}
       />
 
       {/* Right-Side Profile Panel */}
@@ -849,12 +764,6 @@ export default function App() {
             setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
             setConversations(prev => prev.filter(c => c.profile.id !== profileId));
             showToast('🚫 User blocked successfully. Profile hidden and notifications stopped.');
-          }}
-          onReportUser={handleReportUser}
-          onSaveNote={(profileId, noteText) => {
-            setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, privateNote: noteText } : p));
-            setSelectedProfile(prev => prev && prev.id === profileId ? { ...prev, privateNote: noteText } : prev);
-            showToast('📝 Private note saved successfully.');
           }}
         />
       )}
@@ -884,28 +793,6 @@ export default function App() {
       <ContactsModal
         isOpen={isContactsOpen}
         onClose={() => setIsContactsOpen(false)}
-      />
-
-      {/* Getting Started Onboarding Modal */}
-      <GettingStartedModal
-        isOpen={isGettingStartedOpen}
-        onClose={() => {
-          setIsGettingStartedOpen(false);
-          localStorage.setItem('spark_getting_started_seen', 'true');
-        }}
-      />
-
-      {/* Match Celebration Modal */}
-      <MatchCelebrationModal
-        isOpen={!!matchedProfile}
-        onClose={() => setMatchedProfile(null)}
-        matchedProfile={matchedProfile}
-        currentUserPhoto={currentUser.photos[0]}
-        onStartChat={(p) => {
-          setMatchedProfile(null);
-          handleStartChat(p);
-          setActiveTab('chats');
-        }}
       />
 
       {/* Bottom Navigation */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserProfile, Tribe, PositionRole, PHOTO_FILTERS, getFilterStyle, CARD_GRADIENTS } from '../types';
+import { UserProfile, Tribe, PositionRole, PHOTO_FILTERS, getFilterStyle } from '../types';
 import { Edit3, ShieldCheck, MapPin, Check, Plus, Trash2, Lock, Video, Image as ImageIcon, Tag, Sparkles, AlertCircle, TrendingUp, Share2 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { ExportProfileModal } from './ExportProfileModal';
@@ -450,32 +450,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                         />
                       </div>
                     )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Profile Customization: Card Gradient Theme */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block">Profile Card Gradient Theme</label>
-            <p className="text-[11px] text-neutral-400">Choose a custom background gradient that other users see on your profile card in the grid.</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {CARD_GRADIENTS.map(grad => {
-                const isSelected = (formData.cardGradient || 'bg-[#1E1E1E]') === grad.value;
-                return (
-                  <button
-                    key={grad.id}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, cardGradient: grad.value })}
-                    className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-between transition ${grad.value} ${
-                      isSelected
-                        ? 'border-[#FFC107] ring-2 ring-[#FFC107]/40 shadow-lg'
-                        : 'border-neutral-800 opacity-80 hover:opacity-100'
-                    }`}
-                  >
-                    <span className="text-white drop-shadow">{grad.label}</span>
-                    {isSelected && <Check className="w-4 h-4 text-[#FFC107]" />}
                   </button>
                 );
               })}

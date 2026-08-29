@@ -10,7 +10,6 @@ interface ChatWindowProps {
   currentUser: UserProfile;
   onClearConversation?: (conversationId: string) => void;
   readReceiptsEnabled?: boolean;
-  customQuickReplies?: string[];
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -20,7 +19,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   currentUser,
   onClearConversation,
   readReceiptsEnabled = true,
-  customQuickReplies,
 }) => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -39,23 +37,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [videoTimer, setVideoTimer] = useState(5);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
-
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [customMeetingSpot, setCustomMeetingSpot] = useState('');
-
-  const meetingSpotsPresets = [
-    '☕ Blue Bottle Coffee, Downtown',
-    '🌳 Central Park Fountain North',
-    '🍸 The Standard Rooftop Lounge',
-    '🏛️ City Art Museum Main Entrance',
-    '🌊 Waterfront Promenade Pier 3'
-  ];
-
-  const handlePinMeetingSpot = (spotName: string) => {
-    onSendMessage(conversation.id, `📍 Pinned Meeting Spot: ${spotName}`, 'location');
-    setShowPinModal(false);
-    setCustomMeetingSpot('');
-  };
 
   const startVideoReactionRecord = async () => {
     setShowVideoModal(true);
@@ -516,56 +497,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       <footer className="bg-[#1A1A1A] border-t border-neutral-800 p-3 space-y-2">
         {/* Quick Reply Bubbles */}
         <div className="flex items-center gap-2 overflow-x-auto px-1 py-0.5 scrollbar-none">
-          {(customQuickReplies || [
-            "Hey! How's your week going so far? ✨",
-            "Loved your profile! What brought you to Blaze? 🔥",
-            "Where is your favorite spot around town? ☕"
-          ]).map((reply, rIdx) => (
+          {['Sure!', 'Sounds good!', "That's interesting", 'Let’s meet up! 👋', 'Coffee sometime? ☕'].map((reply, rIdx) => (
             <button
               key={rIdx}
               type="button"
               onClick={() => sendQuickReply(reply)}
               className="bg-[#252525] hover:bg-neutral-800 text-neutral-200 border border-neutral-700/60 hover:border-[#FFC107] text-xs px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition shadow-sm active:scale-95 flex-shrink-0"
-            >
-              {reply}
-            </button>
-          ))}
-        </div>
-
-        {/* Context-Aware Smart Icebreakers based on Partner's Interests */}
-        <div className="flex items-center gap-2 overflow-x-auto px-1 py-0.5 scrollbar-none">
-          <span className="text-[10px] uppercase font-bold text-amber-400 flex items-center gap-1 flex-shrink-0">
-            <Sparkles className="w-3 h-3" /> Smart Icebreakers:
-          </span>
-          {(() => {
-            const interests = profile.interestTags;
-            const defaultReplies = [
-              "Hey! How's your week going so far? ✨",
-              "Loved your profile! What brought you to Blaze? 🔥",
-              "Where is your favorite spot around town? ☕"
-            ];
-            if (!interests || interests.length === 0) return defaultReplies;
-            
-            const contextual: string[] = [];
-            interests.forEach(tag => {
-              const t = tag.toLowerCase();
-              if (t.includes('coffee')) contextual.push("Hey! What's your go-to coffee order? ☕");
-              if (t.includes('gym') || t.includes('fitness')) contextual.push("What's your favorite workout routine? 💪");
-              if (t.includes('travel')) contextual.push("Where is the next place on your travel bucket list? ✈️");
-              if (t.includes('music')) contextual.push("Seen any good live music or concerts lately? 🎸");
-              if (t.includes('coding') || t.includes('tech')) contextual.push("What kind of tech or projects are you building? 💻");
-              if (t.includes('art') || t.includes('photography')) contextual.push("Your photos are awesome! What's your camera setup? 📸");
-              if (t.includes('cooking') || t.includes('food')) contextual.push("What's your signature dish to cook? 🍳");
-            });
-
-            const combined = [...contextual, ...defaultReplies];
-            return Array.from(new Set(combined)).slice(0, 4);
-          })().map((reply, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => onSendMessage(conversation.id, reply, 'text')}
-              className="bg-[#252525] hover:bg-[#333] text-amber-300 hover:text-amber-200 border border-amber-500/30 text-xs px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition shadow-sm active:scale-95 flex-shrink-0"
             >
               {reply}
             </button>
@@ -589,15 +526,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             title="Share Location"
           >
             <MapPin className="w-5 h-5 text-[#FFC107]" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowPinModal(true)}
-            className="p-2.5 rounded-full bg-[#252525] hover:bg-[#333333] text-neutral-300 transition"
-            title="Pin Meeting Spot"
-          >
-            <span className="text-sm">📍</span>
           </button>
 
           <button
@@ -719,60 +647,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             >
               Send Instantly
             </button>
-          </div>
-        </div>
-      )}
-
-      {showPinModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#1C1C1C] border border-neutral-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in">
-            <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-5 h-5 text-red-500" />
-                <h3 className="text-base font-bold text-white">Pin Meeting Spot</h3>
-              </div>
-              <button
-                onClick={() => setShowPinModal(false)}
-                className="p-2 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-neutral-300">
-              Select a popular meeting spot or pin a custom location to share with <strong className="text-[#FFC107]">{profile.name}</strong>:
-            </p>
-
-            <div className="space-y-2">
-              {meetingSpotsPresets.map((spot, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handlePinMeetingSpot(spot)}
-                  className="w-full text-left bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-amber-500/50 p-3 rounded-xl text-xs font-medium transition flex items-center justify-between"
-                >
-                  <span>{spot}</span>
-                  <span className="text-amber-400 text-xs font-bold">Pin 📍</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="pt-2 border-t border-neutral-800 flex gap-2">
-              <input
-                type="text"
-                placeholder="Or enter custom meeting spot..."
-                value={customMeetingSpot}
-                onChange={(e) => setCustomMeetingSpot(e.target.value)}
-                className="flex-1 bg-black border border-neutral-800 focus:border-[#FFC107] text-white text-xs px-3 py-2.5 rounded-xl outline-none"
-              />
-              <button
-                type="button"
-                disabled={!customMeetingSpot.trim()}
-                onClick={() => handlePinMeetingSpot(customMeetingSpot)}
-                className="px-4 py-2.5 bg-[#FFC107] text-[#121212] font-bold text-xs rounded-xl disabled:opacity-50 hover:opacity-90 transition shadow"
-              >
-                Pin Custom
-              </button>
-            </div>
           </div>
         </div>
       )}
