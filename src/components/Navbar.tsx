@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SlidersHorizontal, Flame, Sparkles, MapPin, Bell, Users, Sun, Moon, Globe, Zap, EyeOff, Settings } from 'lucide-react';
+import { SlidersHorizontal, Flame, Sparkles, MapPin, Bell, Users, Sun, Moon, Globe, Zap, EyeOff, Settings, Crown } from 'lucide-react';
 import { BuzzSimulator } from './BuzzSimulator';
 import { UserProfile } from '../types';
 import { BuzzEvent } from '../utils/buzz';
@@ -25,6 +25,11 @@ interface NavbarProps {
   boostActiveUntil: number | null;
   onActivateBoost: () => void;
   currentUser?: UserProfile;
+  onOpenSubscription: () => void;
+  viewedCount: number;
+  subscription: { type: string; expiresAt: number };
+  gridSubTab?: 'all' | 'recently_viewed';
+  setGridSubTab?: (tab: 'all' | 'recently_viewed') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -48,6 +53,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   boostActiveUntil,
   onActivateBoost,
   currentUser,
+  onOpenSubscription,
+  viewedCount,
+  subscription,
+  gridSubTab,
+  setGridSubTab,
 }) => {
   const [timeLeft, setTimeLeft] = useState<string>('');
 
@@ -90,6 +100,37 @@ export const Navbar: React.FC<NavbarProps> = ({
           <p className="text-xs text-neutral-400 capitalize">{activeTab} • Nearby Buzz Active</p>
         </div>
       </div>
+
+      {/* Grid Sub-Tabs in Header when activeTab === 'grid' */}
+      {activeTab === 'grid' && gridSubTab && setGridSubTab && (
+        <div className="hidden sm:flex items-center space-x-1 bg-[#252525] p-1 rounded-xl border border-neutral-700">
+          <button
+            onClick={() => setGridSubTab('all')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+              gridSubTab === 'all'
+                ? 'bg-[#FFC107] text-[#121212] shadow'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            🌟 All
+          </button>
+          <button
+            onClick={() => setGridSubTab('recently_viewed')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 ${
+              gridSubTab === 'recently_viewed'
+                ? 'bg-[#FFC107] text-[#121212] shadow'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            <span>🕒 Recent</span>
+            {viewedCount > 0 && (
+              <span className={`px-1 py-0.2 rounded-full text-[10px] ${gridSubTab === 'recently_viewed' ? 'bg-[#121212] text-[#FFC107]' : 'bg-neutral-800 text-neutral-300'}`}>
+                {viewedCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       <div className="flex items-center space-x-2">
         {/* Ghost Mode Stealth Badge */}
@@ -163,6 +204,20 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <MapPin className="w-3.5 h-3.5" />
           <span>Location</span>
+        </button>
+
+        {/* Subscription / Pass Status Button */}
+        <button
+          onClick={onOpenSubscription}
+          className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-[#FFC107]/40 text-[#FFC107] font-bold text-xs shadow hover:bg-amber-500/30 transition active:scale-95"
+          title="Profile Passes & Subscription"
+        >
+          <Crown className="w-3.5 h-3.5 fill-current" />
+          <span>
+            {subscription.type !== 'none' && subscription.expiresAt > Date.now()
+              ? `Pass Active (${subscription.type})`
+              : `Free: ${Math.min(viewedCount, 20)}/20`}
+          </span>
         </button>
 
 

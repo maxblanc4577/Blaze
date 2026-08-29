@@ -21,6 +21,7 @@ import { MapView } from './components/MapView';
 import { ContactsModal } from './components/ContactsModal';
 import { TribesView } from './components/TribesView';
 import { SettingsModal } from './components/SettingsModal';
+import { SubscriptionModal } from './components/SubscriptionModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grid');
@@ -79,6 +80,68 @@ export default function App() {
   });
 
   const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
+
+  const [viewedProfileIds, setViewedProfileIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('spark_viewed_profile_ids');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [subscription, setSubscription] = useState<{ type: 'none' | '1-day' | '7-day' | 'monthly'; expiresAt: number }>(() => {
+    try {
+      const saved = localStorage.getItem('spark_subscription');
+      return saved ? JSON.parse(saved) : { type: 'none', expiresAt: 0 };
+    } catch {
+      return { type: 'none', expiresAt: 0 };
+    }
+  });
+
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('spark_viewed_profile_ids', JSON.stringify(viewedProfileIds));
+  }, [viewedProfileIds]);
+
+  useEffect(() => {
+    localStorage.setItem('spark_subscription', JSON.stringify(subscription));
+  }, [subscription]);
+
+  const hasActiveSubscription = subscription.type !== 'none' && subscription.expiresAt > Date.now();
+
+  const handleSelectProfile = (profile: UserProfile) => {
+    if (hasActiveSubscription || viewedProfileIds.includes(profile.id)) {
+      setSelectedProfile(profile);
+      return;
+    }
+
+    if (viewedProfileIds.length < 20) {
+      const updated = [...viewedProfileIds, profile.id];
+      setViewedProfileIds(updated);
+      setSelectedProfile(profile);
+      const remaining = 20 - updated.length;
+      if (remaining <= 5 && remaining > 0) {
+        showToast(`⚠️ Free views remaining: ${remaining} of 20. Subscribe for unlimited access!`);
+      }
+    } else {
+      setIsSubscriptionModalOpen(true);
+      showToast('🔒 Free profile limit (20/20) reached. Get a pass to view unlimited profiles!');
+    }
+  };
+
+  const handleSubscribe = (type: '1-day' | '7-day' | 'monthly', price: string) => {
+    let durationMs = 24 * 60 * 60 * 1000;
+    if (type === '7-day') durationMs = 7 * 24 * 60 * 60 * 1000;
+    if (type === 'monthly') durationMs = 30 * 24 * 60 * 60 * 1000;
+
+    const expiresAt = Date.now() + durationMs;
+    setSubscription({ type, expiresAt });
+    setIsSubscriptionModalOpen(false);
+    showToast(`🎉 Success! ${type === '1-day' ? '1-Day Pass ($1.99)' : type === '7-day' ? '7-Day Pass ($4.99)' : 'Monthly Subscription ($9.99)'} activated! Enjoy unlimited profile views.`);
+  };
+  const [gridSubTab, setGridSubTab] = useState<'all' | 'recently_viewed'>('all');
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeChat, setActiveChat] = useState<ChatConversation | null>(null);
   const [isContactsOpen, setIsContactsOpen] = useState<boolean>(false);
@@ -422,7 +485,7 @@ export default function App() {
               handleStartChat(matched);
               setActiveTab('chats');
             } else {
-              setSelectedProfile(matched);
+              handleSelectProfile(matched);
             }
           }
         }}
@@ -453,6 +516,11 @@ export default function App() {
         boostActiveUntil={boostActiveUntil}
         onActivateBoost={handleActivateBoost}
         currentUser={currentUser}
+        onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+        viewedCount={viewedProfileIds.length}
+        subscription={subscription}
+        gridSubTab={gridSubTab}
+        setGridSubTab={setGridSubTab}
       />
 
       {/* Main Content Area */}
@@ -463,7 +531,7 @@ export default function App() {
       >
         {activeTab === 'grid' && (
           <div className="max-w-7xl mx-auto p-3 sm:p-4 pb-24">
-            
+
             {/* Search Input & Geolocation Status Bar */}
             <div className="mb-4 flex flex-col sm:flex-row gap-2 items-center justify-between">
               <input
@@ -475,38 +543,54 @@ export default function App() {
               />
             </div>
 
-            {filteredProfiles.length === 0 ? (
-              <div className="text-center py-20 text-neutral-400">
-                <p className="text-lg font-bold mb-1">No profiles match your filters</p>
-                <p className="text-sm">Try broadening your distance radius or resetting your filters.</p>
-              </div>
-            ) : (
-              <div
-                className={`grid gap-3`}
-                style={{
-                  gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
-                }}
-              >
-                {filteredProfiles.map((profile, idx) => (
-                  <ProfileCard
-                    key={profile.id}
-                    profile={profile}
-                    index={idx}
-                    currentUserInterests={currentUser.interestTags}
-                    onClick={() => setSelectedProfile(profile)}
-                    onTap={handleSendTap}
-                    onBadgeClick={(tag) => {
-                      setFilters({ ...filters, searchQuery: tag });
-                      showToast(`✨ Filtered discovery grid by interest: ${tag}`);
-                    }}
-                    onPass={(profileId) => {
-                      setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
-                      showToast('🚫 Profile passed and hidden.');
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+            {(() => {
+              const profilesToDisplay = gridSubTab === 'recently_viewed'
+                ? filteredProfiles.filter(p => viewedProfileIds.includes(p.id))
+                : filteredProfiles;
+
+              if (profilesToDisplay.length === 0) {
+                return (
+                  <div className="text-center py-20 text-neutral-400">
+                    <p className="text-lg font-bold mb-1">
+                      {gridSubTab === 'recently_viewed' ? 'No recently viewed profiles yet' : 'No profiles match your filters'}
+                    </p>
+                    <p className="text-sm">
+                      {gridSubTab === 'recently_viewed' ? 'Browse the discovery grid and click on profiles to spend a free view.' : 'Try broadening your distance radius or resetting your filters.'}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  className={`grid gap-3`}
+                  style={{
+                    gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {profilesToDisplay.map((profile, idx) => (
+                    <ProfileCard
+                      key={profile.id}
+                      profile={profile}
+                      index={idx}
+                      currentUserInterests={currentUser.interestTags}
+                      onClick={() => handleSelectProfile(profile)}
+                      onTap={handleSendTap}
+                      onBadgeClick={(tag) => {
+                        setFilters({ ...filters, searchQuery: tag });
+                        showToast(`✨ Filtered discovery grid by interest: ${tag}`);
+                      }}
+                      onPass={(profileId) => {
+                        setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
+                        showToast('🚫 Profile passed and hidden.');
+                      }}
+                      viewedCount={viewedProfileIds.length}
+                      hasActiveSubscription={hasActiveSubscription}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -523,14 +607,14 @@ export default function App() {
 
         {activeTab === 'map' && (
           <div className="max-w-7xl mx-auto p-3 sm:p-4 pb-24">
-            <MapView profiles={filteredProfiles} onSelectProfile={(p) => setSelectedProfile(p)} />
+            <MapView profiles={filteredProfiles} onSelectProfile={(p) => handleSelectProfile(p)} />
           </div>
         )}
 
         {activeTab === 'tribes' && (
           <TribesView
             profiles={profiles}
-            onSelectProfile={(p) => setSelectedProfile(p)}
+            onSelectProfile={(p) => handleSelectProfile(p)}
             onStartChat={handleStartChat}
             onSendTap={handleSendTap}
           />
@@ -539,7 +623,7 @@ export default function App() {
         {activeTab === 'taps' && (
           <TapsView
             tappedProfiles={tappedProfiles}
-            onSelectProfile={(p) => setSelectedProfile(p)}
+            onSelectProfile={(p) => handleSelectProfile(p)}
             onSendTap={handleSendTap}
           />
         )}
@@ -547,7 +631,7 @@ export default function App() {
         {activeTab === 'favorites' && (
           <FavoritesView
             favoriteProfiles={favoriteProfiles}
-            onSelectProfile={(p) => setSelectedProfile(p)}
+            onSelectProfile={(p) => handleSelectProfile(p)}
             onSendTap={handleSendTap}
           />
         )}
@@ -573,11 +657,20 @@ export default function App() {
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
         buzzEvents={buzzEvents}
-        onSelectProfile={(p) => setSelectedProfile(p)}
+        onSelectProfile={(p) => handleSelectProfile(p)}
         profiles={profiles}
         onMarkAllAsRead={() => {
           setBuzzEvents(prev => prev.map(e => ({ ...e, read: true })));
         }}
+      />
+
+      {/* Subscription Paywall Modal */}
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        onSubscribe={handleSubscribe}
+        currentSubscription={subscription}
+        viewedCount={viewedProfileIds.length}
       />
 
       {/* Companion Membership Modal */}
@@ -650,6 +743,9 @@ export default function App() {
           setAccentColor(color);
           showToast(`🎨 Interface accent color updated!`);
         }}
+        subscription={subscription}
+        viewedCount={viewedProfileIds.length}
+        onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
       />
 
       {/* Right-Side Profile Panel */}

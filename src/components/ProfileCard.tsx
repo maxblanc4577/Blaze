@@ -12,9 +12,11 @@ interface ProfileCardProps {
   onToggleFavorite?: (profileId: string) => void;
   currentUserInterests?: string[];
   onBadgeClick?: (badge: string) => void;
+  viewedCount?: number;
+  hasActiveSubscription?: boolean;
 }
 
-export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onToggleFavorite, currentUserInterests, onBadgeClick }) => {
+export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onToggleFavorite, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false }) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeX, setSwipeX] = useState(0);
@@ -180,6 +182,37 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             <Star className="w-3.5 h-3.5 fill-current" />
           </div>
         )}
+
+        {/* Circular Progress Bar for Remaining Free Views */}
+        {(() => {
+          const remaining = Math.max(0, 20 - viewedCount);
+          const percent = hasActiveSubscription ? 100 : (remaining / 20) * 100;
+          return (
+            <div className="relative w-8 h-8 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center border border-neutral-700 shadow-lg ml-1.5 flex-shrink-0" title={hasActiveSubscription ? 'Pass Active: Unlimited Views' : `${remaining} free views remaining`}>
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                <path
+                  className="text-neutral-700"
+                  strokeWidth="3.5"
+                  stroke="currentColor"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+                <path
+                  className={hasActiveSubscription ? 'text-[#FFC107]' : remaining <= 5 ? 'text-red-400' : 'text-[#FFC107]'}
+                  strokeDasharray={`${percent}, 100`}
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  stroke="currentColor"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white">
+                {hasActiveSubscription ? '👑' : remaining}
+              </div>
+            </div>
+          );
+        })()}
 
         {score >= 80 && (
           <div className="flex items-center gap-1 bg-amber-500/90 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] font-black text-black tracking-wider uppercase shadow">

@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Eye, Shield, Bell, Moon, Sun, Globe, Plane, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Eye, Shield, Bell, Moon, Sun, Globe, Plane, Sparkles, Crown } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -16,6 +16,9 @@ interface SettingsModalProps {
   onTravelCityChange: (city: string) => void;
   accentColor: string;
   onAccentColorChange: (color: string) => void;
+  subscription: { type: string; expiresAt: number };
+  viewedCount: number;
+  onOpenSubscription: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -33,8 +36,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onTravelCityChange,
   accentColor,
   onAccentColorChange,
+  subscription,
+  viewedCount,
+  onOpenSubscription,
 }) => {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    if (!subscription || subscription.type === 'none' || subscription.expiresAt <= Date.now()) return;
+
+    const updateTimer = () => {
+      const diff = subscription.expiresAt - Date.now();
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [subscription]);
+
   if (!isOpen) return null;
+
+  const hasActiveSub = subscription.type !== 'none' && subscription.expiresAt > Date.now();
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -53,6 +84,63 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+          {/* Subscription Status Section */}
+          <div className="bg-gradient-to-br from-[#252525] to-[#1E1E1E] border border-amber-500/30 p-4 rounded-2xl space-y-3 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-[#FFC107]">
+                  <Crown className="w-5 h-5 fill-current" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>Subscription Status</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase ${
+                      hasActiveSub ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-neutral-800 text-neutral-400'
+                    }`}>
+                      {hasActiveSub ? `Active (${subscription.type})` : `Free Tier`}
+                    </span>
+                  </h4>
+                  <p className="text-xs text-neutral-400">
+                    {hasActiveSub
+                      ? `Expires: ${new Date(subscription.expiresAt).toLocaleDateString()}`
+                      : `Free views used: ${viewedCount}/20`}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {hasActiveSub ? (
+              <div className="bg-black/30 border border-neutral-800 p-3 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-semibold text-neutral-400 block uppercase tracking-wider">Pass Countdown Timer</span>
+                  <span className="text-sm font-mono font-bold text-[#FFC107]">
+                    {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    onClose();
+                    onOpenSubscription();
+                  }}
+                  className="px-3 py-1.5 bg-[#FFC107] text-[#121212] font-extrabold text-xs rounded-xl hover:opacity-90 transition shadow active:scale-95"
+                >
+                  Renew / Extend
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenSubscription();
+                }}
+                className="w-full py-2.5 bg-[#FFC107] text-[#121212] font-black text-xs rounded-xl hover:opacity-90 transition shadow flex items-center justify-center space-x-1.5 active:scale-95"
+              >
+                <Sparkles className="w-3.5 h-3.5 fill-current" />
+                <span>Get Unlimited Pass ($1.99+)</span>
+              </button>
+            )}
+          </div>
+
           {/* Travel Mode Toggle */}
           <div className="bg-[#252525] border border-neutral-800 p-4 rounded-2xl space-y-3">
             <div className="flex items-center justify-between">
