@@ -586,6 +586,10 @@ export default function App() {
                       }}
                       viewedCount={viewedProfileIds.length}
                       hasActiveSubscription={hasActiveSubscription}
+                      onRemove={(profileId) => {
+                        setProfiles(prev => prev.filter(p => p.id !== profileId));
+                        showToast('🗑️ Profile permanently removed from the platform.');
+                      }}
                     />
                   ))}
                 </div>

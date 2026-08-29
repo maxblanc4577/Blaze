@@ -224,22 +224,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
 
-        {/* Grid size toggler */}
-        <div className="hidden lg:flex items-center bg-[#252525] rounded-lg p-0.5 border border-neutral-700">
-          {[3, 4, 5].map((cols) => (
-            <button
-              key={cols}
-              onClick={() => setGridColumns(cols)}
-              className={`px-2.5 py-1 text-xs rounded-md transition ${
-                gridColumns === cols
-                  ? 'bg-[#FFC107] text-[#121212] font-bold'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              {cols}x
-            </button>
-          ))}
-        </div>
+
 
         {/* Filter button */}
         <button

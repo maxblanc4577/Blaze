@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, getFilterStyle, getStyleTagIcon } from '../types';
-import { Flame, Star, ShieldCheck, Sparkles, Lock } from 'lucide-react';
+import { Flame, Star, ShieldCheck, Sparkles, Lock, X } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface ProfileCardProps {
@@ -14,9 +14,10 @@ interface ProfileCardProps {
   onBadgeClick?: (badge: string) => void;
   viewedCount?: number;
   hasActiveSubscription?: boolean;
+  onRemove?: (profileId: string) => void;
 }
 
-export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onToggleFavorite, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false }) => {
+export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onToggleFavorite, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false, onRemove }) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeX, setSwipeX] = useState(0);
@@ -181,6 +182,19 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
           <div className="w-6 h-6 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/10 text-[#FFC107]">
             <Star className="w-3.5 h-3.5 fill-current" />
           </div>
+        )}
+
+        {onRemove && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(profile.id);
+            }}
+            className="w-7 h-7 rounded-full bg-black/60 hover:bg-red-500/80 backdrop-blur-md flex items-center justify-center border border-white/20 text-neutral-300 hover:text-white transition shadow ml-1"
+            title="Remove from platform"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         )}
 
         {/* Circular Progress Bar for Remaining Free Views */}
