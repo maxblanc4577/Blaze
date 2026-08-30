@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SlidersHorizontal, Flame, Sparkles, MapPin, Bell, Users, Sun, Moon, Globe, Zap, EyeOff, Settings, Crown } from 'lucide-react';
+import { SlidersHorizontal, Flame, Sparkles, MapPin, Bell, Users, Sun, Moon, Globe, Zap, EyeOff, Settings, Crown, ShieldCheck } from 'lucide-react';
 import { BuzzSimulator } from './BuzzSimulator';
 import { UserProfile } from '../types';
 import { BuzzEvent } from '../utils/buzz';
@@ -30,6 +30,7 @@ interface NavbarProps {
   subscription: { type: string; expiresAt: number };
   gridSubTab?: 'all' | 'recently_viewed';
   setGridSubTab?: (tab: 'all' | 'recently_viewed') => void;
+  onOpenAdmin: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -58,6 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   subscription,
   gridSubTab,
   setGridSubTab,
+  onOpenAdmin,
 }) => {
   const [timeLeft, setTimeLeft] = useState<string>('');
 
@@ -257,6 +259,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           title="App Settings & Privacy"
         >
           <Settings className="w-5 h-5 text-[#FFC107]" />
+        </button>
+
+        {/* Admin Portal Button */}
+        <button
+          onClick={onOpenAdmin}
+          className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-400 transition relative"
+          title="Admin Portal & Moderation"
+        >
+          <ShieldCheck className="w-5 h-5" />
         </button>
       </div>
     </header>

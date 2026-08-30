@@ -269,6 +269,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       <span>@{profile.socialLinks.instagram.replace('@', '')}</span>
                     </a>
                   )}
+                  {profile.socialLinks.tiktok && (
+                    <a
+                      href={`https://tiktok.com/@${profile.socialLinks.tiktok.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 text-xs font-semibold flex items-center gap-1.5 hover:bg-purple-500/25 transition"
+                    >
+                      <span>🎵</span>
+                      <span>@{profile.socialLinks.tiktok.replace('@', '')}</span>
+                    </a>
+                  )}
                   {profile.socialLinks.twitter && (
                     <a
                       href={`https://twitter.com/${profile.socialLinks.twitter.replace('@', '')}`}

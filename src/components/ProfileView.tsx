@@ -280,6 +280,47 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
         </p>
       </div>
 
+      {/* Profile Card Background Theme Customization */}
+      <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-5 shadow-xl space-y-3">
+        <div className="flex items-center space-x-2">
+          <Sparkles className="w-5 h-5 text-amber-400" />
+          <h3 className="text-sm font-bold text-white">Profile Card Customization</h3>
+        </div>
+        <p className="text-xs text-neutral-400">
+          Choose a custom background gradient theme for your profile card when viewed by others:
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
+          {[
+            { id: 'default', label: 'Obsidian', bg: 'bg-[#1E1E1E]', border: 'border-neutral-700' },
+            { id: 'amber', label: 'Gold Noir', bg: 'bg-gradient-to-br from-neutral-900 via-amber-950/40 to-black', border: 'border-amber-500/50' },
+            { id: 'emerald', label: 'Emerald Luxe', bg: 'bg-gradient-to-br from-neutral-900 via-emerald-950/40 to-black', border: 'border-emerald-500/50' },
+            { id: 'purple', label: 'Cyber Violet', bg: 'bg-gradient-to-br from-neutral-900 via-purple-950/40 to-black', border: 'border-purple-500/50' },
+            { id: 'cyan', label: 'Neon Cyan', bg: 'bg-gradient-to-br from-neutral-900 via-cyan-950/40 to-black', border: 'border-cyan-500/50' },
+          ].map((theme) => {
+            const isSelected = (currentUser.profileTheme || 'default') === theme.id;
+            return (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => {
+                  const updated = { ...currentUser, profileTheme: theme.id };
+                  onUpdateUser(updated);
+                  setFormData(updated);
+                  setSuccessMsg(`Theme updated to ${theme.label}!`);
+                  setTimeout(() => setSuccessMsg(''), 2500);
+                }}
+                className={`p-3 rounded-xl border text-left transition flex flex-col justify-between h-20 ${theme.bg} ${
+                  isSelected ? 'ring-2 ring-amber-400 ' + theme.border : 'border-neutral-800 hover:border-neutral-600'
+                }`}
+              >
+                <span className="text-[11px] font-bold text-white">{theme.label}</span>
+                {isSelected && <span className="text-[10px] text-amber-400 font-extrabold">Active</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Activity Logs Section */}
       <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between">
@@ -675,6 +716,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                   onChange={e => setFormData({
                     ...formData,
                     socialLinks: { ...formData.socialLinks, instagram: e.target.value }
+                  })}
+                  className="w-full bg-[#1A1A1A] border border-neutral-700 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#FFC107]"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-neutral-400 block mb-1">TikTok Handle</label>
+                <input
+                  type="text"
+                  placeholder="@username"
+                  value={formData.socialLinks?.tiktok || ''}
+                  onChange={e => setFormData({
+                    ...formData,
+                    socialLinks: { ...formData.socialLinks, tiktok: e.target.value }
                   })}
                   className="w-full bg-[#1A1A1A] border border-neutral-700 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#FFC107]"
                 />

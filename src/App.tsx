@@ -22,6 +22,7 @@ import { ContactsModal } from './components/ContactsModal';
 import { TribesView } from './components/TribesView';
 import { SettingsModal } from './components/SettingsModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
+import { AdminPortalModal } from './components/AdminPortalModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grid');
@@ -146,7 +147,9 @@ export default function App() {
   const [activeChat, setActiveChat] = useState<ChatConversation | null>(null);
   const [isContactsOpen, setIsContactsOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [readReceiptsEnabled, setReadReceiptsEnabled] = useState<boolean>(true);
+  const [ghostModeEnabled, setGhostModeEnabled] = useState<boolean>(false);
   const [currentLanguage, setCurrentLanguage] = useState<string>('en');
   const [travelModeEnabled, setTravelModeEnabled] = useState<boolean>(false);
   const [travelCity, setTravelCity] = useState<string>('London, UK');
@@ -521,6 +524,7 @@ export default function App() {
         subscription={subscription}
         gridSubTab={gridSubTab}
         setGridSubTab={setGridSubTab}
+        onOpenAdmin={() => setIsAdminOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -712,6 +716,11 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         readReceiptsEnabled={readReceiptsEnabled}
         onToggleReadReceipts={setReadReceiptsEnabled}
+        ghostModeEnabled={ghostModeEnabled}
+        onToggleGhostMode={(val) => {
+          setGhostModeEnabled(val);
+          showToast(val ? '👻 Ghost Mode enabled! Distance and last active status are now hidden from others.' : '👁️ Ghost Mode disabled. Distance and status visible.');
+        }}
         isDarkMode={isDarkMode}
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         currentLanguage={currentLanguage}
@@ -793,6 +802,14 @@ export default function App() {
       <ContactsModal
         isOpen={isContactsOpen}
         onClose={() => setIsContactsOpen(false)}
+      />
+
+      {/* Admin Portal Modal */}
+      <AdminPortalModal
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
+        profiles={profiles}
+        onUpdateProfiles={setProfiles}
       />
 
       {/* Bottom Navigation */}

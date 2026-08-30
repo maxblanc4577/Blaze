@@ -32,10 +32,12 @@ export interface UserProfile {
   relationshipStatus?: string;
   socialLinks?: {
     instagram?: string;
+    tiktok?: string;
     twitter?: string;
     snapchat?: string;
     spotify?: string;
   };
+  profileTheme?: string; // e.g. 'amber', 'emerald', 'cyan', 'violet', 'rose'
   isVerified?: boolean;
   verificationPhoto?: string;
   lockedAlbum?: {

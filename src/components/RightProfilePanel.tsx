@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { UserProfile, getFilterStyle } from '../types';
-import { ShieldAlert, Sparkles, Heart, Share2, Check, ShieldCheck, Flag, AlertTriangle, Music, Play, Pause, Smile, Mic } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { UserProfile, getFilterStyle, PHOTO_FILTERS } from '../types';
+import { ShieldAlert, Sparkles, Heart, Share2, Check, ShieldCheck, Flag, AlertTriangle, Music, Play, Pause, Smile, Mic, Image as ImageIcon, Users, Shield } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface RightProfilePanelProps {
   profile: UserProfile | null;
@@ -9,6 +10,7 @@ interface RightProfilePanelProps {
   onStartChat: (profile: UserProfile) => void;
   onSendTap: (profile: UserProfile) => void;
   onBlockUser?: (profileId: string) => void;
+  onInviteToGroup?: (profile: UserProfile, groupName: string) => void;
 }
 
 export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
@@ -18,6 +20,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   onStartChat,
   onSendTap,
   onBlockUser,
+  onInviteToGroup,
 }) => {
   const [copied, setCopied] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -33,6 +36,52 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const [isDateNightLoading, setIsDateNightLoading] = useState(false);
   const [dateNightIdeas, setDateNightIdeas] = useState<any[] | null>(null);
   const [showDateNightModal, setShowDateNightModal] = useState(false);
+  const [activePhotoFilter, setActivePhotoFilter] = useState(profile?.photoFilter || 'none');
+  const galleryRef = useRef<HTMLDivElement | null>(null);
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+  const [contactsPermissionGranted, setContactsPermissionGranted] = useState(false);
+  const [isSyncingContacts, setIsSyncingContacts] = useState(false);
+  const [showGroupInviteModal, setShowGroupInviteModal] = useState(false);
+  const [selectedInviteGroup, setSelectedInviteGroup] = useState('Weekend Coffee Explorers');
+  const [groupInviteSent, setGroupInviteSent] = useState(false);
+  const [showSocialsModal, setShowSocialsModal] = useState(false);
+  const [showVirtualGiftModal, setShowVirtualGiftModal] = useState(false);
+  const [giftSentConfirmation, setGiftSentConfirmation] = useState<string | null>(null);
+  const [isBioExpanded, setIsBioExpanded] = useState(false);
+
+  const VIRTUAL_GIFTS = [
+    { id: 'coffee', name: 'Artisan Coffee', icon: '☕', desc: 'A warm morning boost' },
+    { id: 'rose', name: 'Velvet Rose', icon: '🌹', desc: 'A timeless romantic gesture' },
+    { id: 'music', name: 'Golden Vinyl', icon: '🎶', desc: 'Dedicated to great beats' },
+    { id: 'crown', name: 'Royal Crown', icon: '👑', desc: 'For top-tier energy' },
+    { id: 'diamond', name: 'Sparkling Diamond', icon: '💎', desc: 'One of a kind connection' }
+  ];
+
+  const scrollGallery = (direction: 'left' | 'right') => {
+    if (!galleryRef.current || !profile.photos) return;
+    const scrollAmount = 300;
+    galleryRef.current.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    });
+  };
+
+  useEffect(() => {
+    if (!profile.photos || profile.photos.length <= 1) return;
+    const interval = setInterval(() => {
+      setActivePhotoIdx(prev => {
+        const next = (prev + 1) % profile.photos.length;
+        if (galleryRef.current) {
+          const child = galleryRef.current.children[next] as HTMLElement;
+          if (child) {
+            galleryRef.current.scrollTo({ left: child.offsetLeft, behavior: 'smooth' });
+          }
+        }
+        return next;
+      });
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [profile.photos]);
 
   if (!profile) return null;
 
@@ -83,11 +132,11 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
     setTimeout(() => {
       setReportSubmitted(false);
       setShowReportModal(false);
-      if (alsoBlock && onBlockUser) {
+      if (onBlockUser && alsoBlock) {
         onBlockUser(profile.id);
       }
-      alert(`Report submitted for ${profile.name}. ${alsoBlock ? 'User has also been blocked automatically.' : ''} Thank you for keeping our community safe.`);
-      if (alsoBlock) onClose();
+      alert(`Report submitted for ${profile.name} (Reason: ${reportReason}). Profile has been successfully removed from your discovery grid.`);
+      onClose();
     }, 1200);
   };
 
@@ -113,6 +162,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const profileSong = profile.profileSong || { title: 'Midnight City', artist: 'M83', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' };
   const lastVisitedTime = profile.lastVisited ? new Date(profile.lastVisited).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2 mins ago';
   const mutualContacts = profile.mutualContacts || ['Sarah K.', 'Alex M.'];
+  const hasSocialLinks = profile.socialLinks && Object.values(profile.socialLinks).some(Boolean);
   const stories = profile.stories || [
     { id: '1', text: 'Enjoying rooftop coffee in the sun ☀️', timestamp: Date.now() - 3600000 },
     { id: '2', url: profile.photos[0], timestamp: Date.now() - 14000000 }
@@ -120,7 +170,13 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const [activeStoryIdx, setActiveStoryIdx] = useState(0);
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-stone-900 text-white shadow-2xl p-6 overflow-y-auto flex flex-col justify-between animate-in fade-in zoom-in-95 duration-200">
+    <motion.div
+      initial={{ x: '100%', opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: '100%', opacity: 0 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+      className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-stone-900 text-white shadow-2xl p-6 overflow-y-auto flex flex-col justify-between"
+    >
       <div>
         <div className="flex justify-between items-center mb-4">
           <div>
@@ -134,12 +190,18 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
               {profile.isVerified && (
                 <ShieldCheck className="w-5 h-5 text-cyan-400 fill-cyan-400/20" title="Verified Profile" />
               )}
+              {(hasSocialLinks || profile.isVerified) && (
+                <span className="inline-flex items-center gap-1 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 px-2 py-0.5 rounded-full text-[10px] font-bold" title="Verified Authentic User with Linked Social Accounts">
+                  <Check className="w-3 h-3 text-cyan-400" /> Verified
+                </span>
+              )}
             </h3>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-[11px] text-neutral-400">Last visited: <span className="text-emerald-400 font-medium">{lastVisitedTime}</span></p>
-              <span className="text-[10px] bg-neutral-800 text-amber-300 px-2 py-0.5 rounded-full font-bold border border-neutral-700">
-                👁️ {profile.totalViews ?? 1245} Views
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shadow-sm" title="Last Online Status">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                🟢 {profile.lastActive || 'Online 5m ago'}
               </span>
+              <p className="text-[11px] text-neutral-400">Last visited: <span className="text-stone-300 font-medium">{lastVisitedTime}</span></p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -282,24 +344,125 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </button>
         </div>
 
-        {/* Photo Carousel */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-3 snap-x scrollbar-thin">
-          {profile.photos.map((photoUrl, idx) => (
-            <div key={idx} className="flex-shrink-0 w-full h-64 snap-center rounded-xl overflow-hidden relative bg-neutral-950">
-              <img
-                src={photoUrl}
-                alt={`${profile.name} photo ${idx + 1}`}
-                style={{ filter: getFilterStyle(profile.photoFilter) }}
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-              {profile.photos.length > 1 && (
-                <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-[10px] font-bold text-white">
-                  {idx + 1} / {profile.photos.length}
-                </div>
+        {/* Social Media Section */}
+        {profile.socialLinks && (profile.socialLinks.instagram || profile.socialLinks.tiktok || profile.socialLinks.twitter || profile.socialLinks.snapchat) && (
+          <div className="bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3 mb-3 space-y-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-pink-400">Social Media & Links</span>
+            <div className="flex flex-wrap gap-2">
+              {profile.socialLinks.instagram && (
+                <a
+                  href={`https://instagram.com/${profile.socialLinks.instagram.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-pink-500/20 border border-pink-500/40 text-pink-300 text-xs font-semibold flex items-center gap-1.5 hover:bg-pink-500/30 transition"
+                >
+                  <span>📸</span>
+                  <span>@{profile.socialLinks.instagram.replace('@', '')}</span>
+                </a>
+              )}
+              {profile.socialLinks.tiktok && (
+                <a
+                  href={`https://tiktok.com/@${profile.socialLinks.tiktok.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-300 text-xs font-semibold flex items-center gap-1.5 hover:bg-purple-500/30 transition"
+                >
+                  <span>🎵</span>
+                  <span>@{profile.socialLinks.tiktok.replace('@', '')}</span>
+                </a>
               )}
             </div>
-          ))}
+          </div>
+        )}
+
+        {/* Recent Activity Log Snippet */}
+        <div className="bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3 mb-3 flex items-center justify-between text-xs shadow">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm flex-shrink-0">
+              ⚡
+            </div>
+            <div>
+              <p className="font-bold text-white">Recent Activity & Interaction Log</p>
+              <p className="text-[11px] text-neutral-400">
+                {profile.recentActivity || `You visited their profile yesterday & winked 2 days ago`}
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] bg-neutral-900 text-amber-300 px-2 py-1 rounded-lg border border-neutral-700 font-semibold flex-shrink-0">
+            Context Log
+          </span>
+        </div>
+
+        {/* Photo Gallery with Filter Selector & Swipe Navigation */}
+        <div className="space-y-2 mb-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
+              <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+              <span>Photos ({profile.photos.length})</span>
+            </span>
+            <div className="flex items-center gap-1 overflow-x-auto max-w-[240px] scrollbar-none">
+              {PHOTO_FILTERS.slice(0, 4).map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setActivePhotoFilter(f.id)}
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition flex-shrink-0 ${
+                    activePhotoFilter === f.id
+                      ? 'bg-amber-500 text-black font-bold shadow'
+                      : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative group/carousel">
+            <div
+              ref={galleryRef}
+              className="flex gap-2 overflow-x-auto pb-2 snap-x scrollbar-thin scroll-smooth cursor-grab active:cursor-grabbing"
+            >
+              {profile.photos.map((photoUrl, idx) => (
+                <div key={idx} className="flex-shrink-0 w-full h-72 snap-center rounded-2xl overflow-hidden relative bg-neutral-950 border border-neutral-800 group">
+                  <img
+                    src={photoUrl}
+                    alt={`${profile.name} photo ${idx + 1}`}
+                    style={{ filter: getFilterStyle(activePhotoFilter) }}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    referrerPolicy="no-referrer"
+                  />
+                  {profile.photos.length > 1 && (
+                    <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold text-white shadow flex items-center gap-1 z-10">
+                      <span>{idx + 1}</span> / <span>{profile.photos.length}</span>
+                    </div>
+                  )}
+                  <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] text-amber-300 font-bold uppercase tracking-wider flex items-center gap-1 shadow">
+                    <span>🔍 Hover to Zoom</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {profile.photos.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => scrollGallery('left')}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/70 backdrop-blur-md text-white flex items-center justify-center opacity-80 hover:opacity-100 hover:scale-110 transition shadow z-20"
+                  title="Previous Photo"
+                >
+                  ❮
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollGallery('right')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/70 backdrop-blur-md text-white flex items-center justify-center opacity-80 hover:opacity-100 hover:scale-110 transition shadow z-20"
+                  title="Next Photo"
+                >
+                  ❯
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {profile.currentMood && (
@@ -452,51 +615,113 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </button>
         </div>
 
-        {/* Shared Tribes & Interests Badges */}
-        {(sharedTribes.length > 0 || sharedInterests.length > 0) && (
-          <div className="mb-4 space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Shared Connections</h4>
+        {/* Common Interests Section Ordered by Similarity */}
+        {profile.interestTags && profile.interestTags.length > 0 && (
+          <div className="mb-4 bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Common Interests & Similarity
+              </span>
+              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">
+                {profile.interestTags.filter(t => (currentUser?.interestTags || ['Travel', 'Fitness', 'Music', 'Art']).includes(t)).length} Matched
+              </span>
+            </div>
             <div className="flex flex-wrap gap-1.5">
-              {sharedTribes.map((t, idx) => (
-                <span
-                  key={`t-${idx}`}
-                  className="bg-[#FFC107]/20 text-[#FFC107] border border-[#FFC107]/40 text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1.5 shadow-sm"
-                >
-                  <span>⚡ {t}</span>
-                  <span className="bg-[#FFC107] text-black text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider">Mutual</span>
-                </span>
-              ))}
-              {sharedInterests.map((i, idx) => (
-                <span
-                  key={`i-${idx}`}
-                  className="bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1.5 shadow-sm"
-                >
-                  <span>✨ {i}</span>
-                  <span className="bg-purple-400 text-black text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider">Mutual</span>
-                </span>
-              ))}
+              {profile.interestTags
+                .slice()
+                .sort((a, b) => {
+                  const userTags = currentUser?.interestTags || ['Travel', 'Fitness', 'Music', 'Art'];
+                  const aShared = userTags.includes(a) ? 1 : 0;
+                  const bShared = userTags.includes(b) ? 1 : 0;
+                  return bShared - aShared;
+                })
+                .map((tag) => {
+                  const isShared = (currentUser?.interestTags || ['Travel', 'Fitness', 'Music', 'Art']).includes(tag);
+                  return (
+                    <span
+                      key={tag}
+                      className={`text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1 ${
+                        isShared
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                          : 'bg-neutral-800 text-neutral-300 border border-neutral-700'
+                      }`}
+                    >
+                      {isShared && '✨ '}
+                      {tag}
+                      {isShared && <span className="text-[9px] bg-amber-500 text-black px-1 rounded-full ml-0.5 font-black">Shared</span>}
+                    </span>
+                  );
+                })}
             </div>
           </div>
         )}
 
-        {/* Mutual Contacts Section */}
-        {mutualContacts.length > 0 && (
-          <div className="mb-4 bg-neutral-800/70 border border-neutral-700/60 rounded-xl p-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Mutual Contacts ({mutualContacts.length})</h4>
-            <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
+        {/* Mutual Friends & Shared Network Section */}
+        <div className="mb-4 bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3.5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <span>👥 Mutual Friends & Network</span>
+            </span>
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
+              {contactsPermissionGranted ? `${mutualContacts.length} Shared` : 'Sync Required'}
+            </span>
+          </div>
+
+          {!contactsPermissionGranted ? (
+            <div className="bg-neutral-900/90 rounded-lg p-3 border border-neutral-700 text-center space-y-2">
+              <p className="text-xs text-neutral-300">
+                Cross-reference your phone contacts and address book to discover verified mutual connections with <span className="text-white font-semibold">{profile.name}</span>.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSyncingContacts(true);
+                  setTimeout(() => {
+                    setIsSyncingContacts(false);
+                    setContactsPermissionGranted(true);
+                  }, 1200);
+                }}
+                disabled={isSyncingContacts}
+                className="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2"
+              >
+                {isSyncingContacts ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    <span>Syncing & Cross-Referencing Contacts...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>📱 Sync Contacts & Find Mutuals</span>
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              <p className="text-[11px] text-emerald-300/90 font-medium flex items-center gap-1">
+                <span>✅ Contacts synced successfully! Found {mutualContacts.length} mutual connection{mutualContacts.length === 1 ? '' : 's'}:</span>
+              </p>
+              <div className="space-y-2">
                 {mutualContacts.map((mc, mIdx) => (
-                  <div key={mIdx} className="w-8 h-8 rounded-full bg-amber-500/20 border-2 border-neutral-900 text-amber-300 font-bold text-[10px] flex items-center justify-center">
-                    {mc.charAt(0)}
+                  <div key={mIdx} className="bg-neutral-900/90 rounded-xl p-2.5 border border-neutral-700 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center shadow">
+                        {mc.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white">{mc}</p>
+                        <p className="text-[10px] text-neutral-400">In your phone contacts • Follows both of you</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] bg-neutral-800 text-emerald-400 px-2 py-0.5 rounded-full font-bold border border-neutral-700">
+                      Verified Mutual
+                    </span>
                   </div>
                 ))}
               </div>
-              <span className="text-xs text-neutral-300">
-                Connected via <span className="text-white font-semibold">{mutualContacts.join(', ')}</span>
-              </span>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Add to Calendar Button based on Event Tag */}
         <div className="bg-gradient-to-r from-amber-500/20 via-[#222222] to-amber-500/10 border border-amber-500/40 rounded-xl p-3.5 mb-4 shadow flex items-center justify-between">
@@ -534,21 +759,97 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </button>
         </div>
 
-        <p className="text-stone-300 mb-4 text-sm leading-relaxed">{profile.aboutMe || profile.headline}</p>
+        {/* Collapsible / Expandable Biography Section */}
+        <div className="bg-neutral-800/60 border border-neutral-700/60 rounded-xl p-3 mb-4 space-y-1.5 transition">
+          <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsBioExpanded(!isBioExpanded)}>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">About / Biography</h4>
+            <span className="text-[11px] text-amber-400 font-semibold hover:underline">
+              {isBioExpanded ? 'Show Less ▴' : 'Expand Full Bio ▾'}
+            </span>
+          </div>
+          <p className={`text-stone-300 text-xs leading-relaxed transition-all ${isBioExpanded ? '' : 'line-clamp-2'}`}>
+            {profile.aboutMe || profile.headline || 'Passionate explorer, creative designer, and coffee enthusiast looking to connect with amazing people.'}
+          </p>
+        </div>
 
-        <div className="flex gap-3 mb-6">
+        <div className="flex gap-2 mb-4">
           <button
             onClick={() => onStartChat(profile)}
-            className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-semibold py-2.5 rounded-xl transition shadow-lg"
+            className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-semibold py-2.5 rounded-xl transition shadow-lg text-xs"
           >
             Chat
           </button>
           <button
             onClick={() => onSendTap(profile)}
-            className="flex-1 bg-neutral-800 hover:bg-neutral-700 py-2.5 rounded-xl font-medium border border-neutral-700 transition"
+            className="flex-1 bg-neutral-800 hover:bg-neutral-700 py-2.5 rounded-xl font-medium border border-neutral-700 transition text-xs"
           >
             Tap 🔥
           </button>
+          <button
+            onClick={() => setShowVirtualGiftModal(true)}
+            className="flex-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-300 font-bold py-2.5 rounded-xl border border-purple-500/40 transition shadow flex items-center justify-center gap-1 text-xs"
+          >
+            <span>🎁 Gift</span>
+          </button>
+        </div>
+
+        {/* Direct Invite to Group Button */}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => setShowGroupInviteModal(true)}
+            className="w-full bg-gradient-to-r from-cyan-500/20 via-blue-500/15 to-cyan-500/10 border border-cyan-500/40 hover:border-cyan-500 text-cyan-300 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-sm"
+          >
+            <Users className="w-4 h-4 text-cyan-400" />
+            <span>Invite to Group / Tribe Meet-up</span>
+          </button>
+        </div>
+
+        {/* Safety Tools Section */}
+        <div className="bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3.5 mb-6 space-y-3">
+          <div className="flex items-center justify-between border-b border-neutral-700/60 pb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5" /> Safety & Verification Tools
+            </span>
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
+              🛡️ Verified Safe
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs bg-neutral-900/80 p-2.5 rounded-lg border border-neutral-700">
+              <span className="text-neutral-300 font-medium flex items-center gap-1.5">
+                <span>🔒 Mutual Safety Check</span>
+              </span>
+              <span className="text-emerald-400 font-bold text-[11px]">0 Community Blocks</span>
+            </div>
+
+            <div className="flex items-center justify-between text-xs bg-neutral-900/80 p-2.5 rounded-lg border border-neutral-700">
+              <span className="text-neutral-300 font-medium flex items-center gap-1.5">
+                <span>🔗 Linked Socials</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowSocialsModal(true)}
+                className="text-cyan-400 hover:text-cyan-300 font-bold underline text-[11px]"
+              >
+                Verify Accounts
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between text-xs bg-neutral-900/80 p-2.5 rounded-lg border border-neutral-700">
+              <span className="text-neutral-300 font-medium flex items-center gap-1.5">
+                <span>🚩 Report Behavior</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowReportModal(true)}
+                className="text-amber-400 hover:text-amber-300 font-bold underline text-[11px]"
+              >
+                File Report
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -597,11 +898,11 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
                     onChange={(e) => setReportReason(e.target.value)}
                     className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-amber-500"
                   >
+                    <option value="Inappropriate photos">Inappropriate photos</option>
+                    <option value="Harassment">Harassment</option>
+                    <option value="Spam / Fake">Spam / Fake profile</option>
                     <option value="Inappropriate Content">Inappropriate Content</option>
-                    <option value="Spam">Spam or Scam</option>
-                    <option value="Fake Profile">Fake Profile / Impostor</option>
-                    <option value="Harassment">Harassment or Abuse</option>
-                    <option value="Underage">Underage Suspected</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
@@ -694,6 +995,210 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </div>
         </div>
       )}
-    </div>
+
+      {/* Group Invite Modal */}
+      {showGroupInviteModal && (
+        <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md p-6 flex flex-col justify-center items-center">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h4 className="font-bold text-base flex items-center gap-2 text-white">
+                <Users className="w-5 h-5 text-cyan-400" />
+                <span>Invite to Group / Tribe</span>
+              </h4>
+              <button onClick={() => setShowGroupInviteModal(false)} className="text-neutral-400 hover:text-white">✕</button>
+            </div>
+
+            {groupInviteSent ? (
+              <div className="py-8 text-center space-y-3">
+                <div className="w-12 h-12 bg-cyan-500/20 text-cyan-400 rounded-full flex items-center justify-center mx-auto text-xl font-bold">✓</div>
+                <p className="text-sm font-semibold text-white">Invite Sent Successfully!</p>
+                <p className="text-xs text-neutral-400">{profile.name} has been invited to <span className="text-cyan-300 font-semibold">{selectedInviteGroup}</span>.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-neutral-400 block mb-2 font-medium">Select Group or Meetup Tribe</label>
+                  <select
+                    value={selectedInviteGroup}
+                    onChange={(e) => setSelectedInviteGroup(e.target.value)}
+                    className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-500"
+                  >
+                    <option value="Weekend Coffee Explorers">☕ Weekend Coffee Explorers</option>
+                    <option value="Tech & Startup Founders">🚀 Tech & Startup Founders</option>
+                    <option value="Creative Design Meetup">🎨 Creative Design Meetup</option>
+                    <option value="Rooftop Sunset Social">🌅 Rooftop Sunset Social</option>
+                    <option value="Fitness & Running Club">🏃‍♂️ Fitness & Running Club</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowGroupInviteModal(false)}
+                    className="flex-1 bg-neutral-800 hover:bg-neutral-700 py-2.5 rounded-xl text-xs font-semibold text-neutral-300 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGroupInviteSent(true);
+                      if (onInviteToGroup) {
+                        onInviteToGroup(profile, selectedInviteGroup);
+                      }
+                      setTimeout(() => {
+                        setGroupInviteSent(false);
+                        setShowGroupInviteModal(false);
+                      }, 1500);
+                    }}
+                    className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-black py-2.5 rounded-xl text-xs font-bold transition shadow"
+                  >
+                    Send Invite 🚀
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Socials Verification Modal */}
+      {showSocialsModal && (
+        <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md p-6 flex flex-col justify-center items-center">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h4 className="font-bold text-base flex items-center gap-2 text-white">
+                <ShieldCheck className="w-5 h-5 text-cyan-400" />
+                <span>Linked Social Verification</span>
+              </h4>
+              <button onClick={() => setShowSocialsModal(false)} className="text-neutral-400 hover:text-white">✕</button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-neutral-300">
+                Verified external accounts linked to <span className="text-white font-semibold">{profile.name}</span>'s profile:
+              </p>
+
+              <div className="space-y-2">
+                <div className="bg-neutral-800 p-3 rounded-xl border border-neutral-700 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg">📸</span>
+                    <div>
+                      <p className="text-xs font-bold text-white">Instagram</p>
+                      <p className="text-[10px] text-neutral-400">@{profile.name.toLowerCase().replace(/\s+/g, '_')}_official</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-full font-bold border border-cyan-500/30 flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Verified
+                  </span>
+                </div>
+
+                <div className="bg-neutral-800 p-3 rounded-xl border border-neutral-700 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg">🎵</span>
+                    <div>
+                      <p className="text-xs font-bold text-white">Spotify Artist / Listener</p>
+                      <p className="text-[10px] text-neutral-400">Top Artist: {profile.profileSong?.artist || 'M83'}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-full font-bold border border-cyan-500/30 flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Verified
+                  </span>
+                </div>
+
+                <div className="bg-neutral-800 p-3 rounded-xl border border-neutral-700 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg">💼</span>
+                    <div>
+                      <p className="text-xs font-bold text-white">LinkedIn Network</p>
+                      <p className="text-[10px] text-neutral-400">Connected & Verified Pro</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-full font-bold border border-cyan-500/30 flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Verified
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSocialsModal(false)}
+                className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2.5 rounded-xl text-xs transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Virtual Gift Modal Overlay */}
+      {showVirtualGiftModal && (
+        <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md p-6 flex flex-col justify-center items-center">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h4 className="font-bold text-base flex items-center gap-2 text-white">
+                <span>🎁 Send Virtual Gift to {profile.name}</span>
+              </h4>
+              <button onClick={() => { setShowVirtualGiftModal(false); setGiftSentConfirmation(null); }} className="text-neutral-400 hover:text-white">✕</button>
+            </div>
+
+            {giftSentConfirmation ? (
+              <div className="py-8 text-center space-y-3">
+                <div className="w-14 h-14 bg-purple-500/20 text-purple-300 rounded-full flex items-center justify-center mx-auto text-2xl font-bold animate-bounce">🎁</div>
+                <p className="text-sm font-semibold text-white">Gift Sent Successfully!</p>
+                <p className="text-xs text-neutral-400">Sent <span className="text-purple-300 font-bold">{giftSentConfirmation}</span> to {profile.name}. It has been added to their chat window!</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-neutral-300">
+                  Select a digital sticker or token to send as a special gift directly into your chat with <span className="text-white font-semibold">{profile.name}</span>:
+                </p>
+
+                <div className="grid grid-cols-1 gap-2.5">
+                  {VIRTUAL_GIFTS.map((gift) => (
+                    <button
+                      key={gift.id}
+                      type="button"
+                      onClick={() => {
+                        setGiftSentConfirmation(`${gift.icon} ${gift.name}`);
+                        setTimeout(() => {
+                          setShowVirtualGiftModal(false);
+                          setGiftSentConfirmation(null);
+                          onStartChat(profile);
+                        }, 1200);
+                      }}
+                      className="bg-neutral-800 hover:bg-neutral-700/80 p-3 rounded-xl border border-neutral-700 flex items-center justify-between text-left transition group hover:border-purple-500/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl p-2 bg-neutral-900 rounded-lg border border-neutral-700 group-hover:scale-110 transition">{gift.icon}</span>
+                        <div>
+                          <p className="text-xs font-bold text-white">{gift.name}</p>
+                          <p className="text-[10px] text-neutral-400">{gift.desc}</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-full font-bold group-hover:bg-purple-500 group-hover:text-black transition">
+                        Send ➔
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowVirtualGiftModal(false)}
+                    className="w-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold py-2.5 rounded-xl text-xs transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </motion.div>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatConversation, Message, UserProfile } from '../types';
-import { ArrowLeft, Send, Image as ImageIcon, Mic, MapPin, Sparkles, CheckCheck, ShieldCheck, Download, Play, Pause, Trash2, Zap, X, Video } from 'lucide-react';
+import { ArrowLeft, Send, Image as ImageIcon, Mic, MapPin, Sparkles, CheckCheck, ShieldCheck, Download, Play, Pause, Trash2, Zap, X, Video, Search, Smile } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 interface ChatWindowProps {
@@ -32,6 +32,24 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const [translations, setTranslations] = useState<Record<string, { translatedText: string; detectedLanguage: string }>>({});
   const [translatingMsgId, setTranslatingMsgId] = useState<string | null>(null);
+
+  const [messageSearchQuery, setMessageSearchQuery] = useState('');
+  const [messageReactions, setMessageReactions] = useState<Record<string, string[]>>({});
+  const [activeReactionPickerId, setActiveReactionPickerId] = useState<string | null>(null);
+
+  const PREDEFINED_REACTIONS = ['🔥', '🙌', '🤔', '❤️', '👍'];
+
+  const toggleReaction = (msgId: string, emoji: string) => {
+    setMessageReactions(prev => {
+      const current = prev[msgId] || [];
+      if (current.includes(emoji)) {
+        return { ...prev, [msgId]: current.filter(e => e !== emoji) };
+      } else {
+        return { ...prev, [msgId]: [...current, emoji] };
+      }
+    });
+    setActiveReactionPickerId(null);
+  };
 
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [videoTimer, setVideoTimer] = useState(5);
@@ -323,6 +341,27 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
       </header>
 
+      {/* Search Bar for Chat Messages */}
+      <div className="bg-[#181818] border-b border-neutral-800 px-4 py-2 flex items-center space-x-2">
+        <Search className="w-4 h-4 text-neutral-400" />
+        <input
+          type="text"
+          value={messageSearchQuery}
+          onChange={(e) => setMessageSearchQuery(e.target.value)}
+          placeholder="Search past messages in conversation..."
+          className="w-full bg-transparent text-xs text-white outline-none placeholder:text-neutral-500"
+        />
+        {messageSearchQuery && (
+          <button
+            type="button"
+            onClick={() => setMessageSearchQuery('')}
+            className="text-[10px] bg-neutral-800 text-neutral-300 hover:text-white px-2 py-1 rounded-lg transition"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
       {/* Messages Stream */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="text-center my-2">
@@ -351,25 +390,50 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         )}
 
-        {conversation.messages.map((msg) => {
+        {messageSearchQuery && conversation.messages.filter(m => m.text.toLowerCase().includes(messageSearchQuery.toLowerCase())).length === 0 && (
+          <div className="text-center py-6 text-neutral-400 text-xs">
+            No past messages found matching "{messageSearchQuery}".
+          </div>
+        )}
+
+        {conversation.messages
+          .filter(msg => {
+            if (!messageSearchQuery.trim()) return true;
+            return msg.text.toLowerCase().includes(messageSearchQuery.toLowerCase());
+          })
+          .map((msg) => {
           const isMe = msg.senderId === currentUser.id;
           const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
           });
+          const currentReactions = messageReactions[msg.id] || [];
+          const isPickerOpen = activeReactionPickerId === msg.id;
 
           return (
             <div
               key={msg.id}
-              className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+              className={`flex items-start gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}
             >
-              <div
-                className={`max-w-[75%] sm:max-w-md rounded-2xl px-4 py-3 shadow-sm ${
-                  isMe
-                    ? 'bg-[#FFC107] text-[#121212] rounded-br-none font-medium'
-                    : 'bg-[#222222] text-white rounded-bl-none border border-neutral-800'
-                }`}
-              >
+              {!isMe && (
+                <button
+                  type="button"
+                  onClick={() => setActiveReactionPickerId(isPickerOpen ? null : msg.id)}
+                  className="opacity-60 hover:opacity-100 p-1.5 rounded-full bg-neutral-800 text-neutral-300 hover:text-white transition self-center"
+                  title="React to message"
+                >
+                  <Smile className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              <div className="relative group max-w-[75%] sm:max-w-md">
+                <div
+                  className={`rounded-2xl px-4 py-3 shadow-sm ${
+                    isMe
+                      ? 'bg-[#FFC107] text-[#121212] rounded-br-none font-medium'
+                      : 'bg-[#222222] text-white rounded-bl-none border border-neutral-800'
+                  }`}
+                >
                 {msg.type === 'video' || (msg.mediaUrl && (msg.mediaUrl.endsWith('.mp4') || msg.mediaUrl.includes('mixkit'))) ? (
                   <div className="mb-2 rounded-xl overflow-hidden border border-white/20 shadow-md">
                     <video
@@ -466,14 +530,58 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     <span>{timeStr}</span>
                     {isMe && readReceiptsEnabled && (
                       <div className="flex items-center space-x-0.5" title={msg.isRead ? 'Read by recipient' : 'Sent'}>
-                        <CheckCheck className={`w-3.5 h-3.5 ${msg.isRead ? 'text-emerald-800 stroke-[2.5]' : 'text-neutral-500 opacity-60'}`} />
-                        {msg.isRead && <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-900 ml-0.5">Read</span>}
+                        <CheckCheck className={`w-3.5 h-3.5 ${msg.isRead ? 'text-blue-500 stroke-[2.5]' : 'text-neutral-500 opacity-60'}`} />
+                        {msg.isRead && <span className="text-[9px] font-bold uppercase tracking-wider text-blue-500 ml-0.5">Read</span>}
                       </div>
                     )}
                   </div>
                 </div>
               </div>
+
+              {/* Display Reactions */}
+              {currentReactions.length > 0 && (
+                <div className={`absolute -bottom-3 flex items-center gap-1 bg-[#1E1E1E] border border-neutral-700 px-2 py-0.5 rounded-full shadow-md z-10 ${isMe ? 'right-2' : 'left-2'}`}>
+                  {currentReactions.map(emoji => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => toggleReaction(msg.id, emoji)}
+                      className="text-xs hover:scale-125 transition transform"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Quick Reaction Bar Picker Popup */}
+              {isPickerOpen && (
+                <div className={`absolute -top-12 z-20 bg-[#1C1C1C] border border-neutral-700 rounded-full px-3 py-1.5 shadow-xl flex items-center gap-2 animate-in fade-in zoom-in-95 ${isMe ? 'right-0' : 'left-0'}`}>
+                  {PREDEFINED_REACTIONS.map(emoji => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => toggleReaction(msg.id, emoji)}
+                      className="hover:scale-125 transition transform text-base p-0.5"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {isMe && (
+              <button
+                type="button"
+                onClick={() => setActiveReactionPickerId(isPickerOpen ? null : msg.id)}
+                className="opacity-60 hover:opacity-100 p-1.5 rounded-full bg-neutral-800 text-neutral-300 hover:text-white transition self-center"
+                title="React to message"
+              >
+                <Smile className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           );
         })}
 
