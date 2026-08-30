@@ -71,6 +71,7 @@ export interface UserProfile {
   mutualFriends?: string[]; // e.g. ['Sarah K.', 'Alex M.', 'Jordan P.']
   mutualFriendsCount?: number;
   lastActive?: string; // e.g. 'Active 10m ago'
+  friendStatus?: 'none' | 'pending' | 'friends';
   totalViews?: number;
   isGhostMode?: boolean;
   introVideoUrl?: string;

@@ -48,6 +48,17 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const [showVirtualGiftModal, setShowVirtualGiftModal] = useState(false);
   const [giftSentConfirmation, setGiftSentConfirmation] = useState<string | null>(null);
   const [isBioExpanded, setIsBioExpanded] = useState(false);
+  const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'friends'>(profile.friendStatus || 'none');
+
+  const handleToggleFriend = () => {
+    if (friendStatus === 'none') {
+      setFriendStatus('pending');
+    } else if (friendStatus === 'pending') {
+      setFriendStatus('friends');
+    } else {
+      setFriendStatus('none');
+    }
+  };
 
   const VIRTUAL_GIFTS = [
     { id: 'coffee', name: 'Artisan Coffee', icon: '☕', desc: 'A warm morning boost' },
@@ -197,9 +208,9 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
               )}
             </h3>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shadow-sm" title="Last Online Status">
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shadow-sm" title="Last Active Availability">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                🟢 {profile.lastActive || 'Online 5m ago'}
+                Active {profile.lastActive || '5m ago'}
               </span>
               <p className="text-[11px] text-neutral-400">Last visited: <span className="text-stone-300 font-medium">{lastVisitedTime}</span></p>
             </div>
@@ -423,20 +434,21 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
               className="flex gap-2 overflow-x-auto pb-2 snap-x scrollbar-thin scroll-smooth cursor-grab active:cursor-grabbing"
             >
               {profile.photos.map((photoUrl, idx) => (
-                <div key={idx} className="flex-shrink-0 w-full h-72 snap-center rounded-2xl overflow-hidden relative bg-neutral-950 border border-neutral-800 group">
+                <div key={idx} className="flex-shrink-0 w-full h-72 snap-center rounded-2xl overflow-hidden relative bg-neutral-950 border border-neutral-800 group transition-all duration-300 hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/15">
                   <img
                     src={photoUrl}
                     alt={`${profile.name} photo ${idx + 1}`}
                     style={{ filter: getFilterStyle(activePhotoFilter) }}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     referrerPolicy="no-referrer"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity duration-300 pointer-events-none" />
                   {profile.photos.length > 1 && (
-                    <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold text-white shadow flex items-center gap-1 z-10">
+                    <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold text-white shadow flex items-center gap-1 z-10 transition-transform duration-300 group-hover:scale-105">
                       <span>{idx + 1}</span> / <span>{profile.photos.length}</span>
                     </div>
                   )}
-                  <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] text-amber-300 font-bold uppercase tracking-wider flex items-center gap-1 shadow">
+                  <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] text-amber-300 font-bold uppercase tracking-wider flex items-center gap-1 shadow opacity-80 group-hover:opacity-100 transition-opacity duration-300">
                     <span>🔍 Hover to Zoom</span>
                   </div>
                 </div>
@@ -742,22 +754,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </a>
         </div>
 
-        {/* Dedicated Conversation Starter Section */}
-        <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/30 rounded-xl p-3.5 mb-4 shadow-md">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300">AI Conversation Starter</h4>
-          </div>
-          <p className="text-xs text-neutral-200 mb-2.5 leading-relaxed">
-            You both share interest in <span className="font-bold text-amber-300">{sharedInterests[0] || profile.interestTags?.[0] || 'Design'}</span> and belong to the <span className="font-bold text-amber-300">{sharedTribes[0] || profile.tribes?.[0] || 'Explorers'}</span> tribe!
-          </p>
-          <button
-            onClick={() => onStartChat(profile)}
-            className="w-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs py-2 rounded-lg font-bold transition flex items-center justify-center gap-1.5 shadow"
-          >
-            <span>💬 Send Icebreaker: "Hey! Saw we're both into {sharedInterests[0] || profile.interestTags?.[0] || 'Design'}!"</span>
-          </button>
-        </div>
+
 
         {/* Collapsible / Expandable Biography Section */}
         <div className="bg-neutral-800/60 border border-neutral-700/60 rounded-xl p-3 mb-4 space-y-1.5 transition">
@@ -794,63 +791,38 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
         </div>
 
         {/* Direct Invite to Group Button */}
-        <div className="mb-4">
+        <div className="mb-3">
           <button
             type="button"
             onClick={() => setShowGroupInviteModal(true)}
-            className="w-full bg-gradient-to-r from-cyan-500/20 via-blue-500/15 to-cyan-500/10 border border-cyan-500/40 hover:border-cyan-500 text-cyan-300 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-sm"
+            className="w-full bg-gradient-to-r from-cyan-500/20 via-blue-500/15 to-cyan-500/10 border border-cyan-500/40 hover:border-cyan-500 text-cyan-300 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-sm text-xs"
           >
             <Users className="w-4 h-4 text-cyan-400" />
             <span>Invite to Group / Tribe Meet-up</span>
           </button>
         </div>
 
-        {/* Safety Tools Section */}
-        <div className="bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3.5 mb-6 space-y-3">
-          <div className="flex items-center justify-between border-b border-neutral-700/60 pb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5" /> Safety & Verification Tools
+        {/* Add Friend Request Button */}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={handleToggleFriend}
+            className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-sm border ${
+              friendStatus === 'friends'
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                : friendStatus === 'pending'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                : 'bg-neutral-800 text-stone-200 border-neutral-700 hover:bg-neutral-700'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>
+              {friendStatus === 'friends' ? 'Friends ✓ (Connected)' : friendStatus === 'pending' ? 'Friend Request Sent ⏳' : 'Add Friend 👤+'}
             </span>
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
-              🛡️ Verified Safe
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs bg-neutral-900/80 p-2.5 rounded-lg border border-neutral-700">
-              <span className="text-neutral-300 font-medium flex items-center gap-1.5">
-                <span>🔒 Mutual Safety Check</span>
-              </span>
-              <span className="text-emerald-400 font-bold text-[11px]">0 Community Blocks</span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs bg-neutral-900/80 p-2.5 rounded-lg border border-neutral-700">
-              <span className="text-neutral-300 font-medium flex items-center gap-1.5">
-                <span>🔗 Linked Socials</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowSocialsModal(true)}
-                className="text-cyan-400 hover:text-cyan-300 font-bold underline text-[11px]"
-              >
-                Verify Accounts
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between text-xs bg-neutral-900/80 p-2.5 rounded-lg border border-neutral-700">
-              <span className="text-neutral-300 font-medium flex items-center gap-1.5">
-                <span>🚩 Report Behavior</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowReportModal(true)}
-                className="text-amber-400 hover:text-amber-300 font-bold underline text-[11px]"
-              >
-                File Report
-              </button>
-            </div>
-          </div>
+          </button>
         </div>
+
+
       </div>
 
       <div className="pt-4 border-t border-neutral-800 space-y-2">
