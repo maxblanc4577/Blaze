@@ -85,8 +85,9 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     const newMsg = {
       id: 'msg_admin_' + Date.now(),
       senderId: 'admin_official',
+      receiverId: targetProfile.id,
       text: `🛡️ [OFFICIAL ADMIN NOTICE]: ${adminMsgText}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: Date.now(),
       isRead: false
     };
 
@@ -96,7 +97,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
           return {
             ...c,
             lastMessage: newMsg.text,
-            timestamp: 'Just now',
+            updatedAt: Date.now(),
             messages: [...c.messages, newMsg]
           };
         }
@@ -108,7 +109,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
         id: 'conv_' + Date.now(),
         profile: targetProfile,
         lastMessage: newMsg.text,
-        timestamp: 'Just now',
+        updatedAt: Date.now(),
         unreadCount: 1,
         messages: [newMsg]
       };
@@ -431,7 +432,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                   </div>
 
                   {/* Analytics Metric Cards Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-2">
                       <div className="flex items-center justify-between text-neutral-400">
                         <span className="text-xs font-bold">Total Active Users</span>
@@ -452,15 +453,6 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                       <p className="text-[10px] text-cyan-400 font-bold flex items-center gap-1">
                         <TrendingUp className="w-3 h-3" /> Peak signups at 8pm
                       </p>
-                    </div>
-
-                    <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-2">
-                      <div className="flex items-center justify-between text-neutral-400">
-                        <span className="text-xs font-bold">Avg Message Volume</span>
-                        <MessageSquare className="w-4 h-4 text-emerald-400" />
-                      </div>
-                      <p className="text-2xl font-black text-white font-mono">2,840 / hr</p>
-                      <p className="text-[10px] text-neutral-400">High engagement rate</p>
                     </div>
                   </div>
 

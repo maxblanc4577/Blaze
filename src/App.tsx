@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, FilterState, ChatConversation, Message } from './types';
 import { MOCK_PROFILES, CURRENT_USER } from './data/mockProfiles';
 import { calculateDistance } from './utils/geo';
@@ -27,6 +27,8 @@ import { BoostOfferModal } from './components/BoostOfferModal';
 import { AdminPortalModal } from './components/AdminPortalModal';
 import { DownloadAppModal } from './components/DownloadAppModal';
 import { RegistrationConsentModal } from './components/RegistrationConsentModal';
+import { DailyCheckinModal } from './components/DailyCheckinModal';
+import { OnboardingOverlay } from './components/OnboardingOverlay';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grid');
@@ -114,6 +116,28 @@ export default function App() {
     return localStorage.getItem('blaze_privacy_consent') !== 'true';
   });
 
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    return localStorage.getItem('blaze_onboarding_completed') !== 'true';
+  });
+
+  const [isDailyCheckinOpen, setIsDailyCheckinOpen] = useState<boolean>(() => {
+    const last = currentUser.lastLogin;
+    if (!last) return true;
+    const lastDate = new Date(last).toDateString();
+    const today = new Date().toDateString();
+    return lastDate !== today;
+  });
+
+  const handleClaimCheckin = (rewardSparks: number) => {
+    setCurrentUser(prev => ({
+      ...prev,
+      sparkBalance: (prev.sparkBalance || 100) + rewardSparks,
+      lastLogin: Date.now()
+    }));
+    setIsDailyCheckinOpen(false);
+    showToast(`🎉 Daily Check-in claimed! +${rewardSparks} Spark coins & visibility boost added.`);
+  };
+
   useEffect(() => {
     localStorage.setItem('blaze_viewed_by_area', JSON.stringify(viewedByArea));
   }, [viewedByArea]);
@@ -166,6 +190,7 @@ export default function App() {
     showToast(`🎉 Success! ${type === '1-day' ? '1-Day Pass ($1.99)' : type === '7-day' ? '7-Day Pass ($4.99)' : type === 'monthly' ? 'Monthly Pass ($9.99)' : 'Yearly VIP Pass ($59.99)'} activated! Enjoy unlimited profile views.`);
   };
   const [gridSubTab, setGridSubTab] = useState<'all' | 'recently_viewed'>('all');
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeChat, setActiveChat] = useState<ChatConversation | null>(null);
   const [isContactsOpen, setIsContactsOpen] = useState<boolean>(false);
@@ -366,6 +391,13 @@ export default function App() {
         const scoreB = (b.tribes?.length || 0) + (b.interestTags?.length || 0);
         if (scoreB !== scoreA) return scoreB - scoreA;
       }
+      if (filters.sortBy === 'newest') {
+        const isANew = a.isNewUser ? 1 : 0;
+        const isBNew = b.isNewUser ? 1 : 0;
+        if (isBNew !== isANew) return isBNew - isANew;
+        return (b.lastPhotoUpdated || 0) - (a.lastPhotoUpdated || 0);
+      }
+      // Default / Closest sorting
       return a.distance - b.distance;
     });
 
@@ -489,6 +521,47 @@ export default function App() {
     }, 1500);
   };
 
+  const handleAddReaction = (convId: string, messageId: string, emoji: string) => {
+    setConversations(prev => prev.map(conv => {
+      if (conv.id !== convId) return conv;
+      const updatedMessages = conv.messages.map(msg => {
+        if (msg.id !== messageId) return msg;
+        const currentReactions = msg.reactions || [];
+        const existingIndex = currentReactions.findIndex(r => r.userId === currentUser.id && r.emoji === emoji);
+        let newReactions = [...currentReactions];
+        if (existingIndex >= 0) {
+          newReactions.splice(existingIndex, 1);
+        } else {
+          newReactions.push({ emoji, userId: currentUser.id, userName: currentUser.name });
+        }
+        return { ...msg, reactions: newReactions };
+      });
+      const updatedConv = { ...conv, messages: updatedMessages };
+      if (activeChat && activeChat.id === convId) {
+        setActiveChat(updatedConv);
+      }
+      return updatedConv;
+    }));
+  };
+
+  const handleToggleArchive = (convId: string) => {
+    setConversations(prev => prev.map(c => c.id === convId ? { ...c, isArchived: !c.isArchived } : c));
+    showToast('📦 Conversation archive status updated.');
+  };
+
+  const handleBulkArchive = (conversationIds: string[]) => {
+    setConversations(prev => prev.map(c => conversationIds.includes(c.id) ? { ...c, isArchived: !c.isArchived } : c));
+    showToast(`📦 Updated archive status for ${conversationIds.length} conversation(s).`);
+  };
+
+  const handleBulkDelete = (conversationIds: string[]) => {
+    setConversations(prev => prev.filter(c => !conversationIds.includes(c.id)));
+    if (activeChat && conversationIds.includes(activeChat.id)) {
+      setActiveChat(null);
+    }
+    showToast(`🗑️ Deleted ${conversationIds.length} conversation(s).`);
+  };
+
   const appContent = (
     <div className="min-h-screen bg-[#121212] text-white flex flex-col font-sans select-none w-full h-full relative overflow-hidden">
       
@@ -560,15 +633,41 @@ export default function App() {
         {activeTab === 'grid' && (
           <div className="max-w-7xl mx-auto p-3 sm:p-4 pb-24">
 
-            {/* Search Input & Geolocation Status Bar */}
-            <div className="mb-4 flex flex-col sm:flex-row gap-2 items-center justify-between">
+            {/* Search Input, Geolocation Status Bar & Sorting Toggle */}
+            <div className="mb-4 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
               <input
                 type="text"
                 placeholder="Search by name, bio, or interests..."
                 value={filters.searchQuery}
                 onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
-                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition shadow-sm ${isDarkMode ? 'bg-[#1E1E1E] border-neutral-800 focus:border-[#FFC107] text-white' : 'bg-white border-neutral-300 focus:border-amber-500 text-neutral-900'}`}
+                className={`w-full sm:flex-1 border rounded-xl px-4 py-3 text-sm outline-none transition shadow-sm ${isDarkMode ? 'bg-[#1E1E1E] border-neutral-800 focus:border-[#FFC107] text-white' : 'bg-white border-neutral-300 focus:border-amber-500 text-neutral-900'}`}
               />
+
+              {/* Sorting Toggle: Closest vs Newest */}
+              <div className="flex items-center space-x-1 bg-[#1E1E1E] border border-neutral-800 p-1 rounded-xl flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setFilters({ ...filters, sortBy: 'closest' })}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    (!filters.sortBy || filters.sortBy === 'closest')
+                      ? 'bg-[#FFC107] text-[#121212] shadow'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span>📍 Closest</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilters({ ...filters, sortBy: 'newest' })}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    filters.sortBy === 'newest'
+                      ? 'bg-[#FFC107] text-[#121212] shadow'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span>✨ Newest</span>
+                </button>
+              </div>
             </div>
 
             {(() => {
@@ -618,6 +717,7 @@ export default function App() {
                       }}
                       viewedCount={currentAreaViewedIds.length}
                       hasActiveSubscription={hasActiveSubscription}
+                      showToast={showToast}
                     />
                   ))}
                 </div>
@@ -672,6 +772,9 @@ export default function App() {
           <ChatListView
             conversations={conversations}
             onSelectChat={(conv) => setActiveChat(conv)}
+            onToggleArchive={handleToggleArchive}
+            onBulkArchive={handleBulkArchive}
+            onBulkDelete={handleBulkDelete}
           />
         )}
 
@@ -680,9 +783,39 @@ export default function App() {
             currentUser={currentUser}
             onUpdateUser={(updated) => setCurrentUser(updated)}
             onOpenCompanionModal={() => setIsCompanionModalOpen(true)}
+            onLogOff={() => {
+              setIsLoggedIn(false);
+              showToast('🔒 Logged off from profile successfully.');
+            }}
           />
         )}
       </main>
+
+      {/* Logged Off Screen Overlay */}
+      {!isLoggedIn && (
+        <div className="fixed inset-0 z-50 bg-[#121212] flex items-center justify-center p-4">
+          <div className="bg-[#1A1A1A] border border-neutral-800 rounded-3xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl animate-in fade-in">
+            <div className="w-16 h-16 rounded-2xl bg-[#FFC107] flex items-center justify-center font-black text-[#121212] text-2xl mx-auto shadow-lg shadow-[#FFC107]/20">
+              B
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-white">Logged Off</h2>
+              <p className="text-xs text-neutral-400 mt-2">
+                You are currently logged off from your Blaze profile. Log back in to connect, chat, and browse discovery.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setIsLoggedIn(true);
+                showToast('👋 Welcome back! Logged in successfully.');
+              }}
+              className="w-full py-3.5 bg-[#FFC107] text-[#121212] font-black text-sm rounded-xl hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20"
+            >
+              Log In to Blaze
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Notifications Modal */}
       <NotificationsModal
@@ -721,16 +854,16 @@ export default function App() {
       <CompanionMembershipModal
         isOpen={isCompanionModalOpen}
         onClose={() => setIsCompanionModalOpen(false)}
-        currentTier={currentUser.membershipTier}
-        onSubscribe={(tier) => {
+        currentUser={currentUser}
+        showToast={showToast}
+        onUpdateAccountType={(tier, isCompanionPro, rate) => {
           setCurrentUser(prev => ({
             ...prev,
             membershipTier: tier,
-            isCompanionPro: true,
-            companionServices: prev.companionServices?.length ? prev.companionServices : ['Travel Companion', 'Shopping Companion', 'Event Partner'],
-            companionRate: prev.companionRate || '$49/hr or $299/mo'
+            isCompanionPro,
+            companionServices: isCompanionPro ? (prev.companionServices?.length ? prev.companionServices : ['Travel Companion', 'Shopping Companion', 'Event Partner']) : prev.companionServices,
+            companionRate: rate || prev.companionRate
           }));
-          showToast('👑 Upgraded to Elite Companion Membership successfully!');
         }}
       />
 
@@ -742,10 +875,54 @@ export default function App() {
           onSendMessage={handleSendMessage}
           currentUser={currentUser}
           readReceiptsEnabled={readReceiptsEnabled}
+          onToggleReadReceipts={() => {
+            const nextVal = !readReceiptsEnabled;
+            setReadReceiptsEnabled(nextVal);
+            showToast(nextVal ? '👁️ Read receipts enabled' : '🔒 Read receipts disabled');
+          }}
+          onUpdateMessageRead={(convId, msgId, isRead) => {
+            setConversations(prev => prev.map(c => c.id === convId ? {
+              ...c,
+              messages: c.messages.map(m => m.id === msgId ? { ...m, isRead, readAt: isRead ? Date.now() : undefined } : m)
+            } : c));
+            setActiveChat(prev => prev && prev.id === convId ? {
+              ...prev,
+              messages: prev.messages.map(m => m.id === msgId ? { ...m, isRead, readAt: isRead ? Date.now() : undefined } : m)
+            } : null);
+            showToast(isRead ? '✓ Message marked as read' : '○ Message marked as unread');
+          }}
+          onAddReaction={handleAddReaction}
           onClearConversation={(convId) => {
             setConversations(prev => prev.map(c => c.id === convId ? { ...c, messages: [] } : c));
             setActiveChat(prev => prev ? { ...prev, messages: [] } : null);
             showToast('🗑️ Conversation cleared successfully.');
+          }}
+          onBlockUser={(profileId) => {
+            setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
+            setConversations(prev => prev.filter(c => c.profile.id !== profileId));
+            setActiveChat(null);
+            showToast('🚫 User blocked successfully. Profile hidden and conversation removed.');
+          }}
+          onUpdateConversationReadReceipts={(convId, enabled) => {
+            setConversations(prev => prev.map(c => c.id === convId ? { ...c, readReceiptsEnabled: enabled } : c));
+            setActiveChat(prev => prev && prev.id === convId ? { ...prev, readReceiptsEnabled: enabled } : null);
+            showToast(enabled ? '👁️ Read receipts enabled for this chat' : '🔒 Read receipts disabled for this chat');
+          }}
+          onUnsend={(convId, msgId) => {
+            setConversations(prev => prev.map(c => c.id === convId ? {
+              ...c,
+              messages: c.messages.filter(m => m.id !== msgId)
+            } : c));
+            setActiveChat(prev => prev && prev.id === convId ? {
+              ...prev,
+              messages: prev.messages.filter(m => m.id !== msgId)
+            } : null);
+            showToast('🗑️ Message unsent from both sides.');
+          }}
+          onUpdateConversationMute={(convId, isMuted) => {
+            setConversations(prev => prev.map(c => c.id === convId ? { ...c, isMuted } : c));
+            setActiveChat(prev => prev && prev.id === convId ? { ...prev, isMuted } : null);
+            showToast(isMuted ? '🔇 Conversation muted (notifications silenced)' : '🔔 Conversation unmuted (notifications resumed)');
           }}
         />
       )}
@@ -883,6 +1060,25 @@ export default function App() {
         }}
       />
 
+      {/* Daily Check-in Modal */}
+      {isDailyCheckinOpen && (
+        <DailyCheckinModal
+          onClaim={handleClaimCheckin}
+          onClose={() => setIsDailyCheckinOpen(false)}
+        />
+      )}
+
+      {/* Onboarding Overlay */}
+      {isOnboardingOpen && (
+        <OnboardingOverlay
+          onComplete={() => {
+            localStorage.setItem('blaze_onboarding_completed', 'true');
+            setIsOnboardingOpen(false);
+            showToast('🎉 Onboarding completed! Welcome to Blaze.');
+          }}
+        />
+      )}
+
       {/* Bottom Navigation */}
       <BottomNav
         activeTab={activeTab}
@@ -896,7 +1092,13 @@ export default function App() {
   );
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-[#0A0A0A]' : 'bg-neutral-200'} flex flex-col items-center justify-center ${deviceMode !== 'responsive' ? 'py-6 px-4' : ''}`}>
+    <motion.div
+      key={isDarkMode ? 'dark' : 'light'}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, ease: 'easeInOut' }}
+      className={`min-h-screen ${isDarkMode ? 'bg-[#0A0A0A]' : 'bg-neutral-200'} flex flex-col items-center justify-center ${deviceMode !== 'responsive' ? 'py-6 px-4' : ''}`}
+    >
       {deviceMode !== 'responsive' ? (
         <div className="flex flex-col items-center">
           <div className="mb-3 text-xs text-neutral-400 flex items-center gap-2">
@@ -937,7 +1139,7 @@ export default function App() {
       ) : (
         appContent
       )}
-    </div>
+    </motion.div>
   );
 }
 

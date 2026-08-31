@@ -15,6 +15,7 @@ export interface UserProfile {
   distance: number; // in miles
   status: OnlineStatus;
   photos: string[];
+  videos?: string[];
   headline: string;
   aboutMe: string;
   height?: string;
@@ -38,6 +39,7 @@ export interface UserProfile {
     spotify?: string;
   };
   profileTheme?: string; // e.g. 'amber', 'emerald', 'cyan', 'violet', 'rose'
+  verified?: boolean; // Added verified status property
   isVerified?: boolean;
   verificationPhoto?: string;
   lockedAlbum?: {
@@ -72,6 +74,8 @@ export interface UserProfile {
   isMatchedUp?: boolean;
   lastPhotoUpdated?: number;
   photoFilter?: string;
+  lastLogin?: number;
+  sparkBalance?: number;
   currentMood?: string; // e.g. '🔥', '😎', '☕', '🚀', '😴', '🎉'
   stickers?: string[]; // e.g. ['🚀 VIP', '👑 Elite', '⚡ Fast Responder', '🔥 Hot']
   profileSong?: { title: string; artist: string; url: string };
@@ -128,10 +132,11 @@ export interface Message {
   receiverId: string;
   text: string;
   timestamp: number;
-  type?: 'text' | 'image' | 'audio' | 'location';
+  type?: 'text' | 'image' | 'audio' | 'location' | 'video';
   mediaUrl?: string;
   isRead?: boolean;
   readAt?: number;
+  reactions?: { emoji: string; userId: string; userName?: string }[];
 }
 
 export interface ChatConversation {
@@ -141,6 +146,10 @@ export interface ChatConversation {
   unreadCount: number;
   updatedAt: number;
   messages: Message[];
+  isArchived?: boolean;
+  readReceiptsEnabled?: boolean;
+  pinnedMessageIds?: string[];
+  isMuted?: boolean;
 }
 
 export interface FilterState {
@@ -154,6 +163,7 @@ export interface FilterState {
   statusFilter?: 'all' | 'online' | 'offline' | 'away';
   positionFilter?: PositionRole | 'all';
   suggestedForYou?: boolean;
+  sortBy?: 'closest' | 'newest';
 }
 
 export interface Group {

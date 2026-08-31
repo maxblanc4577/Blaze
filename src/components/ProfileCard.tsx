@@ -3,6 +3,7 @@ import { UserProfile, getFilterStyle, getStyleTagIcon } from '../types';
 import { Flame, Star, ShieldCheck, Sparkles, Lock, Flag, Eye, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { QuickPreviewModal } from './QuickPreviewModal';
+import { ReportModal } from './ReportModal';
 
 interface ProfileCardProps {
   profile: UserProfile;
@@ -16,23 +17,34 @@ interface ProfileCardProps {
   onBadgeClick?: (badge: string) => void;
   viewedCount?: number;
   hasActiveSubscription?: boolean;
+  showToast?: (msg: string) => void;
 }
 
-export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onToggleFavorite, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false }) => {
+export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onToggleFavorite, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false, showToast }) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeX, setSwipeX] = useState(0);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  const photos = profile.photos && profile.photos.length > 0 ? profile.photos : ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'];
+
+  const handleNextPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
+  };
+
+  const handlePrevPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+  };
 
   const minSwipeDistance = 60;
 
-  // Shared interests computation
-  const userInterests = currentUserInterests || ['Coffee', 'Fitness', 'Music', 'Tech', 'Travel', 'Art'];
   const profileInterests = profile.interestTags || ['Fitness', 'Coffee', 'Design', 'Music'];
-  const sharedInterests = profileInterests.filter(tag => userInterests.includes(tag));
-  const displayInterests = sharedInterests.length > 0 ? sharedInterests : profileInterests.slice(0, 3);
-  const top3Common = sharedInterests.length > 0 ? sharedInterests.slice(0, 3) : profileInterests.slice(0, 3);
+  const displayInterests = profileInterests.slice(0, 3);
 
 
 
@@ -94,11 +106,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
 
   const handleReport = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const reason = prompt(`Select report reason for ${profile.name}:\n1. Spam\n2. Harassment\n3. Fake profile\n4. Inappropriate content`, 'Spam');
-    if (reason) {
-      console.log('🚨 Profile Reported:', { profileId: profile.id, name: profile.name, reason, timestamp: Date.now() });
-      alert(`Report submitted for ${profile.name} (Reason: ${reason}). Thank you for keeping our community safe.`);
-    }
+    setShowReportModal(true);
   };
 
   const isOnline = profile.status === 'online';
@@ -109,20 +117,34 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
+        whileHover={{ scale: 1.03, y: -4 }}
         exit={{ opacity: 0, scale: 0.8, x: swipeX < 0 ? -150 : 150 }}
         transition={{ duration: 0.35, delay: index * 0.04, ease: 'easeOut' }}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        onDrag={(e, info) => {
+          setSwipeX(info.offset.x);
+          if (info.offset.x > 40) setSwipeDirection('right');
+          else if (info.offset.x < -40) setSwipeDirection('left');
+          else setSwipeDirection(null);
+        }}
+        onDragEnd={(e, info) => {
+          if (info.offset.x > 80) {
+            triggerHaptic([50, 50, 50]);
+            onTap(e as any, profile);
+          } else if (info.offset.x < -80) {
+            triggerHaptic(30);
+            if (onPass) onPass(profile.id);
+          }
+          setSwipeX(0);
+          setSwipeDirection(null);
+        }}
         onClick={onClick}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onMouseDown={handleTouchStart}
-        onMouseMove={handleTouchMove}
-        onMouseUp={handleTouchEnd}
         style={{
           transform: `translateX(${swipeX * 0.4}px) rotate(${swipeX * 0.03}deg)`,
-          transition: touchStart === null ? 'transform 0.2s ease' : 'none',
+          transition: swipeX === 0 ? 'transform 0.2s ease' : 'none',
         }}
-        className={`relative group bg-[#1E1E1E] rounded-xl overflow-hidden cursor-pointer border transition-all duration-300 shadow-md hover:shadow-2xl hover:scale-105 aspect-[3/4] flex flex-col select-none ${
+        className={`relative group bg-[#1E1E1E] rounded-xl overflow-hidden cursor-pointer border transition-all duration-300 shadow-md hover:shadow-2xl hover:scale-[1.03] aspect-[3/4] flex flex-col select-none ${
           isOnline ? 'border-emerald-500/50 shadow-emerald-500/10' : 'border-neutral-800/80 hover:border-[#FFC107]/50'
         } ${isBoostOrPremium ? 'ring-2 ring-amber-500/40 animate-pulse' : ''}`}
       >
@@ -142,19 +164,55 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
           </div>
         )}
 
-        {/* Photo */}
-        <div className="absolute inset-0 w-full h-full bg-neutral-900">
+        {/* Photo Carousel */}
+        <div className="absolute inset-0 w-full h-full bg-neutral-900 overflow-hidden">
           <img
-            src={profile.photos[0]}
+            src={photos[currentPhotoIndex]}
             alt={profile.name}
             style={{ filter: getFilterStyle(profile.photoFilter) }}
-            className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 pointer-events-none ${
+            className={`w-full h-full object-cover transition-all duration-300 pointer-events-none ${
               isPrivacyBlurred ? 'blur-[8px] group-hover:blur-none' : ''
             }`}
             referrerPolicy="no-referrer"
           />
           {/* Gradient overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+
+          {/* Photo Pagination Indicator Bars */}
+          {photos.length > 1 && (
+            <div className="absolute top-2 left-3 right-3 z-20 flex gap-1 items-center pointer-events-none">
+              {photos.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`h-1 flex-1 rounded-full transition-all shadow ${
+                    idx === currentPhotoIndex ? 'bg-white opacity-100' : 'bg-white/40 opacity-60'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Clickable Left/Right areas for Carousel navigation */}
+          {photos.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={handlePrevPhoto}
+                className="absolute left-0 top-0 bottom-0 w-1/3 z-20 opacity-0 hover:opacity-100 flex items-center justify-start pl-2 transition cursor-pointer"
+                aria-label="Previous photo"
+              >
+                <div className="w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center text-xs font-bold shadow">‹</div>
+              </button>
+              <button
+                type="button"
+                onClick={handleNextPhoto}
+                className="absolute right-0 top-0 bottom-0 w-1/3 z-20 opacity-0 hover:opacity-100 flex items-center justify-end pr-2 transition cursor-pointer"
+                aria-label="Next photo"
+              >
+                <div className="w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center text-xs font-bold shadow">›</div>
+              </button>
+            </>
+          )}
         </div>
 
         {/* Top badges: Online status with ping dot & Top-right Action Icons (Eye preview & Red Report flag) */}
@@ -219,7 +277,6 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
                   }
                 }}
                 className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-neutral-400 hover:text-red-400 hover:bg-red-500/20 transition shadow"
-                title="Delete and remove from platform"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -235,8 +292,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             <h3 className="font-bold text-white text-sm sm:text-base flex items-center gap-1.5">
               <span>{profile.name}</span>
               <span className="text-neutral-300 font-normal">{profile.age}</span>
-              {profile.isVerified && (
-                <ShieldCheck className="w-4 h-4 text-cyan-400 fill-cyan-400/20" title="Verified Profile" />
+              {(profile.verified || profile.isVerified) && (
+                <ShieldCheck className="w-4 h-4 text-blue-500 fill-blue-500/20" title="Verified Profile" />
               )}
             </h3>
             <div className="flex items-center gap-2 mt-0.5">
@@ -250,49 +307,21 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
               )}
             </div>
 
-            {/* Visual Interest Cloud with variable sizing based on commonality */}
+            {/* Interest Tags */}
             {displayInterests.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-1.5">
-                {displayInterests.map((tag) => {
-                  const isCommon = sharedInterests.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onBadgeClick) onBadgeClick(tag);
-                      }}
-                      className={`px-2 py-0.5 rounded-full font-semibold transition flex items-center gap-1 ${
-                        isCommon
-                          ? 'text-[11px] bg-amber-500/30 text-amber-300 border border-amber-500/50 hover:bg-amber-500/40 font-bold'
-                          : 'text-[9px] bg-black/40 text-neutral-300 border border-white/10 hover:bg-black/60'
-                      }`}
-                      title={isCommon ? `Common interest: ${tag} (High Match)` : tag}
-                    >
-                      <span>{isCommon ? '🔥' : '•'}</span>
-                      <span>{tag}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Compatibility Highlight: 3 Common Interest Tags */}
-            {top3Common.length > 0 && (
-              <div className="mt-2 bg-black/60 backdrop-blur-md border border-amber-500/30 rounded-lg p-2 space-y-1">
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="font-bold text-amber-400 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> Compatibility Highlight
-                  </span>
-                  <span className="text-neutral-300">{top3Common.length} Shared</span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {top3Common.map(tag => (
-                    <span key={tag} className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-bold">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+                {displayInterests.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onBadgeClick) onBadgeClick(tag);
+                    }}
+                    className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-black/40 text-neutral-300 border border-white/10 hover:bg-black/60 transition"
+                  >
+                    <span>{tag}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -305,7 +334,6 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
               onTap(e, profile);
             }}
             className="p-2 rounded-full bg-black/50 hover:bg-[#FFC107] text-[#FFC107] hover:text-[#121212] backdrop-blur-md border border-white/10 transition group/btn active:scale-90 flex-shrink-0 ml-1.5"
-            title="Send Tap"
           >
             <Flame className="w-4 h-4 fill-current group-hover/btn:scale-110 transition-transform" />
           </button>
@@ -317,6 +345,21 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
           profile={profile}
           onClose={() => setShowPreview(false)}
           onTap={(p) => onTap({} as any, p)}
+        />
+      )}
+
+      {showReportModal && (
+        <ReportModal
+          profile={profile}
+          onClose={() => setShowReportModal(false)}
+          onReportSubmitted={(reason, details) => {
+            console.log('🚨 Profile Reported:', { profileId: profile.id, name: profile.name, reason, details, timestamp: Date.now() });
+            if (showToast) {
+              showToast(`🚨 Report submitted for ${profile.name} (${reason}). Thank you for keeping our community safe.`);
+            } else {
+              alert(`Report submitted for ${profile.name} (${reason}). Thank you for keeping our community safe.`);
+            }
+          }}
         />
       )}
     </>

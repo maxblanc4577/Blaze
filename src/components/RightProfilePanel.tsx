@@ -526,46 +526,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
 
 
 
-        {/* Common Interests Section Ordered by Similarity */}
-        {profile.interestTags && profile.interestTags.length > 0 && (
-          <div className="mb-4 bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> Common Interests & Similarity
-              </span>
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">
-                {profile.interestTags.filter(t => (currentUser?.interestTags || ['Travel', 'Fitness', 'Music', 'Art']).includes(t)).length} Matched
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {profile.interestTags
-                .slice()
-                .sort((a, b) => {
-                  const userTags = currentUser?.interestTags || ['Travel', 'Fitness', 'Music', 'Art'];
-                  const aShared = userTags.includes(a) ? 1 : 0;
-                  const bShared = userTags.includes(b) ? 1 : 0;
-                  return bShared - aShared;
-                })
-                .map((tag) => {
-                  const isShared = (currentUser?.interestTags || ['Travel', 'Fitness', 'Music', 'Art']).includes(tag);
-                  return (
-                    <span
-                      key={tag}
-                      className={`text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1 ${
-                        isShared
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                          : 'bg-neutral-800 text-neutral-300 border border-neutral-700'
-                      }`}
-                    >
-                      {isShared && '✨ '}
-                      {tag}
-                      {isShared && <span className="text-[9px] bg-amber-500 text-black px-1 rounded-full ml-0.5 font-black">Shared</span>}
-                    </span>
-                  );
-                })}
-            </div>
-          </div>
-        )}
+
 
         {/* Mutual Friends & Shared Network Section */}
         <div className="mb-4 bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3.5 space-y-3">

@@ -154,6 +154,33 @@ app.post("/api/ai/chat", async (req, res) => {
   }
 });
 
+// AI Suggested Responses endpoint for chat quick replies
+app.post("/api/ai/suggested-responses", async (req, res) => {
+  try {
+    const { lastMessageText, profileName } = req.body;
+    const prompt = `Based on the incoming message "${lastMessageText || 'Hey'}" from ${profileName || 'your contact'} in a chat, generate 3 short, natural, engaging context-aware quick reply suggestions that the user can tap to reply. Return ONLY a JSON array of 3 strings (e.g. ["Sounds great!", "What are you up to?", "Let's meet up!"]).`;
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-3.7-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    let suggestions = [];
+    try {
+      suggestions = JSON.parse(response.text || "[]");
+    } catch (e) {
+      suggestions = ["Sounds good!", "Tell me more!", "Let's chat later!"];
+    }
+    res.json({ suggestions });
+  } catch (error: any) {
+    console.error("AI Suggested Responses Error:", error);
+    res.status(500).json({ suggestions: ["Sounds good!", "What's up?", "Let's hang out!"] });
+  }
+});
+
 // AI Translate endpoint
 app.post("/api/ai/translate", async (req, res) => {
   try {

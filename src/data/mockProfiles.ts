@@ -7,7 +7,9 @@ export const CURRENT_USER: UserProfile = {
   distance: 0,
   status: 'online',
   photos: [
-    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=800&q=80'
+    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80'
   ],
   headline: 'Exploring the city 🚀',
   aboutMe: 'Designer and tech enthusiast. Let’s connect!',

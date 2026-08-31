@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
-import { UserProfile, Tribe, PositionRole, PHOTO_FILTERS, getFilterStyle } from '../types';
-import { Edit3, ShieldCheck, MapPin, Check, Plus, Trash2, Lock, Video, Image as ImageIcon, Tag, Sparkles, AlertCircle, TrendingUp, Share2 } from 'lucide-react';
+import { UserProfile, Tribe, PositionRole, LookingFor, PHOTO_FILTERS, getFilterStyle } from '../types';
+import { Edit3, ShieldCheck, MapPin, Check, Plus, Trash2, Lock, Video, Image as ImageIcon, Tag, Sparkles, AlertCircle, TrendingUp, Share2, Crop, Search } from 'lucide-react';
+import { REGIONAL_LOCATIONS } from '../utils/locations';
+import { DETAILED_LOCATIONS } from '../utils/detailedLocations';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { ExportProfileModal } from './ExportProfileModal';
+import { ImageCropModal } from './ImageCropModal';
+import { VerificationCenterModal } from './VerificationCenterModal';
+import { GoogleMapsCityPickerModal } from './GoogleMapsCityPickerModal';
 
 interface ProfileViewProps {
   currentUser: UserProfile;
   onUpdateUser: (updated: UserProfile) => void;
   onOpenCompanionModal: () => void;
+  onLogOff?: () => void;
 }
 
 const ALL_TRIBES: Tribe[] = [
@@ -22,17 +28,19 @@ const COMPANION_SERVICE_OPTIONS = [
   'Travel Companion',
   'Shopping Companion',
   'Event Partner',
+  '1-1 fun',
   'City Tour Guide',
   'Coffee Date',
   'Activity Partner'
 ];
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateUser, onOpenCompanionModal }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateUser, onOpenCompanionModal, onLogOff }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<UserProfile>({ ...currentUser });
   const [successMsg, setSuccessMsg] = useState('');
   const [photoInputType, setPhotoInputType] = useState<'url' | 'preset'>('url');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [showCropModal, setShowCropModal] = useState(false);
   
   // Verification modal / state
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -41,7 +49,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
   // Locked album input states
   const [newLockedPhotoUrl, setNewLockedPhotoUrl] = useState('');
   const [newLockedVideoUrl, setNewLockedVideoUrl] = useState('');
+  const [newPublicPhotoUrl, setNewPublicPhotoUrl] = useState('');
+  const [newPublicVideoUrl, setNewPublicVideoUrl] = useState('');
   const [interestSearch, setInterestSearch] = useState('');
+  const [locationSearch, setLocationSearch] = useState('');
+  const [showGoogleMapsModal, setShowGoogleMapsModal] = useState(false);
 
   const presetAvatars = [
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=800&q=80',
@@ -102,19 +114,105 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
     });
   };
 
-  const handleRequestVerification = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!verificationPoseUrl) return;
+  const handleVerifiedSuccess = () => {
     const updated = {
       ...currentUser,
       isVerified: true,
-      verificationPhoto: verificationPoseUrl
+      verified: true,
     };
     onUpdateUser(updated);
     setFormData(updated);
     setShowVerificationModal(false);
     setSuccessMsg('Verification successful! Your verified badge is now active.');
     setTimeout(() => setSuccessMsg(''), 4000);
+  };
+
+  const presetVideos = [
+    'https://assets.mixkit.co/videos/preview/mixkit-young-woman-looking-at-sunset-41631-large.mp4',
+    'https://assets.mixkit.co/videos/preview/mixkit-man-holding-a-neon-sign-41582-large.mp4',
+    'https://assets.mixkit.co/videos/preview/mixkit-happy-woman-dancing-in-the-street-41624-large.mp4',
+  ];
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'publicPhoto' | 'publicVideo' | 'lockedPhoto' | 'lockedVideo') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    if (type === 'publicPhoto') {
+      const current = formData.photos || [];
+      if (current.length >= 8) {
+        alert('Maximum 8 public photos allowed.');
+        return;
+      }
+      setFormData(prev => ({ ...prev, photos: [...current, url] }));
+    } else if (type === 'publicVideo') {
+      const current = formData.videos || [];
+      if (current.length >= 5) {
+        alert('Maximum 5 public videos allowed.');
+        return;
+      }
+      setFormData(prev => ({ ...prev, videos: [...current, url] }));
+    } else if (type === 'lockedPhoto') {
+      const current = formData.lockedAlbum?.photos || [];
+      if (current.length >= 10) {
+        alert('Maximum 10 locked photos allowed.');
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        lockedAlbum: {
+          photos: [...current, url],
+          videos: prev.lockedAlbum?.videos || []
+        }
+      }));
+    } else if (type === 'lockedVideo') {
+      const current = formData.lockedAlbum?.videos || [];
+      if (current.length >= 10) {
+        alert('Maximum 10 locked videos allowed.');
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        lockedAlbum: {
+          photos: prev.lockedAlbum?.photos || [],
+          videos: [...current, url]
+        }
+      }));
+    }
+  };
+
+  // Public Photos & Videos CRUD
+  const addPublicPhoto = () => {
+    if (!newPublicPhotoUrl.trim()) return;
+    const current = formData.photos || [];
+    if (current.length >= 8) {
+      alert('Maximum 8 public photos allowed.');
+      return;
+    }
+    setFormData(prev => ({ ...prev, photos: [...current, newPublicPhotoUrl.trim()] }));
+    setNewPublicPhotoUrl('');
+  };
+
+  const removePublicPhoto = (idx: number) => {
+    if ((formData.photos || []).length <= 1) {
+      alert('You must keep at least one profile photo.');
+      return;
+    }
+    setFormData(prev => ({ ...prev, photos: (prev.photos || []).filter((_, i) => i !== idx) }));
+  };
+
+  const addPublicVideo = () => {
+    if (!newPublicVideoUrl.trim()) return;
+    const current = formData.videos || [];
+    if (current.length >= 5) {
+      alert('Maximum 5 public videos allowed.');
+      return;
+    }
+    setFormData(prev => ({ ...prev, videos: [...current, newPublicVideoUrl.trim()] }));
+    setNewPublicVideoUrl('');
+  };
+
+  const removePublicVideo = (idx: number) => {
+    setFormData(prev => ({ ...prev, videos: (prev.videos || []).filter((_, i) => i !== idx) }));
   };
 
   // Locked Album CRUD
@@ -252,6 +350,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => {
+                if (onLogOff) onLogOff();
+              }}
+              className="px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold text-xs transition border border-red-500/30 whitespace-nowrap"
+              title="Log Off Profile"
+            >
+              Log Off
+            </button>
+            <button
               onClick={() => setIsExportModalOpen(true)}
               className="px-3.5 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold text-xs transition flex items-center space-x-1.5 border border-neutral-700"
               title="Export & Share Profile Card"
@@ -272,6 +379,52 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
           </div>
         </div>
       </div>
+
+      {/* Horizontal Scrollable Photo Carousel */}
+      <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <ImageIcon className="w-5 h-5 text-amber-400" />
+            <h3 className="text-sm font-bold text-white">Photos ({currentUser.photos.length})</h3>
+          </div>
+          <span className="text-xs text-neutral-400">Horizontal Carousel</span>
+        </div>
+        <div className="flex overflow-x-auto gap-4 pb-2 scrollbar-thin scrollbar-thumb-neutral-700">
+          {currentUser.photos.map((photo, idx) => (
+            <div key={idx} className="relative w-44 h-56 sm:w-52 sm:h-64 rounded-2xl overflow-hidden flex-shrink-0 border-2 border-neutral-800 bg-neutral-900 group shadow-md">
+              <img
+                src={photo}
+                alt={`Photo ${idx + 1}`}
+                style={{ filter: getFilterStyle(currentUser.photoFilter) }}
+                className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] font-bold text-white border border-white/10">
+                #{idx + 1} {idx === 0 ? '(Primary)' : ''}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {currentUser.videos && currentUser.videos.length > 0 && (
+        <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Video className="w-5 h-5 text-cyan-400" />
+              <h3 className="text-sm font-bold text-white">Public Videos ({currentUser.videos.length})</h3>
+            </div>
+            <span className="text-xs text-neutral-400">Video Gallery</span>
+          </div>
+          <div className="flex overflow-x-auto gap-4 pb-2 scrollbar-thin scrollbar-thumb-neutral-700">
+            {currentUser.videos.map((videoUrl, vIdx) => (
+              <div key={vIdx} className="relative w-56 h-40 sm:w-64 sm:h-44 rounded-2xl overflow-hidden flex-shrink-0 border-2 border-neutral-800 bg-neutral-900 shadow-md">
+                <video src={videoUrl} controls className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Profile Strength Indicator */}
       <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-5 shadow-xl space-y-3">
@@ -395,21 +548,23 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
         </div>
       </div>
 
-      {/* Elite Companion Membership Banner */}
+      {/* Profile Registration & Companion Membership Banner */}
       <div className="bg-gradient-to-r from-amber-500/20 via-[#1E1E1E] to-amber-500/10 border border-amber-500/40 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 bg-amber-500/20 border border-amber-500/40 rounded-2xl flex items-center justify-center text-[#FFC107] font-bold text-xl">
-            👑
+            {currentUser.membershipTier === 'Elite Companion' ? '👑' : '👤'}
           </div>
           <div>
             <h3 className="font-bold text-white text-base flex items-center gap-2">
-              <span>Blaze Elite Companion Pass</span>
+              <span>{currentUser.membershipTier === 'Elite Companion' ? 'Professional Companion Profile' : 'Regular User Profile'}</span>
               <span className="text-[10px] bg-amber-500 text-black px-2 py-0.5 rounded-full font-black uppercase">
                 {currentUser.membershipTier || 'Free'}
               </span>
             </h3>
             <p className="text-xs text-neutral-300 mt-0.5">
-              Offer professional travel companion, shopping buddy, and social escort services with monthly membership.
+              {currentUser.membershipTier === 'Elite Companion' 
+                ? 'Pro active ($19.99/mo). Switch back to Regular User or manage professional fees anytime.' 
+                : 'Free regular user registration. Choose professional registration or view associated fees anytime.'}
             </p>
           </div>
         </div>
@@ -417,7 +572,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
           onClick={onOpenCompanionModal}
           className="px-5 py-2.5 rounded-xl bg-[#FFC107] text-[#121212] font-black text-xs hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20 whitespace-nowrap"
         >
-          {currentUser.membershipTier === 'Elite Companion' ? 'Manage Elite Pass' : 'Upgrade to Elite ($29.99/mo)'}
+          {currentUser.membershipTier === 'Elite Companion' ? 'Switch / Manage Profile' : 'Register Professional / View Fees'}
         </button>
       </div>
 
@@ -473,13 +628,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             </div>
 
             {photoInputType === 'url' ? (
-              <input
-                type="url"
-                placeholder="https://example.com/photo.jpg"
-                value={formData.photos[0] || ''}
-                onChange={e => setFormData({ ...formData, photos: [e.target.value] })}
-                className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#FFC107]"
-              />
+              <div className="space-y-2">
+                <input
+                  type="url"
+                  placeholder="https://example.com/photo.jpg"
+                  value={formData.photos[0] || ''}
+                  onChange={e => setFormData({ ...formData, photos: [e.target.value] })}
+                  className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#FFC107]"
+                />
+                {formData.photos[0] && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCropModal(true)}
+                    className="px-3.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-amber-400 text-xs font-semibold flex items-center space-x-1.5 transition border border-neutral-700"
+                  >
+                    <Crop className="w-3.5 h-3.5" />
+                    <span>Open 1:1 Square Crop Tool</span>
+                  </button>
+                )}
+              </div>
             ) : (
               <div className="grid grid-cols-4 gap-2">
                 {presetAvatars.map((url, i) => (
@@ -489,6 +656,140 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                     className={`cursor-pointer rounded-xl overflow-hidden border-2 aspect-square ${formData.photos[0] === url ? 'border-[#FFC107]' : 'border-neutral-800 opacity-60 hover:opacity-100'}`}
                   >
                     <img src={url} alt={`Preset ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Public Photos Management */}
+          <div className="space-y-3 pt-2 border-t border-neutral-800">
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 flex items-center justify-between">
+              <span className="flex items-center gap-1.5"><ImageIcon className="w-4 h-4 text-[#FFC107]" /> Public Photos Gallery ({formData.photos.length}/8)</span>
+              <label className="text-[11px] text-[#FFC107] hover:underline cursor-pointer flex items-center gap-1 bg-[#252525] px-2 py-1 rounded-lg border border-neutral-700">
+                <span>📁 Upload File</span>
+                <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'publicPhoto')} className="hidden" />
+              </label>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                placeholder="Paste photo URL or pick preset below..."
+                value={newPublicPhotoUrl}
+                onChange={e => setNewPublicPhotoUrl(e.target.value)}
+                className="flex-1 bg-[#252525] border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#FFC107]"
+              />
+              <button
+                type="button"
+                onClick={addPublicPhoto}
+                className="px-4 py-2 bg-[#FFC107] text-[#121212] font-bold text-xs rounded-xl hover:opacity-90 transition flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" /> Add Photo
+              </button>
+            </div>
+
+            {/* Preset Sample Photos Quick Picker */}
+            <div className="space-y-1 pt-1">
+              <span className="text-[10px] text-neutral-400 block">Or tap a preset sample photo to add instantly:</span>
+              <div className="grid grid-cols-4 gap-1.5">
+                {presetAvatars.slice(0, 4).map((pUrl, pIdx) => (
+                  <button
+                    key={`preset-p-${pIdx}`}
+                    type="button"
+                    onClick={() => {
+                      const current = formData.photos || [];
+                      if (current.length < 8) {
+                        setFormData(prev => ({ ...prev, photos: [...current, pUrl] }));
+                      }
+                    }}
+                    className="relative aspect-square rounded-lg overflow-hidden border border-neutral-700 hover:border-[#FFC107] transition"
+                  >
+                    <img src={pUrl} alt={`Preset ${pIdx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {formData.photos.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 pt-2">
+                {formData.photos.map((photoUrl, pIdx) => (
+                  <div key={pIdx} className="relative aspect-square rounded-xl overflow-hidden border border-neutral-700 group bg-neutral-900">
+                    <img src={photoUrl} alt={`Public ${pIdx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <button
+                      type="button"
+                      onClick={() => removePublicPhoto(pIdx)}
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-red-400 transition"
+                      title="Remove Photo"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Public Videos Management */}
+          <div className="space-y-3 pt-2 border-t border-neutral-800">
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 flex items-center justify-between">
+              <span className="flex items-center gap-1.5"><Video className="w-4 h-4 text-cyan-400" /> Public Videos Gallery ({(formData.videos || []).length}/5)</span>
+              <label className="text-[11px] text-cyan-400 hover:underline cursor-pointer flex items-center gap-1 bg-[#252525] px-2 py-1 rounded-lg border border-neutral-700">
+                <span>📁 Upload Video</span>
+                <input type="file" accept="video/*" onChange={e => handleFileUpload(e, 'publicVideo')} className="hidden" />
+              </label>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                placeholder="Paste video URL (MP4) or pick preset below..."
+                value={newPublicVideoUrl}
+                onChange={e => setNewPublicVideoUrl(e.target.value)}
+                className="flex-1 bg-[#252525] border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#FFC107]"
+              />
+              <button
+                type="button"
+                onClick={addPublicVideo}
+                className="px-4 py-2 bg-cyan-500 text-black font-bold text-xs rounded-xl hover:bg-cyan-400 transition flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" /> Add Video
+              </button>
+            </div>
+
+            {/* Preset Sample Videos Quick Picker */}
+            <div className="space-y-1 pt-1">
+              <span className="text-[10px] text-neutral-400 block">Or tap a sample video to add instantly:</span>
+              <div className="flex gap-2">
+                {presetVideos.map((vUrl, vIdx) => (
+                  <button
+                    key={`preset-v-${vIdx}`}
+                    type="button"
+                    onClick={() => {
+                      const current = formData.videos || [];
+                      if (current.length < 5) {
+                        setFormData(prev => ({ ...prev, videos: [...current, vUrl] }));
+                      }
+                    }}
+                    className="text-[10px] bg-neutral-800 hover:bg-cyan-500/20 text-cyan-300 border border-neutral-700 px-2.5 py-1 rounded-lg transition"
+                  >
+                    + Add Sample Video {vIdx + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {(formData.videos || []).length > 0 && (
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                {(formData.videos || []).map((videoUrl, vIdx) => (
+                  <div key={vIdx} className="relative aspect-video rounded-xl overflow-hidden border border-neutral-700 group bg-neutral-900">
+                    <video src={videoUrl} className="w-full h-full object-cover" muted />
+                    <button
+                      type="button"
+                      onClick={() => removePublicVideo(vIdx)}
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-red-400 transition"
+                      title="Remove Video"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -578,47 +879,118 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             </div>
           </div>
 
-          {/* Location / Worldwide Country */}
+          {/* Location / Worldwide Country & Caribbean / Latin America / Canada */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-1">Country & City (Worldwide)</label>
-            <input
-              type="text"
-              placeholder="e.g. France (Paris), Japan (Tokyo), United States (New York)..."
-              value={formData.locationName}
-              onChange={e => setFormData({ ...formData, locationName: e.target.value })}
-              className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#FFC107] mb-2"
-            />
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                'United States (New York, NY)',
-                'United Kingdom (London, UK)',
-                'France (Paris, France)',
-                'Japan (Tokyo, Japan)',
-                'Australia (Sydney, Australia)',
-                'Brazil (Rio de Janeiro)',
-                'Germany (Berlin)',
-                'Canada (Toronto)',
-                'Spain (Barcelona)',
-                'Italy (Rome)',
-                'United Arab Emirates (Dubai)',
-                'Thailand (Bangkok)',
-                'South Korea (Seoul)',
-                'Mexico (Mexico City)',
-                'South Africa (Cape Town)'
-              ].map(loc => (
-                <button
-                  key={loc}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, locationName: loc })}
-                  className={`text-[10px] px-2.5 py-1 rounded-lg border transition ${
-                    formData.locationName === loc 
-                      ? 'bg-[#FFC107] text-black border-[#FFC107] font-bold' 
-                      : 'bg-[#222] text-neutral-300 border-neutral-800 hover:border-neutral-700'
-                  }`}
-                >
-                  {loc}
-                </button>
-              ))}
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-1">
+              Location (Canada, Latin America, Caribbean & Worldwide)
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                placeholder="e.g. Canada (Toronto), Mexico (Oaxaca), Cuba (Havana)..."
+                value={formData.locationName}
+                onChange={e => setFormData({ ...formData, locationName: e.target.value })}
+                className="flex-1 bg-[#252525] border border-neutral-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#FFC107]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowGoogleMapsModal(true)}
+                className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-xl whitespace-nowrap flex items-center gap-1 shadow"
+                title="Choose exact city worldwide using Google Maps"
+              >
+                <span>🌍 Google Maps Picker</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        const geoTag = `Geo-Tag (${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)})`;
+                        setFormData({
+                          ...formData,
+                          locationName: geoTag,
+                          latitude: pos.coords.latitude,
+                          longitude: pos.coords.longitude
+                        });
+                        alert(`📍 Geo-tag location acquired successfully: ${geoTag}`);
+                      },
+                      () => {
+                        alert('Unable to retrieve your GPS location. Please check browser permissions or type location manually.');
+                      }
+                    );
+                  } else {
+                    alert('Geolocation is not supported by your browser.');
+                  }
+                }}
+                className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-[#FFC107] text-xs font-bold rounded-xl border border-neutral-700 whitespace-nowrap flex items-center gap-1"
+                title="Use GPS Geo-Tag if city not listed"
+              >
+                <span>📍 Use GPS Geo-Tag</span>
+              </button>
+            </div>
+            <p className="text-[11px] text-neutral-400 mb-2">
+              Choose exact cities worldwide via <span className="text-[#FFC107] font-bold">Google Maps Picker</span>, type freely above, or tap <span className="text-[#FFC107] font-bold">Use GPS Geo-Tag</span>.
+            </p>
+
+            <div className="space-y-2 bg-[#222222] border border-neutral-800 p-3 rounded-2xl">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-neutral-400" />
+                <input
+                  type="text"
+                  placeholder="Search Canada, Latin America, Caribbean towns, villages, countries..."
+                  value={locationSearch}
+                  onChange={e => setLocationSearch(e.target.value)}
+                  className="w-full bg-[#1A1A1A] border border-neutral-700 rounded-xl pl-9 pr-3 py-2 text-xs text-white outline-none focus:border-[#FFC107]"
+                />
+              </div>
+
+              <div className="max-h-44 overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-neutral-700">
+                <div className="text-[10px] uppercase font-bold text-amber-400 px-2 pt-1">Specific Cities, Towns & Villages (Caribbean & Worldwide)</div>
+                {DETAILED_LOCATIONS.filter(item => 
+                  item.name.toLowerCase().includes(locationSearch.toLowerCase()) || 
+                  item.country.toLowerCase().includes(locationSearch.toLowerCase()) ||
+                  item.region.toLowerCase().includes(locationSearch.toLowerCase())
+                ).map(item => {
+                  const locString = `${item.name}, ${item.country} (${item.type})`;
+                  const isSelected = formData.locationName === locString || formData.locationName === item.name;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, locationName: locString })}
+                      className={`w-full text-left text-xs px-3 py-1.5 rounded-lg transition flex items-center justify-between ${
+                        isSelected
+                          ? 'bg-[#FFC107] text-black font-bold'
+                          : 'bg-[#1C1C1C] hover:bg-neutral-800 text-neutral-300'
+                      }`}
+                    >
+                      <div className="truncate flex items-center gap-2">
+                        <span className="font-semibold text-white">{item.name}</span>
+                        <span className="text-[10px] text-neutral-400">({item.country} • {item.type})</span>
+                      </div>
+                      {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+
+                <div className="text-[10px] uppercase font-bold text-neutral-400 px-2 pt-2">Regional Country Groups</div>
+                {REGIONAL_LOCATIONS.filter(loc => loc.toLowerCase().includes(locationSearch.toLowerCase())).map(loc => (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, locationName: loc })}
+                    className={`w-full text-left text-xs px-3 py-1.5 rounded-lg transition flex items-center justify-between ${
+                      formData.locationName === loc
+                        ? 'bg-[#FFC107] text-black font-bold'
+                        : 'bg-[#1C1C1C] hover:bg-neutral-800 text-neutral-300'
+                    }`}
+                  >
+                    <span className="truncate">{loc}</span>
+                    {formData.locationName === loc && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -893,12 +1265,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             <div className="space-y-2">
               <label className="text-xs font-semibold text-neutral-400 flex items-center justify-between">
                 <span className="flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5 text-amber-400" /> Private Photos</span>
-                <span>{(formData.lockedAlbum?.photos || []).length}/10</span>
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] text-amber-400 hover:underline cursor-pointer bg-[#1A1A1A] px-2 py-0.5 rounded border border-neutral-700">
+                    📁 Upload File
+                    <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'lockedPhoto')} className="hidden" />
+                  </label>
+                  <span>{(formData.lockedAlbum?.photos || []).length}/10</span>
+                </div>
               </label>
               <div className="flex gap-2">
                 <input
                   type="url"
-                  placeholder="Paste photo URL for private album..."
+                  placeholder="Paste photo URL or pick preset below..."
                   value={newLockedPhotoUrl}
                   onChange={e => setNewLockedPhotoUrl(e.target.value)}
                   className="flex-1 bg-[#1A1A1A] border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#FFC107]"
@@ -910,6 +1288,34 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                 >
                   <Plus className="w-4 h-4" /> Add Photo
                 </button>
+              </div>
+
+              {/* Preset Sample Photos for Locked Album */}
+              <div className="space-y-1 pt-1">
+                <span className="text-[10px] text-neutral-400 block">Tap preset photo to add instantly:</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {presetAvatars.slice(4, 8).map((pUrl, pIdx) => (
+                    <button
+                      key={`preset-lp-${pIdx}`}
+                      type="button"
+                      onClick={() => {
+                        const current = formData.lockedAlbum?.photos || [];
+                        if (current.length < 10) {
+                          setFormData(prev => ({
+                            ...prev,
+                            lockedAlbum: {
+                              photos: [...current, pUrl],
+                              videos: prev.lockedAlbum?.videos || []
+                            }
+                          }));
+                        }
+                      }}
+                      className="relative aspect-square rounded-lg overflow-hidden border border-neutral-700 hover:border-amber-400 transition"
+                    >
+                      <img src={pUrl} alt={`Preset LPhoto ${pIdx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {(formData.lockedAlbum?.photos || []).length > 0 && (
@@ -934,12 +1340,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             <div className="space-y-2 pt-2">
               <label className="text-xs font-semibold text-neutral-400 flex items-center justify-between">
                 <span className="flex items-center gap-1"><Video className="w-3.5 h-3.5 text-blue-400" /> Private Videos</span>
-                <span>{(formData.lockedAlbum?.videos || []).length}/10</span>
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] text-blue-400 hover:underline cursor-pointer bg-[#1A1A1A] px-2 py-0.5 rounded border border-neutral-700">
+                    📁 Upload Video
+                    <input type="file" accept="video/*" onChange={e => handleFileUpload(e, 'lockedVideo')} className="hidden" />
+                  </label>
+                  <span>{(formData.lockedAlbum?.videos || []).length}/10</span>
+                </div>
               </label>
               <div className="flex gap-2">
                 <input
                   type="url"
-                  placeholder="Paste video URL (MP4)..."
+                  placeholder="Paste video URL (MP4) or pick preset below..."
                   value={newLockedVideoUrl}
                   onChange={e => setNewLockedVideoUrl(e.target.value)}
                   className="flex-1 bg-[#1A1A1A] border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#FFC107]"
@@ -951,6 +1363,34 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                 >
                   <Plus className="w-4 h-4" /> Add Video
                 </button>
+              </div>
+
+              {/* Preset Sample Videos for Locked Album */}
+              <div className="space-y-1 pt-1">
+                <span className="text-[10px] text-neutral-400 block">Tap sample video to add instantly:</span>
+                <div className="flex gap-2">
+                  {presetVideos.map((vUrl, vIdx) => (
+                    <button
+                      key={`preset-lv-${vIdx}`}
+                      type="button"
+                      onClick={() => {
+                        const current = formData.lockedAlbum?.videos || [];
+                        if (current.length < 10) {
+                          setFormData(prev => ({
+                            ...prev,
+                            lockedAlbum: {
+                              photos: prev.lockedAlbum?.photos || [],
+                              videos: [...current, vUrl]
+                            }
+                          }));
+                        }
+                      }}
+                      className="text-[10px] bg-neutral-800 hover:bg-blue-500/20 text-blue-300 border border-neutral-700 px-2.5 py-1 rounded-lg transition"
+                    >
+                      + Private Video {vIdx + 1}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {(formData.lockedAlbum?.videos || []).length > 0 && (
@@ -1267,38 +1707,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
 
 
 
-          {/* Weekly Chat Activity Volume Chart */}
-          <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-xl">💬</span>
-                <h3 className="text-sm font-bold text-white">Weekly Chat Activity Volume</h3>
-              </div>
-              <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full font-semibold border border-cyan-500/35">
-                Peak: Sat Evenings
-              </span>
-            </div>
-            <p className="text-xs text-neutral-400">Visualizing message frequency and conversation activity across days of the week.</p>
-            <div className="h-60 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[
-                  { day: 'Mon', messages: 28 },
-                  { day: 'Tue', messages: 45 },
-                  { day: 'Wed', messages: 35 },
-                  { day: 'Thu', messages: 62 },
-                  { day: 'Fri', messages: 95 },
-                  { day: 'Sat', messages: 140 },
-                  { day: 'Sun', messages: 110 },
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis dataKey="day" stroke="#888" fontSize={12} />
-                  <YAxis stroke="#888" fontSize={12} />
-                  <Tooltip contentStyle={{ backgroundColor: '#181818', borderColor: '#333', borderRadius: '12px', color: '#fff' }} />
-                  <Bar dataKey="messages" name="Messages Sent/Received" fill="#FFC107" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+
           {currentUser.tribes && currentUser.tribes.length > 0 && (
             <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 space-y-3 shadow-xl">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Tribes</h3>
@@ -1318,56 +1727,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
         </div>
       )}
 
-      {/* Verification Modal */}
-      {showVerificationModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in">
-            <div className="flex items-center space-x-2 text-[#FFC107]">
-              <ShieldCheck className="w-6 h-6" />
-              <h3 className="text-lg font-bold text-white">Get Verified</h3>
-            </div>
-            <p className="text-xs text-neutral-300 leading-relaxed">
-              To get your official <strong className="text-cyan-400">Verified Badge</strong>, upload a pose photo holding your hand up with 2 fingers or matching our community safety check pose. This builds trust across the Blaze community!
-            </p>
+      {/* Google Maps City Picker Modal */}
+      <GoogleMapsCityPickerModal
+        isOpen={showGoogleMapsModal}
+        onClose={() => setShowGoogleMapsModal(false)}
+        onSelectCity={(cityName, lat, lng) => {
+          setFormData({
+            ...formData,
+            locationName: cityName,
+            ...(lat && lng ? { latitude: lat, longitude: lng } : {})
+          });
+          setSuccessMsg(`🌍 Location updated to ${cityName} via Google Maps!`);
+          setTimeout(() => setSuccessMsg(''), 3000);
+        }}
+        currentLocation={formData.locationName}
+      />
 
-            <form onSubmit={handleRequestVerification} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-1">Pose Photo URL</label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://images.unsplash.com/photo-..."
-                  value={verificationPoseUrl}
-                  onChange={e => setVerificationPoseUrl(e.target.value)}
-                  className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#FFC107]"
-                />
-              </div>
-
-              {verificationPoseUrl && (
-                <div className="aspect-square w-32 mx-auto rounded-xl overflow-hidden border-2 border-[#FFC107]">
-                  <img src={verificationPoseUrl} alt="Pose preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowVerificationModal(false)}
-                  className="px-4 py-2 rounded-xl bg-neutral-800 text-neutral-300 text-xs font-bold hover:bg-neutral-700 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-cyan-500 text-black text-xs font-bold hover:bg-cyan-400 transition"
-                >
-                  Submit for Verification
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Verification Center Modal */}
+      <VerificationCenterModal
+        isOpen={showVerificationModal}
+        onClose={() => setShowVerificationModal(false)}
+        onVerifiedSuccess={handleVerifiedSuccess}
+      />
 
       {/* Export Profile Card Modal */}
       <ExportProfileModal
@@ -1375,6 +1756,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
         onClose={() => setIsExportModalOpen(false)}
         profile={currentUser}
       />
+
+      {/* Image Crop Modal */}
+      {showCropModal && (
+        <ImageCropModal
+          imageUrl={formData.photos[0] || ''}
+          onClose={() => setShowCropModal(false)}
+          onCropComplete={(croppedUrl) => {
+            setFormData({ ...formData, photos: [croppedUrl] });
+            setSuccessMsg('Photo cropped and formatted to 1:1 square ratio successfully!');
+            setTimeout(() => setSuccessMsg(''), 3000);
+          }}
+        />
+      )}
 
     </div>
   );
