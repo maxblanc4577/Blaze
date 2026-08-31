@@ -28,7 +28,6 @@ export const ExportProfileModal: React.FC<ExportProfileModalProps> = ({
     const cardData = `--- BLAZE PROFILE SNAPSHOT ---
 Name: ${profile.name}, ${profile.age}
 Headline: ${profile.headline || 'Exploring the city'}
-Compatibility: ${profile.compatibilityScore || 92}% Match
 Tribes: ${(profile.tribes || []).join(', ')}
 Interests: ${(profile.interestTags || []).join(', ')}
 About: ${profile.aboutMe || ''}
@@ -88,14 +87,6 @@ About: ${profile.aboutMe || ''}
             </div>
 
             <div className="bg-black/40 rounded-2xl p-3 mb-3 border border-neutral-800 flex items-center justify-around text-center">
-              <div>
-                <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider">Compatibility</p>
-                <p className="text-base font-black text-amber-400 flex items-center justify-center gap-1">
-                  <Heart className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  <span>{profile.compatibilityScore || 94}%</span>
-                </p>
-              </div>
-              <div className="w-[1px] h-8 bg-neutral-800" />
               <div>
                 <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider">Tribes</p>
                 <p className="text-xs font-bold text-white mt-1">{(profile.tribes || ['Geek', 'Jock']).slice(0, 2).join(', ')}</p>

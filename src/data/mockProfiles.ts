@@ -73,66 +73,9 @@ export const MOCK_PROFILES: UserProfile[] = [
     companionRate: '$45/hr or $299/mo',
     membershipTier: 'Elite Companion',
   },
-  {
-    id: 'user-2',
-    name: 'Mateo',
-    age: 31,
-    distance: 0.8,
-    status: 'online',
-    photos: [
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=800&q=80'
-    ],
-    headline: 'Photographer & traveler 📸',
-    aboutMe: 'New to the area! Looking to meet cool people, grab drinks, or collaborate on photo shoots.',
-    height: "6'1\"",
-    weight: '178 lbs',
-    bodyType: 'Tone',
-    position: 'Top',
-    lookingFor: ['Friends', 'Chat', 'Right Now'],
-    tribes: ['Jock', 'Clean'],
-    interestTags: ['Photography', 'Travel', 'Art', 'Fitness'],
-    styleTags: ['Vintage', 'Boho'],
-    isVerified: false,
-    lockedAlbum: {
-      photos: [],
-      videos: []
-    },
-    locationName: 'Midtown',
-    isFavorite: false,
-    latitude: 37.7810,
-    longitude: -122.4150,
-    isCompanionPro: true,
-    companionServices: ['City Tour Guide', 'Travel Companion', 'Coffee Date'],
-    companionRate: '$50/hr',
-    membershipTier: 'Elite Companion',
-  },
 
-  {
-    id: 'user-4',
-    name: 'Julian',
-    age: 24,
-    distance: 2.1,
-    status: 'online',
-    photos: [
-      'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80'
-    ],
-    headline: 'Art student 🎨 ✨',
-    aboutMe: 'Into indie music, thrift shopping, and iced matcha lattes.',
-    height: "5'8\"",
-    weight: '145 lbs',
-    bodyType: 'Slim',
-    position: 'Bottom',
-    lookingFor: ['Chat', 'Friends', 'Dates'],
-    tribes: ['Twink', 'Geek'],
-    interestTags: ['Art', 'Music', 'Fashion', 'Yoga'],
-    isVerified: false,
-    lockedAlbum: { photos: [], videos: [] },
-    locationName: 'University District',
-    latitude: 37.7900,
-    longitude: -122.4300,
-  },
+
+
   {
     id: 'user-5',
     name: 'Dimitri',

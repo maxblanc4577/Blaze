@@ -34,23 +34,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
   const displayInterests = sharedInterests.length > 0 ? sharedInterests : profileInterests.slice(0, 3);
   const top3Common = sharedInterests.length > 0 ? sharedInterests.slice(0, 3) : profileInterests.slice(0, 3);
 
-  // Calculate compatibility score based on overlapping interest tags, tribes, and age proximity
-  const currentUserAge = 26;
-  const profileAge = profile.age || 26;
-  const ageDiff = Math.abs(currentUserAge - profileAge);
-  const ageProximityScore = Math.max(0, 100 - ageDiff * 6);
 
-  const userTribes = ['Tech', 'Music', 'Fitness', 'Art'];
-  const profileTribes = profile.tribes || [];
-  const sharedTribesCount = profileTribes.filter(t => userTribes.includes(t)).length;
-  const tribeScore = Math.min(100, sharedTribesCount * 35 + 25);
-
-  const interestMatchCount = sharedInterests.length;
-  const interestScore = Math.min(100, interestMatchCount * 30 + 20);
-
-  const matchScore = Math.min(99, Math.max(45, Math.round(
-    ageProximityScore * 0.25 + tribeScore * 0.35 + interestScore * 0.4
-  )));
 
   // Privacy blur if not favorite and not matched up
   const isPrivacyBlurred = !profile.isFavorite && !profile.isMatchedUp;
@@ -241,12 +225,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
               </button>
             )}
 
-            {matchScore >= 50 && (
-              <div className="flex items-center gap-1 bg-amber-500/90 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] font-black text-black tracking-wider uppercase shadow">
-                <Sparkles className="w-3 h-3" />
-                <span>{matchScore}%</span>
-              </div>
-            )}
+
           </div>
         </div>
 

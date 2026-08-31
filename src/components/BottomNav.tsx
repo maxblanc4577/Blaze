@@ -1,11 +1,13 @@
 import React from 'react';
 import { Grid, Flame, Star, MessageSquare, User, MapPin, Compass } from 'lucide-react';
+import { getTranslation } from '../utils/translations';
 
 interface BottomNavProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   unreadChatCount: number;
   unreadTapsCount: number;
+  currentLanguage: string;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -13,15 +15,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   setActiveTab,
   unreadChatCount,
   unreadTapsCount,
+  currentLanguage,
 }) => {
   const tabs = [
-    { id: 'grid', label: 'Grid', icon: Grid },
-    { id: 'map', label: 'Map', icon: MapPin },
-    { id: 'tribes', label: 'Tribes', icon: Compass },
-    { id: 'taps', label: 'Taps', icon: Flame, badge: unreadTapsCount },
-    { id: 'favorites', label: 'Favorites', icon: Star },
-    { id: 'chats', label: 'Chats', icon: MessageSquare, badge: unreadChatCount },
-    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'grid', label: getTranslation(currentLanguage, 'grid'), icon: Grid },
+    { id: 'map', label: getTranslation(currentLanguage, 'map'), icon: MapPin },
+    { id: 'tribes', label: getTranslation(currentLanguage, 'tribes'), icon: Compass },
+    { id: 'taps', label: getTranslation(currentLanguage, 'taps'), icon: Flame, badge: unreadTapsCount },
+    { id: 'favorites', label: getTranslation(currentLanguage, 'favorites'), icon: Star },
+    { id: 'chats', label: getTranslation(currentLanguage, 'chats'), icon: MessageSquare, badge: unreadChatCount },
+    { id: 'profile', label: getTranslation(currentLanguage, 'profile'), icon: User },
   ];
 
   return (

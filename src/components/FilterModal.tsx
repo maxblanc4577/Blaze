@@ -65,7 +65,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               <span className="text-xl">✨</span>
               <div>
                 <h4 className="font-bold text-sm text-white">Suggested for You</h4>
-                <p className="text-[11px] text-neutral-400">Prioritize high compatibility scores and common interests.</p>
+                <p className="text-[11px] text-neutral-400">Prioritize common interests and active profiles.</p>
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">

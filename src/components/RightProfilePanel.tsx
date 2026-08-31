@@ -34,10 +34,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const [quickReactionSent, setQuickReactionSent] = useState<string | null>(null);
-  const [showMatchBreakdown, setShowMatchBreakdown] = useState(false);
-  const [isDateNightLoading, setIsDateNightLoading] = useState(false);
-  const [dateNightIdeas, setDateNightIdeas] = useState<any[] | null>(null);
-  const [showDateNightModal, setShowDateNightModal] = useState(false);
+
   const [activePhotoFilter, setActivePhotoFilter] = useState(profile?.photoFilter || 'none');
   const galleryRef = useRef<HTMLDivElement | null>(null);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
@@ -120,16 +117,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const profileInterests = profile.interestTags || ['Fitness', 'Coffee', 'Music', 'Design'];
   const sharedInterests = profileInterests.filter((i) => userInterests.includes(i));
 
-  // Compatibility score calculation
-  const baseScore = 42;
-  const tribeBonus = sharedTribes.length * 16;
-  const interestBonus = sharedInterests.length * 10;
-  const compatibilityScore = Math.min(99, Math.max(45, baseScore + tribeBonus + interestBonus));
 
-  // SVG circle calculations
-  const radius = 32;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (compatibilityScore / 100) * circumference;
 
   const handleShare = () => {
     const profileUrl = `${window.location.origin}${window.location.pathname}?profile=${profile.id}`;
@@ -535,121 +523,8 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </div>
         )}
 
-        {/* Compatibility Score Card */}
-        <div
-          onClick={() => setShowMatchBreakdown(!showMatchBreakdown)}
-          className="bg-neutral-800/80 border border-neutral-700/60 hover:border-amber-500/50 rounded-2xl p-4 mb-3 flex items-center gap-4 shadow-md cursor-pointer transition group"
-          title="Click to view full match breakdown"
-        >
-          <div className="relative flex items-center justify-center flex-shrink-0">
-            <svg className="w-20 h-20 transform -rotate-90">
-              <circle
-                cx="40"
-                cy="40"
-                r={radius}
-                stroke="currentColor"
-                strokeWidth="6"
-                className="text-neutral-700"
-                fill="transparent"
-              />
-              <circle
-                cx="40"
-                cy="40"
-                r={radius}
-                stroke="currentColor"
-                strokeWidth="6"
-                className="text-[#FFC107] transition-all duration-1000 ease-out"
-                fill="transparent"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute flex flex-col items-center justify-center text-center">
-              <span className="text-sm font-black text-white">{compatibilityScore}%</span>
-            </div>
-          </div>
 
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#FFC107]">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Compatibility Match</span>
-              </div>
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold border border-amber-500/30 group-hover:underline">
-                🔍 Click for Breakdown
-              </span>
-            </div>
-            <p className="text-xs text-neutral-300 leading-relaxed">
-              Based on <span className="font-semibold text-white">{sharedTribes.length} shared tribes</span> and{' '}
-              <span className="font-semibold text-white">{sharedInterests.length} common interests</span>.
-            </p>
-          </div>
-        </div>
 
-        {/* Expandable Match Breakdown Tooltip / Section */}
-        {showMatchBreakdown && (
-          <div className="bg-neutral-900 border border-amber-500/40 rounded-2xl p-4 mb-4 space-y-2 text-xs animate-in fade-in zoom-in">
-            <div className="flex items-center justify-between text-amber-300 font-bold border-b border-neutral-800 pb-2">
-              <span>📊 Match Breakdown & Transparency</span>
-              <button onClick={() => setShowMatchBreakdown(false)} className="text-neutral-400 hover:text-white">✕</button>
-            </div>
-            <div className="space-y-1.5 text-neutral-300">
-              <div className="flex justify-between">
-                <span>Base Compatibility Score</span>
-                <span className="font-semibold text-white">42%</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Shared Tribes ({sharedTribes.join(', ') || 'None'})</span>
-                <span className="font-semibold text-emerald-400">+{sharedTribes.length * 16}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Common Interests ({sharedInterests.join(', ') || 'None'})</span>
-                <span className="font-semibold text-purple-400">+{sharedInterests.length * 10}%</span>
-              </div>
-              <div className="border-t border-neutral-800 pt-1.5 flex justify-between font-bold text-amber-300">
-                <span>Total Calculated Score</span>
-                <span>{compatibilityScore}%</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Date Night AI Button */}
-        <div className="mb-4">
-          <button
-            type="button"
-            onClick={async () => {
-              setIsDateNightLoading(true);
-              setShowDateNightModal(true);
-              try {
-                const res = await fetch('/api/ai/date-night', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    currentUserInterests: currentUser?.interestTags || [],
-                    targetUserInterests: profile.interestTags || [],
-                    locationName: profile.locationName || 'Downtown'
-                  })
-                });
-                const data = await res.json();
-                setDateNightIdeas(data.ideas || []);
-              } catch (e) {
-                setDateNightIdeas([
-                  { title: "Art Gallery & Specialty Coffee", description: "Explore local contemporary galleries followed by artisanal pour-overs.", venueType: "Cafe & Gallery" },
-                  { title: "Sunset Scenic Hike", description: "Take a relaxing trail walk with panoramic city views.", venueType: "Outdoor Park" },
-                  { title: "Rooftop Tapas & Cocktails", description: "Enjoy artisanal small plates and craft drinks with skyline views.", venueType: "Rooftop Lounge" }
-                ]);
-              } finally {
-                setIsDateNightLoading(false);
-              }
-            }}
-            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition active:scale-95"
-          >
-            <Sparkles className="w-4 h-4 fill-current" />
-            <span>✨ Date Night AI Planner</span>
-          </button>
-        </div>
 
         {/* Common Interests Section Ordered by Similarity */}
         {profile.interestTags && profile.interestTags.length > 0 && (
@@ -1012,20 +887,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           <span>Block User</span>
         </button>
 
-        {onDelete && (
-          <button
-            onClick={() => {
-              if (window.confirm(`Are you sure you want to delete and permanently remove ${profile.name} from the platform?`)) {
-                onDelete(profile.id);
-                onClose();
-              }
-            }}
-            className="w-full bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition text-sm shadow-sm"
-          >
-            <Trash2 className="w-4 h-4 text-red-400" />
-            <span>Delete & Remove Permanently</span>
-          </button>
-        )}
+
       </div>
 
       {/* Report Modal */}
@@ -1097,61 +959,6 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
         </div>
       )}
 
-      {showDateNightModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#1C1C1C] border border-neutral-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in">
-            <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
-              <div className="flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 text-amber-400" />
-                <h3 className="text-base font-bold text-white">Date Night AI Suggestions</h3>
-              </div>
-              <button
-                onClick={() => setShowDateNightModal(false)}
-                className="p-2 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-neutral-300">
-              Tailored specifically for you and <strong className="text-amber-300">{profile.name}</strong> in <span className="text-white font-semibold">{profile.locationName || 'Downtown'}</span> based on your combined interests:
-            </p>
-
-            {isDateNightLoading ? (
-              <div className="py-12 text-center space-y-3">
-                <div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs text-neutral-400">Gemini AI is crafting perfect date ideas...</p>
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-                {(dateNightIdeas || []).map((idea, iIdx) => (
-                  <div key={iIdx} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-2 hover:border-amber-500/50 transition">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-amber-500 text-black flex items-center justify-center text-[10px] font-black">{iIdx + 1}</span>
-                        {idea.title}
-                      </span>
-                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold border border-amber-500/30">
-                        {idea.venueType || 'Date Spot'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-300 pl-6 leading-relaxed">{idea.description}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setShowDateNightModal(false)}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs transition shadow"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Group Invite Modal */}
       {showGroupInviteModal && (

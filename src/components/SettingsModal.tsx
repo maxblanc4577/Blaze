@@ -121,7 +121,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const downloadReceipt = (invoiceId: string, planName: string, amount: string, date: string) => {
     const receiptContent = `========================================
-             SPARK DATING APP
+             BLAZE DATING APP
          OFFICIAL PAYMENT RECEIPT
 ========================================
 Invoice ID: ${invoiceId}
@@ -131,15 +131,15 @@ Amount Paid: ${amount}
 Status: SUCCESSFUL (PAID)
 Payment Method: Visa •••• 4242
 
-Thank you for being a valued Spark member!
-For support, contact support@sparkapp.io
+Thank you for being a valued Blaze member!
+For support, contact support@blazeapp.io
 ========================================`;
 
     const blob = new Blob([receiptContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Spark_Receipt_${invoiceId}.txt`;
+    link.download = `Blaze_Receipt_${invoiceId}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -616,7 +616,7 @@ For support, contact support@sparkapp.io
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-white">Interface Accent Color</h4>
-                    <p className="text-xs text-neutral-400">Customize your Spark branding accent.</p>
+                    <p className="text-xs text-neutral-400">Customize your platform branding accent.</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 pt-1">

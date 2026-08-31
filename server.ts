@@ -177,40 +177,6 @@ app.post("/api/ai/translate", async (req, res) => {
   }
 });
 
-// AI Date Night endpoint
-app.post("/api/ai/date-night", async (req, res) => {
-  try {
-    const { currentUserInterests, targetUserInterests, locationName } = req.body;
-    const prompt = `Based on User 1 interests (${(currentUserInterests || []).join(', ')}) and User 2 interests (${(targetUserInterests || []).join(', ')}) located in ${locationName || 'Downtown'}, suggest 3 specific, exciting, location-relevant date ideas. Return ONLY a JSON object with a key "ideas" which is an array of objects having keys "title", "description", and "venueType".`;
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
-    let data;
-    try {
-      data = JSON.parse(response.text || "{}");
-    } catch (e) {
-      data = {
-        ideas: [
-          { title: "Art Gallery & Specialty Coffee", description: "Explore local contemporary galleries followed by artisanal pour-overs.", venueType: "Cafe & Gallery" },
-          { title: "Sunset Scenic Hike", description: "Take a relaxing trail walk with panoramic city views.", venueType: "Outdoor Park" },
-          { title: "Rooftop Tapas & Cocktails", description: "Enjoy artisanal small plates and craft drinks with skyline views.", venueType: "Rooftop Lounge" }
-        ]
-      };
-    }
-    res.json(data);
-  } catch (error: any) {
-    console.error("AI Date Night Error:", error);
-    res.json({
-      ideas: [
-        { title: "Art Gallery & Specialty Coffee", description: "Explore local contemporary galleries followed by artisanal pour-overs.", venueType: "Cafe & Gallery" },
-        { title: "Sunset Scenic Hike", description: "Take a relaxing trail walk with panoramic city views.", venueType: "Outdoor Park" },
-        { title: "Rooftop Tapas & Cocktails", description: "Enjoy artisanal small plates and craft drinks with skyline views.", venueType: "Rooftop Lounge" }
-      ]
-    });
-  }
-});
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

@@ -23,6 +23,7 @@ import { ContactsModal } from './components/ContactsModal';
 import { TribesView } from './components/TribesView';
 import { SettingsModal } from './components/SettingsModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
+import { BoostOfferModal } from './components/BoostOfferModal';
 import { AdminPortalModal } from './components/AdminPortalModal';
 import { DownloadAppModal } from './components/DownloadAppModal';
 import { RegistrationConsentModal } from './components/RegistrationConsentModal';
@@ -30,6 +31,7 @@ import { RegistrationConsentModal } from './components/RegistrationConsentModal'
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grid');
   const [gridColumns, setGridColumns] = useState<number>(4);
+  const [deviceMode, setDeviceMode] = useState<'responsive' | 'ios' | 'android'>('responsive');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('blaze_theme');
     return saved ? saved === 'dark' : true;
@@ -85,18 +87,18 @@ export default function App() {
 
   const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
 
-  const [viewedProfileIds, setViewedProfileIds] = useState<string[]>(() => {
+  const [viewedByArea, setViewedByArea] = useState<Record<string, string[]>>(() => {
     try {
-      const saved = localStorage.getItem('spark_viewed_profile_ids');
-      return saved ? JSON.parse(saved) : [];
+      const saved = localStorage.getItem('blaze_viewed_by_area');
+      return saved ? JSON.parse(saved) : {};
     } catch {
-      return [];
+      return {};
     }
   });
 
   const [subscription, setSubscription] = useState<{ type: 'none' | '1-day' | '7-day' | 'monthly' | 'yearly'; expiresAt: number }>(() => {
     try {
-      const saved = localStorage.getItem('spark_subscription');
+      const saved = localStorage.getItem('blaze_subscription');
       return saved ? JSON.parse(saved) : { type: 'none', expiresAt: 0 };
     } catch {
       return { type: 'none', expiresAt: 0 };
@@ -104,38 +106,51 @@ export default function App() {
   });
 
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [isBoostOfferModalOpen, setIsBoostOfferModalOpen] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState<boolean>(() => {
+    return false;
+  });
   const [isConsentModalOpen, setIsConsentModalOpen] = useState<boolean>(() => {
     return localStorage.getItem('blaze_privacy_consent') !== 'true';
   });
 
   useEffect(() => {
-    localStorage.setItem('spark_viewed_profile_ids', JSON.stringify(viewedProfileIds));
-  }, [viewedProfileIds]);
+    localStorage.setItem('blaze_viewed_by_area', JSON.stringify(viewedByArea));
+  }, [viewedByArea]);
 
   useEffect(() => {
-    localStorage.setItem('spark_subscription', JSON.stringify(subscription));
+    localStorage.setItem('blaze_subscription', JSON.stringify(subscription));
   }, [subscription]);
 
   const hasActiveSubscription = subscription.type !== 'none' && subscription.expiresAt > Date.now();
 
+  const currentArea = currentUser.locationName || 'Downtown';
+  const currentAreaViewedIds = viewedByArea[currentArea] || [];
+  const allViewedIds = Array.from(new Set(Object.values(viewedByArea).flat()));
+
   const handleSelectProfile = (profile: UserProfile) => {
-    if (hasActiveSubscription || viewedProfileIds.includes(profile.id)) {
+    const area = profile.locationName || currentUser.locationName || 'Downtown';
+    const areaViewed = viewedByArea[area] || [];
+
+    if (hasActiveSubscription || areaViewed.includes(profile.id)) {
       setSelectedProfile(profile);
       return;
     }
 
-    if (viewedProfileIds.length < 20) {
-      const updated = [...viewedProfileIds, profile.id];
-      setViewedProfileIds(updated);
+    if (areaViewed.length < 20) {
+      const updatedAreaViewed = [...areaViewed, profile.id];
+      setViewedByArea(prev => ({
+        ...prev,
+        [area]: updatedAreaViewed
+      }));
       setSelectedProfile(profile);
-      const remaining = 20 - updated.length;
+      const remaining = 20 - updatedAreaViewed.length;
       if (remaining <= 5 && remaining > 0) {
-        showToast(`⚠️ Free views remaining: ${remaining} of 20. Subscribe for unlimited access!`);
+        showToast(`⚠️ Free views remaining in ${area}: ${remaining} of 20. Subscribe for unlimited access!`);
       }
     } else {
-      setIsSubscriptionModalOpen(true);
-      showToast('🔒 Free profile limit (20/20) reached. Get a pass to view unlimited profiles!');
+      setIsBoostOfferModalOpen(true);
+      showToast(`⚡ 20/20 free views reached for ${area}. Boost offer available.`);
     }
   };
 
@@ -162,11 +177,11 @@ export default function App() {
   const [travelModeEnabled, setTravelModeEnabled] = useState<boolean>(false);
   const [travelCity, setTravelCity] = useState<string>('London, UK');
   const [accentColor, setAccentColor] = useState<string>(() => {
-    return localStorage.getItem('spark_accent_color') || '#FFC107';
+    return localStorage.getItem('blaze_accent_color') || '#FFC107';
   });
 
   useEffect(() => {
-    localStorage.setItem('spark_accent_color', accentColor);
+    localStorage.setItem('blaze_accent_color', accentColor);
     document.documentElement.style.setProperty('--accent-color', accentColor);
   }, [accentColor]);
 
@@ -176,7 +191,7 @@ export default function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setProfiles(prev => prev.map(p => p.id === 'user-3' ? { ...p, distance: 0.4 } : p));
-      showToast('📍 Someone new is nearby: Marcus (96% compatibility, 0.4 mi away)');
+      showToast('📍 Someone new is nearby: Marcus (0.4 mi away)');
     }, 8000);
     return () => clearTimeout(timer);
   }, []);
@@ -474,8 +489,8 @@ export default function App() {
     }, 1500);
   };
 
-  return (
-    <div className="min-h-screen bg-[#121212] text-white flex flex-col font-sans select-none">
+  const appContent = (
+    <div className="min-h-screen bg-[#121212] text-white flex flex-col font-sans select-none w-full h-full relative overflow-hidden">
       
       {/* Toast Notification */}
       {toastMessage && (
@@ -525,15 +540,15 @@ export default function App() {
           setCurrentLanguage(lang);
           showToast(`Language switched to ${lang.toUpperCase()}`);
         }}
-        boostActiveUntil={boostActiveUntil}
-        onActivateBoost={handleActivateBoost}
         currentUser={currentUser}
         onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
-        viewedCount={viewedProfileIds.length}
+        viewedCount={currentAreaViewedIds.length}
         subscription={subscription}
         gridSubTab={gridSubTab}
         setGridSubTab={setGridSubTab}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        deviceMode={deviceMode}
+        onDeviceModeChange={setDeviceMode}
       />
 
       {/* Main Content Area */}
@@ -558,7 +573,7 @@ export default function App() {
 
             {(() => {
               const profilesToDisplay = gridSubTab === 'recently_viewed'
-                ? filteredProfiles.filter(p => viewedProfileIds.includes(p.id))
+                ? filteredProfiles.filter(p => allViewedIds.includes(p.id))
                 : filteredProfiles;
 
               if (profilesToDisplay.length === 0) {
@@ -601,7 +616,7 @@ export default function App() {
                         setProfiles(prev => prev.filter(p => p.id !== profileId));
                         showToast('🗑️ Profile permanently deleted and removed from platform.');
                       }}
-                      viewedCount={viewedProfileIds.length}
+                      viewedCount={currentAreaViewedIds.length}
                       hasActiveSubscription={hasActiveSubscription}
                     />
                   ))}
@@ -687,7 +702,19 @@ export default function App() {
         onClose={() => setIsSubscriptionModalOpen(false)}
         onSubscribe={handleSubscribe}
         currentSubscription={subscription}
-        viewedCount={viewedProfileIds.length}
+        viewedCount={currentAreaViewedIds.length}
+      />
+
+      {/* Boost Offer Modal (displayed when 20 free views reached) */}
+      <BoostOfferModal
+        isOpen={isBoostOfferModalOpen}
+        onClose={() => setIsBoostOfferModalOpen(false)}
+        onAccept={() => {
+          handleActivateBoost();
+          setIsBoostOfferModalOpen(false);
+          setIsSubscriptionModalOpen(true);
+        }}
+        areaName={currentArea}
       />
 
       {/* Companion Membership Modal */}
@@ -766,7 +793,7 @@ export default function App() {
           showToast(`🎨 Interface accent color updated!`);
         }}
         subscription={subscription}
-        viewedCount={viewedProfileIds.length}
+        viewedCount={currentAreaViewedIds.length}
         onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
       />
 
@@ -862,8 +889,54 @@ export default function App() {
         setActiveTab={setActiveTab}
         unreadChatCount={unreadChatCount}
         unreadTapsCount={tappedProfiles.length}
+        currentLanguage={currentLanguage}
       />
 
+    </div>
+  );
+
+  return (
+    <div className={`min-h-screen ${isDarkMode ? 'bg-[#0A0A0A]' : 'bg-neutral-200'} flex flex-col items-center justify-center ${deviceMode !== 'responsive' ? 'py-6 px-4' : ''}`}>
+      {deviceMode !== 'responsive' ? (
+        <div className="flex flex-col items-center">
+          <div className="mb-3 text-xs text-neutral-400 flex items-center gap-2">
+            <span>Viewing in <strong className="text-amber-400">{deviceMode === 'ios' ? 'Apple iOS 18 (iPhone 16 Pro)' : 'Android 15 (Pixel 9 Pro)'}</strong> Simulator</span>
+            <button
+              onClick={() => setDeviceMode('responsive')}
+              className="underline text-cyan-400 hover:text-cyan-300 font-bold"
+            >
+              Exit to Full Web View
+            </button>
+          </div>
+
+          <div className={`relative w-full ${deviceMode === 'ios' ? 'max-w-[414px] rounded-[52px] border-[12px] border-neutral-900 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)]' : 'max-w-[412px] rounded-[48px] border-[10px] border-neutral-800 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)]'} bg-black overflow-hidden flex flex-col h-[850px]`}>
+            
+            <div className="bg-neutral-900 text-white px-6 pt-2.5 pb-1 flex items-center justify-between text-xs font-semibold select-none z-50 shrink-0">
+              <span>9:41</span>
+              {deviceMode === 'ios' ? (
+                <div className="w-24 h-4 bg-black rounded-full mx-auto border border-neutral-800" />
+              ) : (
+                <div className="w-3 h-3 bg-black rounded-full mx-auto border border-neutral-700" />
+              )}
+              <div className="flex items-center space-x-1.5 text-[10px]">
+                <span>5G</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col overflow-hidden relative bg-[#121212]">
+              {appContent}
+            </div>
+
+            <div className="bg-black py-2.5 flex items-center justify-center z-50 shrink-0">
+              <div className="w-32 h-1 bg-white/40 rounded-full" />
+            </div>
+
+          </div>
+        </div>
+      ) : (
+        appContent
+      )}
     </div>
   );
 }

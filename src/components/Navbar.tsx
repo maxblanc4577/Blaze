@@ -23,8 +23,6 @@ interface NavbarProps {
   onToggleTheme: () => void;
   currentLanguage: string;
   onLanguageChange: (lang: string) => void;
-  boostActiveUntil: number | null;
-  onActivateBoost: () => void;
   currentUser?: UserProfile;
   onOpenSubscription: () => void;
   viewedCount: number;
@@ -32,6 +30,8 @@ interface NavbarProps {
   gridSubTab?: 'all' | 'recently_viewed';
   setGridSubTab?: (tab: 'all' | 'recently_viewed') => void;
   onOpenAdmin: () => void;
+  deviceMode: 'responsive' | 'ios' | 'android';
+  onDeviceModeChange: (mode: 'responsive' | 'ios' | 'android') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -53,8 +53,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleTheme,
   currentLanguage,
   onLanguageChange,
-  boostActiveUntil,
-  onActivateBoost,
   currentUser,
   onOpenSubscription,
   viewedCount,
@@ -62,25 +60,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   gridSubTab,
   setGridSubTab,
   onOpenAdmin,
+  deviceMode,
+  onDeviceModeChange,
 }) => {
-  const [timeLeft, setTimeLeft] = useState<string>('');
-
-  useEffect(() => {
-    if (!boostActiveUntil) return;
-    const interval = setInterval(() => {
-      const remaining = boostActiveUntil - Date.now();
-      if (remaining <= 0) {
-        setTimeLeft('');
-        clearInterval(interval);
-      } else {
-        const mins = Math.floor(remaining / 60000);
-        const secs = Math.floor((remaining % 60000) / 1000);
-        setTimeLeft(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [boostActiveUntil]);
-
   const languages = [
     { code: 'en', label: 'English' },
     { code: 'es', label: 'Español' },
@@ -162,22 +144,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </select>
         </div>
 
-        {/* Boost Feature Button / Countdown */}
-        {boostActiveUntil && boostActiveUntil > Date.now() ? (
-          <div className="flex items-center gap-1 bg-amber-500 text-black px-3 py-1 rounded-full text-xs font-black shadow-lg animate-pulse">
-            <Zap className="w-3.5 h-3.5 fill-current" />
-            <span>Boost: {timeLeft || '30:00'}</span>
-          </div>
-        ) : (
-          <button
-            onClick={onActivateBoost}
-            className="flex items-center gap-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 text-black px-3 py-1.5 rounded-full text-xs font-extrabold shadow transition active:scale-95"
-            title="Boost profile for 30 minutes"
-          >
-            <Zap className="w-3.5 h-3.5 fill-current" />
-            <span>Boost</span>
-          </button>
-        )}
+
         {/* Buzz Simulator */}
         <BuzzSimulator
           profiles={profiles}
@@ -210,19 +177,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span>Location</span>
         </button>
 
-        {/* Subscription / Pass Status Button */}
-        <button
-          onClick={onOpenSubscription}
-          className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-[#FFC107]/40 text-[#FFC107] font-bold text-xs shadow hover:bg-amber-500/30 transition active:scale-95"
-          title="Profile Passes & Subscription"
-        >
-          <Crown className="w-3.5 h-3.5 fill-current" />
-          <span>
-            {subscription.type !== 'none' && subscription.expiresAt > Date.now()
-              ? `Pass Active (${subscription.type})`
-              : `Free: ${Math.min(viewedCount, 20)}/20`}
-          </span>
-        </button>
+
 
 
 
@@ -253,6 +208,37 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <SlidersHorizontal className="w-5 h-5 text-[#FFC107]" />
         </button>
+
+        {/* Device Mode Switcher */}
+        <div className="hidden xl:flex items-center bg-[#252525] p-1 rounded-xl border border-neutral-700">
+          <button
+            onClick={() => onDeviceModeChange('responsive')}
+            className={`px-2.5 py-1 text-xs rounded-lg font-bold transition flex items-center gap-1 ${
+              deviceMode === 'responsive' ? 'bg-[#FFC107] text-[#121212]' : 'text-neutral-400 hover:text-white'
+            }`}
+            title="Desktop / Web Responsive View"
+          >
+            <span>💻 Web</span>
+          </button>
+          <button
+            onClick={() => onDeviceModeChange('ios')}
+            className={`px-2.5 py-1 text-xs rounded-lg font-bold transition flex items-center gap-1 ${
+              deviceMode === 'ios' ? 'bg-[#FFC107] text-[#121212]' : 'text-neutral-400 hover:text-white'
+            }`}
+            title="Apple iOS 18 iPhone Simulator"
+          >
+            <span>🍎 iOS</span>
+          </button>
+          <button
+            onClick={() => onDeviceModeChange('android')}
+            className={`px-2.5 py-1 text-xs rounded-lg font-bold transition flex items-center gap-1 ${
+              deviceMode === 'android' ? 'bg-[#FFC107] text-[#121212]' : 'text-neutral-400 hover:text-white'
+            }`}
+            title="Android 15 Pixel Simulator"
+          >
+            <span>🤖 Android</span>
+          </button>
+        </div>
 
         {/* Download App button */}
         <button

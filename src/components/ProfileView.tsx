@@ -1265,39 +1265,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             </div>
           </div>
 
-          {/* Insights Section with Recharts */}
-          <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="w-5 h-5 text-[#FFC107]" />
-                <h3 className="text-sm font-bold text-white">Profile Insights & Views (Last 7 Days)</h3>
-              </div>
-              <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-semibold border border-amber-500/30">
-                +24% this week
-              </span>
-            </div>
-            <p className="text-xs text-neutral-400">Track how many people viewed your profile and interacted with your cards daily.</p>
-            <div className="h-64 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[
-                  { day: 'Mon', views: 42, taps: 14 },
-                  { day: 'Tue', views: 68, taps: 22 },
-                  { day: 'Wed', views: 55, taps: 19 },
-                  { day: 'Thu', views: 92, taps: 31 },
-                  { day: 'Fri', views: 145, taps: 48 },
-                  { day: 'Sat', views: 180, taps: 62 },
-                  { day: 'Sun', views: 165, taps: 55 },
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis dataKey="day" stroke="#888" fontSize={12} />
-                  <YAxis stroke="#888" fontSize={12} />
-                  <Tooltip contentStyle={{ backgroundColor: '#181818', borderColor: '#333', borderRadius: '12px', color: '#fff' }} />
-                  <Line type="monotone" dataKey="views" name="Profile Views" stroke="#FFC107" strokeWidth={3} dot={{ r: 4, fill: '#FFC107' }} activeDot={{ r: 8 }} />
-                  <Line type="monotone" dataKey="taps" name="Taps & Winks" stroke="#38bdf8" strokeWidth={2} dot={{ r: 3, fill: '#38bdf8' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+
 
           {/* Weekly Chat Activity Volume Chart */}
           <div className="bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
