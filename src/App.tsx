@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence } from 'motion/react';
 import { UserProfile, FilterState, ChatConversation, Message } from './types';
 import { MOCK_PROFILES, CURRENT_USER } from './data/mockProfiles';
 import { calculateDistance } from './utils/geo';
@@ -23,6 +24,8 @@ import { TribesView } from './components/TribesView';
 import { SettingsModal } from './components/SettingsModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { AdminPortalModal } from './components/AdminPortalModal';
+import { DownloadAppModal } from './components/DownloadAppModal';
+import { RegistrationConsentModal } from './components/RegistrationConsentModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grid');
@@ -77,7 +80,7 @@ export default function App() {
     ageRange: [18, 70],
     selectedTribes: [],
     searchQuery: '',
-    lookingFor: undefined,
+    lookingFor: [],
   });
 
   const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
@@ -91,7 +94,7 @@ export default function App() {
     }
   });
 
-  const [subscription, setSubscription] = useState<{ type: 'none' | '1-day' | '7-day' | 'monthly'; expiresAt: number }>(() => {
+  const [subscription, setSubscription] = useState<{ type: 'none' | '1-day' | '7-day' | 'monthly' | 'yearly'; expiresAt: number }>(() => {
     try {
       const saved = localStorage.getItem('spark_subscription');
       return saved ? JSON.parse(saved) : { type: 'none', expiresAt: 0 };
@@ -101,6 +104,10 @@ export default function App() {
   });
 
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [isConsentModalOpen, setIsConsentModalOpen] = useState<boolean>(() => {
+    return localStorage.getItem('blaze_privacy_consent') !== 'true';
+  });
 
   useEffect(() => {
     localStorage.setItem('spark_viewed_profile_ids', JSON.stringify(viewedProfileIds));
@@ -132,15 +139,16 @@ export default function App() {
     }
   };
 
-  const handleSubscribe = (type: '1-day' | '7-day' | 'monthly', price: string) => {
+  const handleSubscribe = (type: '1-day' | '7-day' | 'monthly' | 'yearly', price: string) => {
     let durationMs = 24 * 60 * 60 * 1000;
     if (type === '7-day') durationMs = 7 * 24 * 60 * 60 * 1000;
     if (type === 'monthly') durationMs = 30 * 24 * 60 * 60 * 1000;
+    if (type === 'yearly') durationMs = 365 * 24 * 60 * 60 * 1000;
 
     const expiresAt = Date.now() + durationMs;
     setSubscription({ type, expiresAt });
     setIsSubscriptionModalOpen(false);
-    showToast(`🎉 Success! ${type === '1-day' ? '1-Day Pass ($1.99)' : type === '7-day' ? '7-Day Pass ($4.99)' : 'Monthly Subscription ($9.99)'} activated! Enjoy unlimited profile views.`);
+    showToast(`🎉 Success! ${type === '1-day' ? '1-Day Pass ($1.99)' : type === '7-day' ? '7-Day Pass ($4.99)' : type === 'monthly' ? 'Monthly Pass ($9.99)' : 'Yearly VIP Pass ($59.99)'} activated! Enjoy unlimited profile views.`);
   };
   const [gridSubTab, setGridSubTab] = useState<'all' | 'recently_viewed'>('all');
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
@@ -321,7 +329,7 @@ export default function App() {
       if (filters.withPhotoOnly && (!p.photos || p.photos.length === 0)) return false;
       if (p.distance > filters.maxDistance) return false;
       if (p.age < filters.ageRange[0] || p.age > filters.ageRange[1]) return false;
-      if (filters.lookingFor && (!p.lookingFor || !p.lookingFor.includes(filters.lookingFor))) return false;
+      if (filters.lookingFor && filters.lookingFor.length > 0 && (!p.lookingFor || !filters.lookingFor.some(l => p.lookingFor?.includes(l)))) return false;
       if (filters.selectedTribes.length > 0 && !filters.selectedTribes.some((t) => p.tribes.includes(t))) {
         return false;
       }
@@ -500,6 +508,7 @@ export default function App() {
         onShareLocation={handleShareLocation}
         onOpenContacts={() => setIsContactsOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenDownloadApp={() => setIsDownloadModalOpen(true)}
         gridColumns={gridColumns}
         setGridColumns={setGridColumns}
         activeTab={activeTab}
@@ -587,6 +596,10 @@ export default function App() {
                       onPass={(profileId) => {
                         setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
                         showToast('🚫 Profile passed and hidden.');
+                      }}
+                      onDelete={(profileId) => {
+                        setProfiles(prev => prev.filter(p => p.id !== profileId));
+                        showToast('🗑️ Profile permanently deleted and removed from platform.');
                       }}
                       viewedCount={viewedProfileIds.length}
                       hasActiveSubscription={hasActiveSubscription}
@@ -758,24 +771,31 @@ export default function App() {
       />
 
       {/* Right-Side Profile Panel */}
-      {selectedProfile && (
-        <RightProfilePanel
-          profile={selectedProfile}
-          currentUser={currentUser}
-          onClose={() => setSelectedProfile(null)}
-          onStartChat={(p) => {
-            setSelectedProfile(null);
-            handleStartChat(p);
-            setActiveTab('chats');
-          }}
-          onSendTap={(p) => handleSendTap({} as any, p)}
-          onBlockUser={(profileId) => {
-            setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
-            setConversations(prev => prev.filter(c => c.profile.id !== profileId));
-            showToast('🚫 User blocked successfully. Profile hidden and notifications stopped.');
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {selectedProfile && (
+          <RightProfilePanel
+            profile={selectedProfile}
+            currentUser={currentUser}
+            onClose={() => setSelectedProfile(null)}
+            onStartChat={(p) => {
+              setSelectedProfile(null);
+              handleStartChat(p);
+              setActiveTab('chats');
+            }}
+            onSendTap={(p) => handleSendTap({} as any, p)}
+            onBlockUser={(profileId) => {
+              setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
+              setConversations(prev => prev.filter(c => c.profile.id !== profileId));
+              showToast('🚫 User blocked successfully. Profile hidden and notifications stopped.');
+            }}
+            onDelete={(profileId) => {
+              setProfiles(prev => prev.filter(p => p.id !== profileId));
+              setSelectedProfile(null);
+              showToast('🗑️ Profile permanently deleted and removed from platform.');
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Filter Modal */}
       <FilterModal
@@ -791,7 +811,7 @@ export default function App() {
             ageRange: [18, 70],
             selectedTribes: [],
             searchQuery: '',
-            lookingFor: undefined,
+            lookingFor: [],
           })
         }
       />
@@ -810,6 +830,30 @@ export default function App() {
         onClose={() => setIsAdminOpen(false)}
         profiles={profiles}
         onUpdateProfiles={setProfiles}
+        conversations={conversations}
+        onUpdateConversations={setConversations}
+        showToast={showToast}
+      />
+
+      {/* Download App Modal */}
+      {isDownloadModalOpen && (
+        <DownloadAppModal
+          onClose={() => setIsDownloadModalOpen(false)}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Registration Data Privacy & Community Consent Modal */}
+      <RegistrationConsentModal
+        isOpen={isConsentModalOpen}
+        onAccept={() => {
+          localStorage.setItem('blaze_privacy_consent', 'true');
+          setIsConsentModalOpen(false);
+          showToast('✅ Data Privacy Protocols & Community Standards accepted successfully!');
+        }}
+        onDeny={() => {
+          showToast('❌ Registration denied. You must accept data privacy terms to use Blaze.');
+        }}
       />
 
       {/* Bottom Navigation */}

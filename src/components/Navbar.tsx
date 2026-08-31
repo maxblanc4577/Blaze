@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SlidersHorizontal, Flame, Sparkles, MapPin, Bell, Users, Sun, Moon, Globe, Zap, EyeOff, Settings, Crown, ShieldCheck } from 'lucide-react';
+import { SlidersHorizontal, Flame, Sparkles, MapPin, Bell, Users, Sun, Moon, Globe, Zap, EyeOff, Settings, Crown, ShieldCheck, Smartphone } from 'lucide-react';
 import { BuzzSimulator } from './BuzzSimulator';
 import { UserProfile } from '../types';
 import { BuzzEvent } from '../utils/buzz';
@@ -9,6 +9,7 @@ interface NavbarProps {
   onShareLocation: () => void;
   onOpenContacts: () => void;
   onOpenSettings: () => void;
+  onOpenDownloadApp: () => void;
   gridColumns: number;
   setGridColumns: (cols: number) => void;
   activeTab: string;
@@ -38,6 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onShareLocation,
   onOpenContacts,
   onOpenSettings,
+  onOpenDownloadApp,
   gridColumns,
   setGridColumns,
   activeTab,
@@ -250,6 +252,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           title="Filter profiles"
         >
           <SlidersHorizontal className="w-5 h-5 text-[#FFC107]" />
+        </button>
+
+        {/* Download App button */}
+        <button
+          onClick={onOpenDownloadApp}
+          className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/40 text-cyan-300 font-bold text-xs shadow transition active:scale-95"
+          title="Download Mobile App for Android & iOS"
+        >
+          <Smartphone className="w-4 h-4 text-cyan-400" />
+          <span>Get App</span>
         </button>
 
         {/* Settings button */}

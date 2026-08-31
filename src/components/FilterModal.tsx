@@ -14,7 +14,7 @@ const ALL_TRIBES: Tribe[] = [
   'Bear', 'Clean', 'Daddy', 'Discreet', 'Geek', 'Jock', 'Leather', 'Otter', 'Poz', 'Trans', 'Twink'
 ];
 
-const ALL_LOOKING: LookingFor[] = ['Chat', 'Friends', 'Dates', 'Networking', 'Relationship', 'Right Now'];
+const ALL_LOOKING: LookingFor[] = ['Chat', 'Friends', 'Dates', 'Networking', 'Relationship', 'Right Now', '1-1 Fun', 'Casual Encounter', '1-1 meet', '1-2 Fun', 'Party fun'];
 const ALL_POSITIONS: PositionRole[] = ['Top', 'Vers Top', 'Vers', 'Vers Bottom', 'Bottom', 'Side'];
 
 export const FilterModal: React.FC<FilterModalProps> = ({
@@ -210,31 +210,43 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             </div>
           </div>
           <div className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Looking For</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Looking For (Multiple Choices)</h3>
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setFilters(prev => ({ ...prev, lookingFor: undefined }))}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                  !filters.lookingFor
-                    ? 'bg-[#FFC107] text-[#121212] font-bold'
-                    : 'bg-[#252525] text-neutral-300 hover:bg-[#333333]'
+                onClick={() => setFilters(prev => ({ ...prev, lookingFor: [] }))}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                  !filters.lookingFor || filters.lookingFor.length === 0
+                    ? 'bg-[#FFC107] text-[#121212] font-bold shadow'
+                    : 'bg-[#252525] text-neutral-300 hover:bg-[#333333] border border-neutral-800'
                 }`}
               >
                 All
               </button>
-              {ALL_LOOKING.map(item => (
-                <button
-                  key={item}
-                  onClick={() => setFilters(prev => ({ ...prev, lookingFor: prev.lookingFor === item ? undefined : item }))}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                    filters.lookingFor === item
-                      ? 'bg-[#FFC107] text-[#121212] font-bold'
-                      : 'bg-[#252525] text-neutral-300 hover:bg-[#333333]'
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
+              {ALL_LOOKING.map(item => {
+                const selected = (filters.lookingFor || []).includes(item);
+                return (
+                  <button
+                    key={item}
+                    onClick={() => {
+                      setFilters(prev => {
+                        const current = prev.lookingFor || [];
+                        const exists = current.includes(item);
+                        return {
+                          ...prev,
+                          lookingFor: exists ? current.filter(l => l !== item) : [...current, item],
+                        };
+                      });
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition flex items-center space-x-1 ${
+                      selected
+                        ? 'bg-[#FFC107] text-[#121212] font-bold shadow'
+                        : 'bg-[#252525] text-neutral-300 hover:bg-[#333333] border border-neutral-800'
+                    }`}
+                  >
+                    <span>{selected ? '✓ ' : '+ '} {item}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

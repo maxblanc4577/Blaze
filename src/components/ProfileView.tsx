@@ -91,6 +91,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
     });
   };
 
+  const toggleLookingFor = (item: LookingFor) => {
+    setFormData(prev => {
+      const looking = prev.lookingFor || [];
+      const exists = looking.includes(item);
+      return {
+        ...prev,
+        lookingFor: exists ? looking.filter(l => l !== item) : [...looking, item],
+      };
+    });
+  };
+
   const handleRequestVerification = (e: React.FormEvent) => {
     e.preventDefault();
     if (!verificationPoseUrl) return;
@@ -110,8 +121,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
   const addLockedPhoto = () => {
     if (!newLockedPhotoUrl.trim()) return;
     const currentPhotos = formData.lockedAlbum?.photos || [];
-    if (currentPhotos.length >= 5) {
-      alert('Maximum 5 photos allowed in locked album.');
+    if (currentPhotos.length >= 10) {
+      alert('Maximum 10 photos allowed in locked album.');
       return;
     }
     setFormData(prev => ({
@@ -137,8 +148,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
   const addLockedVideo = () => {
     if (!newLockedVideoUrl.trim()) return;
     const currentVideos = formData.lockedAlbum?.videos || [];
-    if (currentVideos.length >= 2) {
-      alert('Maximum 2 videos allowed in locked album.');
+    if (currentVideos.length >= 10) {
+      alert('Maximum 10 videos allowed in locked album.');
       return;
     }
     setFormData(prev => ({
@@ -149,6 +160,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
       }
     }));
     setNewLockedVideoUrl('');
+  };
+
+  const handleGrantAccess = (userId: string) => {
+    setFormData(prev => {
+      const currentGranted = prev.grantedAccessUserIds || [];
+      const updatedRequests = (prev.albumRequests || []).map(r => r.userId === userId ? { ...r, status: 'granted' as const } : r);
+      return {
+        ...prev,
+        grantedAccessUserIds: currentGranted.includes(userId) ? currentGranted : [...currentGranted, userId],
+        albumRequests: updatedRequests
+      };
+    });
+  };
+
+  const handleDenyAccess = (userId: string) => {
+    setFormData(prev => {
+      const updatedRequests = (prev.albumRequests || []).map(r => r.userId === userId ? { ...r, status: 'denied' as const } : r);
+      return {
+        ...prev,
+        albumRequests: updatedRequests
+      };
+    });
   };
 
   const removeLockedVideo = (idx: number) => {
@@ -610,6 +643,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             />
           </div>
 
+          {/* Relationship Goals (Looking For) */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block">Relationship Goals (Looking For)</label>
+            <div className="flex flex-wrap gap-2 bg-[#222] p-3 rounded-xl border border-neutral-800">
+              {(['Chat', 'Friends', 'Dates', 'Networking', 'Relationship', 'Right Now', '1-1 Fun', 'Casual Encounter', '1-1 meet', '1-2 Fun', 'Party fun'] as LookingFor[]).map(goal => {
+                const selected = (formData.lookingFor || []).includes(goal);
+                return (
+                  <button
+                    key={goal}
+                    type="button"
+                    onClick={() => toggleLookingFor(goal)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                      selected
+                        ? 'bg-[#FFC107] text-black border-[#FFC107] shadow'
+                        : 'bg-[#282828] text-neutral-300 border-neutral-800 hover:border-neutral-700'
+                    }`}
+                  >
+                    {selected ? '✓ ' : '+ '} {goal}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block mb-1">Height</label>
@@ -819,20 +876,29 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
               <div className="flex items-center space-x-2">
                 <Lock className="w-4 h-4 text-[#FFC107]" />
-                <h4 className="font-bold text-sm text-white">Manage Locked Album (2 Videos & 5 Photos Max)</h4>
+                <h4 className="font-bold text-sm text-white">Manage Private Locked Album (Up to 10 Photos & 10 Videos)</h4>
               </div>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isAlbumOpen || false}
+                  onChange={e => setFormData(prev => ({ ...prev, isAlbumOpen: e.target.checked }))}
+                  className="w-4 h-4 rounded border-neutral-700 bg-neutral-800 text-[#FFC107] focus:ring-amber-500 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-amber-300">Open Album to All</span>
+              </label>
             </div>
 
             {/* Locked Photos */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-neutral-400 flex items-center justify-between">
-                <span className="flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5 text-amber-400" /> Locked Photos</span>
-                <span>{(formData.lockedAlbum?.photos || []).length}/5</span>
+                <span className="flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5 text-amber-400" /> Private Photos</span>
+                <span>{(formData.lockedAlbum?.photos || []).length}/10</span>
               </label>
               <div className="flex gap-2">
                 <input
                   type="url"
-                  placeholder="Paste photo URL for locked album..."
+                  placeholder="Paste photo URL for private album..."
                   value={newLockedPhotoUrl}
                   onChange={e => setNewLockedPhotoUrl(e.target.value)}
                   className="flex-1 bg-[#1A1A1A] border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#FFC107]"
@@ -867,8 +933,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             {/* Locked Videos */}
             <div className="space-y-2 pt-2">
               <label className="text-xs font-semibold text-neutral-400 flex items-center justify-between">
-                <span className="flex items-center gap-1"><Video className="w-3.5 h-3.5 text-blue-400" /> Locked Videos</span>
-                <span>{(formData.lockedAlbum?.videos || []).length}/2</span>
+                <span className="flex items-center gap-1"><Video className="w-3.5 h-3.5 text-blue-400" /> Private Videos</span>
+                <span>{(formData.lockedAlbum?.videos || []).length}/10</span>
               </label>
               <div className="flex gap-2">
                 <input
@@ -899,6 +965,62 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                       >
                         <Trash2 className="w-5 h-5" /> Delete Video
                       </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Private Album Access Requests Section */}
+            <div className="pt-3 border-t border-neutral-800 space-y-3">
+              <h5 className="text-xs font-bold text-white flex items-center justify-between">
+                <span>🔒 Private Album Access Requests</span>
+                <span className="text-[10px] bg-neutral-800 px-2 py-0.5 rounded-full text-neutral-400">
+                  {(formData.albumRequests || []).filter(r => r.status === 'pending').length} Pending
+                </span>
+              </h5>
+
+              {(!formData.albumRequests || formData.albumRequests.length === 0) ? (
+                <p className="text-[11px] text-neutral-500 italic py-1">No pending access requests from other users yet.</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {formData.albumRequests.map((req) => (
+                    <div key={req.userId} className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <img src={req.userPhoto} alt={req.userName} className="w-9 h-9 rounded-xl object-cover border border-neutral-700" referrerPolicy="no-referrer" />
+                        <div>
+                          <p className="text-xs font-bold text-white">{req.userName}</p>
+                          <p className="text-[10px] text-neutral-400">Requested album access</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {req.status === 'granted' ? (
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-xl font-bold border border-emerald-500/30">
+                            ✓ Access Granted
+                          </span>
+                        ) : req.status === 'denied' ? (
+                          <span className="text-[10px] bg-red-500/20 text-red-300 px-2.5 py-1 rounded-xl font-bold border border-red-500/30">
+                            ✕ Denied
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleGrantAccess(req.userId)}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg transition"
+                            >
+                              Grant
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDenyAccess(req.userId)}
+                              className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold text-[11px] rounded-lg transition"
+                            >
+                              Deny
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { UserProfile } from '../types';
-import { X, ShieldCheck, Lock, Key, Users, CheckCircle2, ShieldAlert, Megaphone, Trash2, Activity, LogOut, UserCheck, Search, BarChart3, TrendingUp, MessageSquare, Download, Wifi, WifiOff } from 'lucide-react';
+import { UserProfile, ChatConversation } from '../types';
+import { X, ShieldCheck, Lock, Key, Users, CheckCircle2, ShieldAlert, Megaphone, Trash2, Activity, LogOut, UserCheck, Search, BarChart3, TrendingUp, MessageSquare, Download, Wifi, WifiOff, DollarSign, Image as ImageIcon, AlertTriangle, Send, Crown, BellRing } from 'lucide-react';
 
 interface AdminPortalModalProps {
   isOpen: boolean;
   onClose: () => void;
   profiles: UserProfile[];
   onUpdateProfiles: (updated: UserProfile[]) => void;
+  conversations: ChatConversation[];
+  onUpdateConversations: (updated: ChatConversation[]) => void;
+  showToast: (msg: string) => void;
 }
 
 export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
@@ -14,27 +17,150 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   onClose,
   profiles,
   onUpdateProfiles,
+  conversations,
+  onUpdateConversations,
+  showToast,
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'users' | 'reports' | 'logs' | 'broadcast'>('analytics');
+  const [isMasterAdmin, setIsMasterAdmin] = useState(false);
+  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'users' | 'reports' | 'refunds' | 'moderation' | 'messages' | 'logs' | 'broadcast'>('analytics');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [successToast, setSuccessToast] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [bulkAction, setBulkAction] = useState<string>('');
 
+  const [disputes, setDisputes] = useState([
+    { id: 'disp_101', user: 'Marcus Vance', amount: '$9.99', reason: 'Unauthorized subscription renewal charge after cancellation request', date: '2026-08-29', status: 'pending' },
+    { id: 'disp_102', user: 'Alex Rivers', amount: '$4.99', reason: 'Fraudulent complaint / scam subscription dispute', date: '2026-08-28', status: 'pending' },
+  ]);
+
+  const [pendingPhotos, setPendingPhotos] = useState([
+    { id: 'photo_1', userId: 'user_1', userName: 'Tyler Brooks', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400', type: 'profile_picture', status: 'pending' },
+    { id: 'photo_2', userId: 'user_2', userName: 'Devon Cole', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400', type: 'profile_picture', status: 'pending' },
+  ]);
+
+  const handleIssueRefund = (dispId: string, amount: string) => {
+    setDisputes(prev => prev.map(d => d.id === dispId ? { ...d, status: 'refunded' } : d));
+    setSuccessToast(`Successfully issued full refund (${amount}) and resolved billing dispute.`);
+    setTimeout(() => setSuccessToast(''), 3000);
+  };
+
+  const handleCancelSubFraud = (dispId: string, userName: string) => {
+    setDisputes(prev => prev.map(d => d.id === dispId ? { ...d, status: 'cancelled_fraud' } : d));
+    setSuccessToast(`Subscription cancelled and user flagged for fraudulent complaint (${userName}).`);
+    setTimeout(() => setSuccessToast(''), 3000);
+  };
+
+  const handleApprovePhoto = (photoId: string) => {
+    setPendingPhotos(prev => prev.map(p => p.id === photoId ? { ...p, status: 'approved' } : p));
+    setSuccessToast('Profile picture approved successfully for public display.');
+    setTimeout(() => setSuccessToast(''), 3000);
+  };
+
+  const handleRejectPhotoToPrivate = (photoId: string) => {
+    setPendingPhotos(prev => prev.map(p => p.id === photoId ? { ...p, status: 'moved_private' } : p));
+    setSuccessToast('Photo rejected for public profile and securely moved to Private Locked Album (anti-nude policy).');
+    setTimeout(() => setSuccessToast(''), 4000);
+  };
+
+  const [selectedChatUserId, setSelectedChatUserId] = useState<string>(profiles[0]?.id || '');
+  const [adminMsgText, setAdminMsgText] = useState('');
+  const [userDisputeReason, setUserDisputeReason] = useState('');
+  const [userDisputeAmount, setUserDisputeAmount] = useState('$9.99');
+  const [mySubmittedDisputes, setMySubmittedDisputes] = useState<Array<{ id: string; amount: string; reason: string; status: string; date: string }>>([
+    { id: 'disp_my_1', amount: '$9.99', reason: 'Unrecognized double charge on monthly VIP renewal', status: 'pending', date: '2026-08-30' }
+  ]);
+
+  const handleSendAdminMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminMsgText.trim() || !selectedChatUserId) return;
+    const targetProfile = profiles.find(p => p.id === selectedChatUserId);
+    if (!targetProfile) return;
+
+    const existingConv = conversations.find(c => c.profile.id === selectedChatUserId);
+    const newMsg = {
+      id: 'msg_admin_' + Date.now(),
+      senderId: 'admin_official',
+      text: `🛡️ [OFFICIAL ADMIN NOTICE]: ${adminMsgText}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isRead: false
+    };
+
+    if (existingConv) {
+      const updated = conversations.map(c => {
+        if (c.profile.id === selectedChatUserId) {
+          return {
+            ...c,
+            lastMessage: newMsg.text,
+            timestamp: 'Just now',
+            messages: [...c.messages, newMsg]
+          };
+        }
+        return c;
+      });
+      onUpdateConversations(updated);
+    } else {
+      const newConv: ChatConversation = {
+        id: 'conv_' + Date.now(),
+        profile: targetProfile,
+        lastMessage: newMsg.text,
+        timestamp: 'Just now',
+        unreadCount: 1,
+        messages: [newMsg]
+      };
+      onUpdateConversations([newConv, ...conversations]);
+    }
+
+    setAdminMsgText('');
+    setSuccessToast(`Successfully sent official admin direct message to ${targetProfile.name}!`);
+    showToast(`✉️ Admin message sent to ${targetProfile.name}`);
+  };
+
+  const handleIssueWarningReport = (reportId: string, userName: string, needEvidence: boolean) => {
+    if (needEvidence) {
+      setSuccessToast(`📩 Requested additional evidence from reporter for ${userName}. Notification sent.`);
+      showToast(`🔍 Evidence request notification sent to reporter regarding ${userName}.`);
+    } else {
+      setSuccessToast(`⚠️ Official warning issued to ${userName} based on abuse report. Resolution notification sent.`);
+      showToast(`🚨 Warning notification sent to ${userName} regarding abuse report.`);
+    }
+  };
+
+  const handleUserSubmitDispute = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userDisputeReason.trim()) return;
+    const newDisp = {
+      id: 'disp_user_' + Date.now(),
+      amount: userDisputeAmount,
+      reason: userDisputeReason,
+      status: 'pending',
+      date: new Date().toISOString().slice(0, 10)
+    };
+    setMySubmittedDisputes([newDisp, ...mySubmittedDisputes]);
+    setUserDisputeReason('');
+    showToast('💳 Billing dispute submitted to admin team successfully!');
+  };
+
   if (!isOpen) return null;
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim() === 'admin' && password === 'blaze2026') {
+    if (username.trim() === 'master' && password === 'masterblaze2026') {
       setIsAuthenticated(true);
+      setIsMasterAdmin(true);
       setErrorMsg('');
+      showToast('👑 Authenticated successfully as Master Admin (Full Platform Override Enabled).');
+    } else if (username.trim() === 'admin' && password === 'blaze2026') {
+      setIsAuthenticated(true);
+      setIsMasterAdmin(false);
+      setErrorMsg('');
+      showToast('🛡️ Authenticated as Standard Administrator.');
     } else {
-      setErrorMsg('Invalid administrator credentials. Hint: admin / blaze2026');
+      setErrorMsg('Invalid credentials. Hint: master / masterblaze2026 or admin / blaze2026');
     }
   };
 
@@ -260,6 +386,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 { id: 'analytics', label: 'Analytics Dashboard', icon: BarChart3 },
                 { id: 'users', label: `Manage Users (${profiles.length})`, icon: Users },
                 { id: 'reports', label: 'Moderation Reports (2)', icon: ShieldAlert },
+                { id: 'refunds', label: `Refunds & Disputes (${disputes.filter(d => d.status === 'pending').length})`, icon: DollarSign },
+                { id: 'moderation', label: `Photo Approval (${pendingPhotos.filter(p => p.status === 'pending').length})`, icon: ImageIcon },
                 { id: 'logs', label: 'System Activity Log', icon: Activity },
                 { id: 'broadcast', label: 'System Broadcast', icon: Megaphone },
               ].map(tab => {
@@ -518,6 +646,119 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                       <p className="text-xs text-neutral-300">Target: <strong className="text-white">Fake Account Test</strong> • Reported by: Sarah L.</p>
                       <p className="text-[11px] text-neutral-400 italic bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">"Using stolen celebrity photographs."</p>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {activeAdminTab === 'refunds' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400">Billing Disputes & Refund Requests</h4>
+                      <p className="text-[11px] text-neutral-400">Issue refunds and cancel subscriptions for fraudulent complaints or billing claims.</p>
+                    </div>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
+                      {disputes.filter(d => d.status === 'pending').length} Pending
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {disputes.map(disp => {
+                      const isPending = disp.status === 'pending';
+                      return (
+                        <div key={disp.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                              <DollarSign className="w-4 h-4" /> Dispute ID: {disp.id} • Amount: <strong className="text-white">{disp.amount}</strong>
+                            </span>
+                            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase ${
+                              disp.status === 'pending' ? 'bg-amber-500/20 text-amber-300' :
+                              disp.status === 'refunded' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                            }`}>
+                              {disp.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <div className="text-xs text-neutral-300 space-y-1">
+                            <p>User: <strong className="text-white">{disp.user}</strong> • Date: {disp.date}</p>
+                            <p className="text-neutral-400 italic bg-neutral-950 p-2.5 rounded-xl border border-neutral-800">"{disp.reason}"</p>
+                          </div>
+                          {isPending && (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              <button
+                                onClick={() => handleIssueRefund(disp.id, disp.amount)}
+                                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition shadow flex items-center gap-1"
+                              >
+                                <DollarSign className="w-3.5 h-3.5" />
+                                <span>Issue Full Refund</span>
+                              </button>
+                              <button
+                                onClick={() => handleCancelSubFraud(disp.id, disp.user)}
+                                className="px-3.5 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 font-bold text-xs rounded-xl transition flex items-center gap-1"
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                                <span>Cancel Sub & Flag Fraud</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {activeAdminTab === 'moderation' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-pink-400">Profile Picture Moderation (Anti-Nude Policy)</h4>
+                      <p className="text-[11px] text-neutral-400">Approve profile photos. Nudes/NSFW content must be rejected and moved to Private Locked Album.</p>
+                    </div>
+                    <span className="text-[10px] bg-pink-500/20 text-pink-300 px-2.5 py-0.5 rounded-full font-bold">
+                      {pendingPhotos.filter(p => p.status === 'pending').length} Pending Review
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {pendingPhotos.map(photo => {
+                      const isPending = photo.status === 'pending';
+                      return (
+                        <div key={photo.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-white">{photo.userName}</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                              photo.status === 'pending' ? 'bg-amber-500/20 text-amber-300' :
+                              photo.status === 'approved' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-purple-500/20 text-purple-300'
+                            }`}>
+                              {photo.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <div className="relative aspect-video rounded-xl overflow-hidden bg-neutral-950 border border-neutral-800">
+                            <img src={photo.url} alt={photo.userName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          </div>
+                          {isPending ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleApprovePhoto(photo.id)}
+                                className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-1"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Approve Public</span>
+                              </button>
+                              <button
+                                onClick={() => handleRejectPhotoToPrivate(photo.id)}
+                                className="flex-1 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1"
+                              >
+                                <ImageIcon className="w-3.5 h-3.5" />
+                                <span>Move to Private Album</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-neutral-400 text-center italic">Action completed successfully.</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

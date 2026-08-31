@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, getFilterStyle, getStyleTagIcon } from '../types';
-import { Flame, Star, ShieldCheck, Sparkles, Lock, Flag, Eye } from 'lucide-react';
+import { Flame, Star, ShieldCheck, Sparkles, Lock, Flag, Eye, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { QuickPreviewModal } from './QuickPreviewModal';
 
@@ -10,6 +10,7 @@ interface ProfileCardProps {
   onClick: () => void;
   onTap: (e: React.MouseEvent, profile: UserProfile) => void;
   onPass?: (profileId: string) => void;
+  onDelete?: (profileId: string) => void;
   onToggleFavorite?: (profileId: string) => void;
   currentUserInterests?: string[];
   onBadgeClick?: (badge: string) => void;
@@ -17,7 +18,7 @@ interface ProfileCardProps {
   hasActiveSubscription?: boolean;
 }
 
-export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onToggleFavorite, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false }) => {
+export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onToggleFavorite, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false }) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeX, setSwipeX] = useState(0);
@@ -222,6 +223,23 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             >
               <Flag className="w-3.5 h-3.5" />
             </button>
+
+            {/* Delete / Remove from Platform Button */}
+            {onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerHaptic(40);
+                  if (window.confirm(`Are you sure you want to delete and remove ${profile.name} from the platform?`)) {
+                    onDelete(profile.id);
+                  }
+                }}
+                className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-neutral-400 hover:text-red-400 hover:bg-red-500/20 transition shadow"
+                title="Delete and remove from platform"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
 
             {matchScore >= 50 && (
               <div className="flex items-center gap-1 bg-amber-500/90 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] font-black text-black tracking-wider uppercase shadow">

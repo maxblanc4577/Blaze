@@ -107,37 +107,7 @@ export const MOCK_PROFILES: UserProfile[] = [
     companionRate: '$50/hr',
     membershipTier: 'Elite Companion',
   },
-  {
-    id: 'user-3',
-    name: 'Marcus',
-    age: 35,
-    distance: 1.4,
-    status: 'away',
-    photos: [
-      'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=800&q=80'
-    ],
-    headline: 'Beards & beers 🐻',
-    aboutMe: 'Weekend hiker, beer enthusiast, dog dad. Let’s grab a pint.',
-    height: "5'11\"",
-    weight: '210 lbs',
-    bodyType: 'Stocky',
-    position: 'Vers Top',
-    lookingFor: ['Dates', 'Friends'],
-    tribes: ['Bear', 'Daddy'],
-    interestTags: ['Hiking', 'Beer', 'Dogs', 'Cooking'],
-    styleTags: ['Vintage', 'Preppy'],
-    isVerified: true,
-    lockedAlbum: {
-      photos: [
-        'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=800&q=80'
-      ],
-      videos: []
-    },
-    locationName: 'West End',
-    isFavorite: true,
-    latitude: 37.7650,
-    longitude: -122.4100,
-  },
+
   {
     id: 'user-4',
     name: 'Julian',
@@ -283,27 +253,7 @@ export const MOCK_PROFILES: UserProfile[] = [
     latitude: 37.7100,
     longitude: -122.3500,
   },
-  {
-    id: 'user-10',
-    name: 'Julian',
-    age: 26,
-    distance: 9.1,
-    status: 'online',
-    photos: ['https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=800&q=80'],
-    headline: 'Music producer & vinyl collector 🎧',
-    aboutMe: 'Always digging for rare grooves and ambient soundscapes.',
-    height: "5'11\"",
-    weight: '160 lbs',
-    bodyType: 'Slim',
-    position: 'Vers',
-    lookingFor: ['Chat', 'Friends'],
-    tribes: ['Geek', 'Clean'],
-    interestTags: ['Music', 'Vinyl', 'Art'],
-    isVerified: true,
-    locationName: 'Eastside',
-    latitude: 37.7000,
-    longitude: -122.4000,
-  },
+
   {
     id: 'user-11',
     name: 'Mateo',

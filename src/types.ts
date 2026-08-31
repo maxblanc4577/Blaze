@@ -4,7 +4,7 @@ export type BodyType = 'Average' | 'Athletic' | 'Muscular' | 'Stocky' | 'Slim' |
 
 export type PositionRole = 'Top' | 'Vers Top' | 'Vers' | 'Vers Bottom' | 'Bottom' | 'Side' | 'Oral';
 
-export type LookingFor = 'Chat' | 'Friends' | 'Dates' | 'Networking' | 'Relationship' | 'Right Now';
+export type LookingFor = 'Chat' | 'Friends' | 'Dates' | 'Networking' | 'Relationship' | 'Right Now' | '1-1 Fun' | 'Casual Encounter' | '1-1 meet' | '1-2 Fun' | 'Party fun';
 
 export type Tribe = 'Bear' | 'Clean' | 'Daddy' | 'Discreet' | 'Geek' | 'Jock' | 'Leather' | 'Otter' | 'Poz' | 'Trans' | 'Twink' | 'Positive';
 
@@ -41,9 +41,18 @@ export interface UserProfile {
   isVerified?: boolean;
   verificationPhoto?: string;
   lockedAlbum?: {
-    photos: string[]; // up to 5
-    videos: string[]; // up to 2
+    photos: string[]; // up to 10
+    videos: string[]; // up to 10
   };
+  isAlbumOpen?: boolean;
+  albumRequests?: Array<{
+    userId: string;
+    userName: string;
+    userPhoto: string;
+    timestamp: number;
+    status: 'pending' | 'granted' | 'denied';
+  }>;
+  grantedAccessUserIds?: string[];
   locationName: string;
   isFavorite?: boolean;
   isTapped?: boolean;
@@ -141,7 +150,7 @@ export interface FilterState {
   ageRange: [number, number];
   selectedTribes: Tribe[];
   searchQuery: string;
-  lookingFor?: LookingFor;
+  lookingFor?: LookingFor[];
   statusFilter?: 'all' | 'online' | 'offline' | 'away';
   positionFilter?: PositionRole | 'all';
   suggestedForYou?: boolean;

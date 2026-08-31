@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, getFilterStyle, PHOTO_FILTERS } from '../types';
-import { ShieldAlert, Sparkles, Heart, Share2, Check, ShieldCheck, Flag, AlertTriangle, Music, Play, Pause, Smile, Mic, Image as ImageIcon, Users, Shield } from 'lucide-react';
+import { ShieldAlert, Sparkles, Heart, Share2, Check, ShieldCheck, Flag, AlertTriangle, Music, Play, Pause, Smile, Mic, Image as ImageIcon, Users, Shield, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface RightProfilePanelProps {
@@ -10,6 +10,7 @@ interface RightProfilePanelProps {
   onStartChat: (profile: UserProfile) => void;
   onSendTap: (profile: UserProfile) => void;
   onBlockUser?: (profileId: string) => void;
+  onDelete?: (profileId: string) => void;
   onInviteToGroup?: (profile: UserProfile, groupName: string) => void;
 }
 
@@ -20,6 +21,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   onStartChat,
   onSendTap,
   onBlockUser,
+  onDelete,
   onInviteToGroup,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -49,6 +51,19 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const [giftSentConfirmation, setGiftSentConfirmation] = useState<string | null>(null);
   const [isBioExpanded, setIsBioExpanded] = useState(false);
   const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'friends'>(profile.friendStatus || 'none');
+  const [privateNote, setPrivateNote] = useState<string>(() => {
+    return profile ? localStorage.getItem(`blaze_private_note_${profile.id}`) || '' : '';
+  });
+  const [isSavingNote, setIsSavingNote] = useState(false);
+
+  const handleSavePrivateNote = (noteText: string) => {
+    setPrivateNote(noteText);
+    if (profile) {
+      localStorage.setItem(`blaze_private_note_${profile.id}`, noteText);
+    }
+    setIsSavingNote(true);
+    setTimeout(() => setIsSavingNote(false), 1000);
+  };
 
   const handleToggleFriend = () => {
     if (friendStatus === 'none') {
@@ -181,13 +196,22 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const [activeStoryIdx, setActiveStoryIdx] = useState(0);
 
   return (
-    <motion.div
-      initial={{ x: '100%', opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: '100%', opacity: 0 }}
-      transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-      className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-stone-900 text-white shadow-2xl p-6 overflow-y-auto flex flex-col justify-between"
-    >
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40"
+      />
+      <motion.div
+        initial={{ x: '100%', opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: '100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+        className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-stone-900 text-white shadow-2xl p-6 overflow-y-auto flex flex-col justify-between border-l border-neutral-800"
+      >
       <div>
         <div className="flex justify-between items-center mb-4">
           <div>
@@ -735,6 +759,92 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           )}
         </div>
 
+        {/* Private Locked Album Section */}
+        <div className="mb-4 bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3.5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              {profile.isAlbumOpen || (currentUser && profile.grantedAccessUserIds?.includes(currentUser.id)) ? (
+                <span className="text-emerald-400">🔓</span>
+              ) : (
+                <span>🔒</span>
+              )}
+              <span>Private Locked Album ({profile.lockedAlbum?.photos?.length || 0} Photos, {profile.lockedAlbum?.videos?.length || 0} Videos)</span>
+            </span>
+            {profile.isAlbumOpen && (
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
+                🔓 Album Open
+              </span>
+            )}
+          </div>
+
+          {profile.isAlbumOpen || (currentUser && profile.grantedAccessUserIds?.includes(currentUser.id)) ? (
+            <div className="space-y-3">
+              {profile.lockedAlbum?.photos && profile.lockedAlbum.photos.length > 0 && (
+                <div>
+                  <p className="text-[11px] text-neutral-400 mb-1.5 font-semibold">Private Photos ({profile.lockedAlbum.photos.length}/10)</p>
+                  <div className="grid grid-cols-5 gap-2">
+                    {profile.lockedAlbum.photos.map((url, idx) => (
+                      <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-neutral-700 cursor-pointer hover:border-amber-400 transition">
+                        <img src={url} alt={`Locked ${idx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profile.lockedAlbum?.videos && profile.lockedAlbum.videos.length > 0 && (
+                <div>
+                  <p className="text-[11px] text-neutral-400 mb-1.5 font-semibold">Private Videos ({profile.lockedAlbum.videos.length}/10)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {profile.lockedAlbum.videos.map((url, idx) => (
+                      <div key={idx} className="aspect-video rounded-lg overflow-hidden border border-neutral-700 bg-black relative flex items-center justify-center">
+                        <video src={url} className="w-full h-full object-cover opacity-80" />
+                        <span className="absolute text-xs text-white font-bold bg-black/60 px-2 py-1 rounded">▶ Video</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(!profile.lockedAlbum?.photos || profile.lockedAlbum.photos.length === 0) && (!profile.lockedAlbum?.videos || profile.lockedAlbum.videos.length === 0) && (
+                <p className="text-xs text-neutral-400 text-center py-2">No media uploaded in this private album yet.</p>
+              )}
+            </div>
+          ) : (
+            <div className="bg-neutral-900/90 rounded-lg p-3.5 border border-neutral-700 text-center space-y-2">
+              <span className="text-2xl">🔒</span>
+              <p className="text-xs text-neutral-300">
+                This private album is locked. Request access from <span className="text-white font-semibold">{profile.name}</span> to view up to 10 private photos and videos.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  const requests = profile.albumRequests || [];
+                  const alreadyRequested = requests.some(r => r.userId === currentUser?.id);
+                  if (!alreadyRequested) {
+                    profile.albumRequests = [
+                      ...requests,
+                      {
+                        userId: currentUser?.id || 'current-user',
+                        userName: currentUser?.name || 'Alex',
+                        userPhoto: currentUser?.photos[0] || '',
+                        timestamp: Date.now(),
+                        status: 'pending'
+                      }
+                    ];
+                    alert(`🔒 Access request sent successfully to ${profile.name}!`);
+                  } else {
+                    alert(`You already requested access to ${profile.name}'s private album.`);
+                  }
+                }}
+                className="w-full py-2 bg-[#FFC107] hover:bg-amber-400 text-black font-bold text-xs rounded-xl shadow transition"
+              >
+                Request Private Album Access
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Add to Calendar Button based on Event Tag */}
         <div className="bg-gradient-to-r from-amber-500/20 via-[#222222] to-amber-500/10 border border-amber-500/40 rounded-xl p-3.5 mb-4 shadow flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -755,6 +865,66 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
         </div>
 
 
+
+        {/* Relationship Goals Section */}
+        <div className="bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3.5 mb-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1.5">
+              <span>🎯 Relationship Goals</span>
+            </span>
+            <span className="text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full font-bold border border-pink-500/30">
+              Looking For
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {(profile.lookingFor && profile.lookingFor.length > 0 ? profile.lookingFor : ['Chat', 'Friends', 'Dates', 'Relationship']).map((goal, gIdx) => {
+              const goalColors: Record<string, string> = {
+                'Chat': 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+                'Friends': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                'Dates': 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+                'Networking': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+                'Relationship': 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+                'Right Now': 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                '1-1 Fun': 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+                'Casual Encounter': 'bg-orange-500/20 text-orange-300 border-orange-500/40',
+                '1-1 meet': 'bg-teal-500/20 text-teal-300 border-teal-500/40',
+                '1-2 Fun': 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40',
+                'Party fun': 'bg-red-500/20 text-red-300 border-red-500/40',
+              };
+              const colorClass = goalColors[goal] || 'bg-neutral-700 text-neutral-300 border-neutral-600';
+              return (
+                <span key={gIdx} className={`text-xs px-3 py-1 rounded-full font-bold border flex items-center gap-1 ${colorClass}`}>
+                  <span>✨</span>
+                  <span>{goal}</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Private Notes Section */}
+        <div className="bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3.5 mb-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <span>🔒 Private Notes (Only You Can See)</span>
+            </span>
+            {isSavingNote && (
+              <span className="text-[10px] text-emerald-400 font-bold animate-pulse">
+                Saved! ✓
+              </span>
+            )}
+          </div>
+          <textarea
+            value={privateNote}
+            onChange={(e) => handleSavePrivateNote(e.target.value)}
+            placeholder="Add private reminders or thoughts about this profile (e.g. met at coffee shop, loves indie music)..."
+            rows={2}
+            className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2.5 text-xs text-stone-200 placeholder-neutral-500 focus:outline-none focus:border-amber-500/60 resize-none transition"
+          />
+          <p className="text-[10px] text-neutral-400 italic">
+            Saved locally and securely to your browser storage for your personal reference.
+          </p>
+        </div>
 
         {/* Collapsible / Expandable Biography Section */}
         <div className="bg-neutral-800/60 border border-neutral-700/60 rounded-xl p-3 mb-4 space-y-1.5 transition">
@@ -841,6 +1011,21 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           <ShieldAlert className="w-4 h-4" />
           <span>Block User</span>
         </button>
+
+        {onDelete && (
+          <button
+            onClick={() => {
+              if (window.confirm(`Are you sure you want to delete and permanently remove ${profile.name} from the platform?`)) {
+                onDelete(profile.id);
+                onClose();
+              }
+            }}
+            className="w-full bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition text-sm shadow-sm"
+          >
+            <Trash2 className="w-4 h-4 text-red-400" />
+            <span>Delete & Remove Permanently</span>
+          </button>
+        )}
       </div>
 
       {/* Report Modal */}
@@ -1172,5 +1357,6 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
         </div>
       )}
     </motion.div>
+    </>
   );
 };

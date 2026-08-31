@@ -18,7 +18,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const [selectedPlan, setSelectedPlan] = useState<'1-day' | '7-day' | 'monthly'>('7-day');
+  const [selectedPlan, setSelectedPlan] = useState<'1-day' | '7-day' | 'monthly' | 'yearly'>('monthly');
 
   const plans = [
     {
@@ -34,7 +34,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       name: '7-Day Pass',
       price: '$4.99',
       period: '7 days',
-      popular: true,
+      popular: false,
       desc: 'Most popular for travelers and weekend connections.',
     },
     {
@@ -42,8 +42,16 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       name: 'Monthly Pass',
       price: '$9.99',
       period: '30 days',
+      popular: true,
+      desc: 'Billed monthly. Auto-renewing unless cancelled 24h prior.',
+    },
+    {
+      id: 'yearly' as const,
+      name: 'Yearly Pass (Save 50%)',
+      price: '$59.99',
+      period: '365 days',
       popular: false,
-      desc: 'Best value! Unlimited profile exploration for a full month.',
+      desc: 'Ultimate value! Full VIP privileges for a full year ($4.99/mo equivalent).',
     },
   ];
 
@@ -120,6 +128,15 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           })}
         </div>
 
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3.5 mb-5 text-[11px] text-neutral-300 space-y-1">
+          <p className="font-bold text-amber-400 flex items-center gap-1">
+            <span>⚡ Automatic Billing Policy</span>
+          </p>
+          <p className="text-neutral-400 leading-relaxed">
+            Subscriptions are billed automatically each billing cycle unless cancelled at least <strong>24 hours before</strong> the subscription renewal date. You may cancel anytime in your settings.
+          </p>
+        </div>
+
         {/* Subscribe Action */}
         <button
           onClick={() => {
@@ -133,8 +150,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           <span>Get {plans.find(p => p.id === selectedPlan)?.name} ({plans.find(p => p.id === selectedPlan)?.price})</span>
         </button>
 
-        <p className="text-[11px] text-neutral-500 text-center mt-4">
-          Secure payment. Cancel anytime in settings. Instant activation upon purchase.
+        <p className="text-[10px] text-neutral-500 text-center mt-3">
+          Secure payment • Auto-renewing subscription • Cancel 24h prior to avoid charges.
         </p>
 
       </div>
