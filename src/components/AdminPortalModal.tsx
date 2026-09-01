@@ -10,6 +10,16 @@ interface AdminPortalModalProps {
   conversations: ChatConversation[];
   onUpdateConversations: (updated: ChatConversation[]) => void;
   showToast: (msg: string) => void;
+  reportHistory: Array<{
+    id: string;
+    profileId: string;
+    profileName: string;
+    reason: string;
+    details: string;
+    timestamp: number;
+    dateStr: string;
+  }>;
+  onUpdateReportHistory: (updated: any[]) => void;
 }
 
 export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
@@ -20,6 +30,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   conversations,
   onUpdateConversations,
   showToast,
+  reportHistory,
+  onUpdateReportHistory,
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
@@ -594,50 +606,74 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
               )}
 
               {activeAdminTab === 'reports' && (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">User Moderation & Safety Reports</h4>
-                  <div className="space-y-3">
-                    <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-red-400 flex items-center gap-1">
-                          <ShieldAlert className="w-3.5 h-3.5" /> Report #892: Harassment
-                        </span>
-                        <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">Pending Review</span>
-                      </div>
-                      <p className="text-xs text-neutral-300">Target: <strong className="text-white">Marcus Vance</strong> • Reported by: Anonymous User</p>
-                      <p className="text-[11px] text-neutral-400 italic bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">"User sent unsolicited inappropriate messages in chat."</p>
-                      <div className="flex gap-2 pt-1">
-                        <button
-                          onClick={() => {
-                            setSuccessToast('Report resolved: User warned and message flagged.');
-                            setTimeout(() => setSuccessToast(''), 3000);
-                          }}
-                          className="px-3 py-1.5 bg-neutral-800 text-neutral-200 text-xs font-bold rounded-lg hover:bg-neutral-700 transition"
-                        >
-                          Issue Warning
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSuccessToast('Report resolved: User account suspended.');
-                            setTimeout(() => setSuccessToast(''), 3000);
-                          }}
-                          className="px-3 py-1.5 bg-red-500/20 text-red-300 text-xs font-bold rounded-lg hover:bg-red-500/30 transition border border-red-500/40"
-                        >
-                          Suspend Account
-                        </button>
-                      </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">User Moderation & Safety Reports History</h4>
+                      <p className="text-[11px] text-neutral-400">Review all reported profiles, reasons selected, timestamps, and manage safety enforcement.</p>
                     </div>
+                    <span className="text-[10px] bg-red-500/20 text-red-300 px-2.5 py-0.5 rounded-full font-bold">
+                      {reportHistory.length} Total Reports Logged
+                    </span>
+                  </div>
 
-                    <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-red-400 flex items-center gap-1">
-                          <ShieldAlert className="w-3.5 h-3.5" /> Report #891: Fake Profile
-                        </span>
-                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">Resolved</span>
+                  <div className="space-y-3">
+                    {reportHistory.length === 0 ? (
+                      <div className="text-center py-10 bg-neutral-900 border border-neutral-800 rounded-xl text-neutral-400 text-xs">
+                        No active reports in the moderation queue.
                       </div>
-                      <p className="text-xs text-neutral-300">Target: <strong className="text-white">Fake Account Test</strong> • Reported by: Sarah L.</p>
-                      <p className="text-[11px] text-neutral-400 italic bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">"Using stolen celebrity photographs."</p>
-                    </div>
+                    ) : (
+                      reportHistory.map((rep) => (
+                        <div key={rep.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-red-400 flex items-center gap-1">
+                              <ShieldAlert className="w-3.5 h-3.5" /> Report ID: {rep.id} • Reason: {rep.reason}
+                            </span>
+                            <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">Pending Review</span>
+                          </div>
+                          <p className="text-xs text-neutral-300">Target Profile: <strong className="text-white">{rep.profileName}</strong> (ID: {rep.profileId}) • Timestamp: {rep.dateStr} at {new Date(rep.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                          {rep.details && (
+                            <p className="text-[11px] text-neutral-400 italic bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">"{rep.details}"</p>
+                          )}
+                          <div className="flex items-center justify-between pt-1">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setSuccessToast(`Report resolved for ${rep.profileName}: Official warning issued.`);
+                                  setTimeout(() => setSuccessToast(''), 3000);
+                                }}
+                                className="px-3 py-1.5 bg-neutral-800 text-neutral-200 text-xs font-bold rounded-lg hover:bg-neutral-700 transition"
+                              >
+                                Issue Warning
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const updated = reportHistory.filter(r => r.id !== rep.id);
+                                  onUpdateReportHistory(updated);
+                                  setSuccessToast(`Report log #${rep.id} marked resolved.`);
+                                  setTimeout(() => setSuccessToast(''), 3000);
+                                }}
+                                className="px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-lg hover:bg-emerald-500/30 transition border border-emerald-500/40"
+                              >
+                                Mark Resolved
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const updated = reportHistory.filter(r => r.id !== rep.id);
+                                onUpdateReportHistory(updated);
+                                setSuccessToast(`Report log #${rep.id} deleted from history.`);
+                                setTimeout(() => setSuccessToast(''), 3000);
+                              }}
+                              className="p-1.5 bg-neutral-800 text-neutral-400 hover:text-red-400 hover:bg-neutral-700 rounded-lg transition"
+                              title="Delete Report Log"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

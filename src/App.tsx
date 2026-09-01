@@ -32,7 +32,7 @@ import { OnboardingOverlay } from './components/OnboardingOverlay';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grid');
-  const [gridColumns, setGridColumns] = useState<number>(4);
+  const [gridColumns, setGridColumns] = useState<number>(3);
   const [deviceMode, setDeviceMode] = useState<'responsive' | 'ios' | 'android'>('responsive');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('blaze_theme');
@@ -258,11 +258,53 @@ export default function App() {
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isCompanionModalOpen, setIsCompanionModalOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [reportHistory, setReportHistory] = useState<Array<{
+    id: string;
+    profileId: string;
+    profileName: string;
+    reason: string;
+    details: string;
+    timestamp: number;
+    dateStr: string;
+  }>>([
+    { id: 'rep_1', profileId: 'p_1', profileName: 'Marcus Vance', reason: 'Harassment, bullying, or offensive language', details: 'Unsolicited inappropriate messages', timestamp: Date.now() - 3600000 * 24, dateStr: 'Aug 30, 2026' },
+    { id: 'rep_2', profileId: 'p_2', profileName: 'Fake Account Test', reason: 'Fake profile / Catfishing', details: 'Using stolen celebrity photos', timestamp: Date.now() - 3600000 * 48, dateStr: 'Aug 29, 2026' },
+  ]);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+  const [toastData, setToastData] = useState<{ message: string; actionText?: string; onAction?: () => void } | null>(null);
+  const [toastTimer, setToastTimer] = useState<any>(null);
+
+  const showToast = (msg: string, actionText?: string, onAction?: () => void, duration = 3500) => {
+    if (toastTimer) clearTimeout(toastTimer);
+    setToastData({ message: msg, actionText, onAction });
+    const timer = setTimeout(() => {
+      setToastData(null);
+    }, duration);
+    setToastTimer(timer);
+  };
+
+  const handleReportSubmitted = (profile: UserProfile, reason: string, details: string) => {
+    const reportId = 'rep_' + Date.now();
+    const newReport = {
+      id: reportId,
+      profileId: profile.id,
+      profileName: profile.name,
+      reason,
+      details,
+      timestamp: Date.now(),
+      dateStr: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    };
+    setReportHistory(prev => [newReport, ...prev]);
+
+    showToast(
+      `🛡️ Report sent to moderation team for ${profile.name} (${reason}).`,
+      'Undo Report',
+      () => {
+        setReportHistory(prev => prev.filter(r => r.id !== reportId));
+        showToast(`↩️ Report retracted successfully for ${profile.name}.`);
+      },
+      5000
+    );
   };
 
   const handleTriggerBuzzEvent = (event: BuzzEvent) => {
@@ -566,9 +608,21 @@ export default function App() {
     <div className="min-h-screen bg-[#121212] text-white flex flex-col font-sans select-none w-full h-full relative overflow-hidden">
       
       {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#FFC107] text-[#121212] px-4 py-2.5 rounded-full font-bold text-sm shadow-xl animate-in fade-in slide-in-from-top duration-200">
-          {toastMessage}
+      {toastData && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#FFC107] text-[#121212] px-4 py-3 rounded-2xl font-bold text-xs sm:text-sm shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top duration-200 border border-amber-300">
+          <span>{toastData.message}</span>
+          {toastData.actionText && toastData.onAction && (
+            <button
+              onClick={() => {
+                if (toastData.onAction) toastData.onAction();
+                setToastData(null);
+              }}
+              className="bg-[#121212] text-[#FFC107] hover:bg-neutral-900 px-3 py-1 rounded-xl text-xs font-black shadow transition uppercase tracking-wider flex items-center gap-1"
+            >
+              <span>↩️</span>
+              <span>{toastData.actionText}</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -718,6 +772,7 @@ export default function App() {
                       viewedCount={currentAreaViewedIds.length}
                       hasActiveSubscription={hasActiveSubscription}
                       showToast={showToast}
+                      onReportSubmitted={handleReportSubmitted}
                     />
                   ))}
                 </div>
@@ -998,6 +1053,7 @@ export default function App() {
               showToast('🗑️ Profile permanently deleted and removed from platform.');
             }}
             showToast={showToast}
+            onReportSubmitted={handleReportSubmitted}
           />
         )}
       </AnimatePresence>
@@ -1038,6 +1094,8 @@ export default function App() {
         conversations={conversations}
         onUpdateConversations={setConversations}
         showToast={showToast}
+        reportHistory={reportHistory}
+        onUpdateReportHistory={setReportHistory}
       />
 
       {/* Download App Modal */}

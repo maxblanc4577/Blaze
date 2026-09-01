@@ -18,9 +18,10 @@ interface ProfileCardProps {
   viewedCount?: number;
   hasActiveSubscription?: boolean;
   showToast?: (msg: string) => void;
+  onReportSubmitted?: (profile: UserProfile, reason: string, details: string) => void;
 }
 
-export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onToggleFavorite, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false, showToast }) => {
+export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onToggleFavorite, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false, showToast, onReportSubmitted }) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeX, setSwipeX] = useState(0);
@@ -109,7 +110,6 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
     setShowReportModal(true);
   };
 
-  const isOnline = profile.status === 'online';
   const isBoostOrPremium = profile.membershipTier === 'Pro' || profile.membershipTier === 'Elite Companion' || profile.isCompanionPro;
 
   return (
@@ -144,9 +144,9 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
           transform: `translateX(${swipeX * 0.4}px) rotate(${swipeX * 0.03}deg)`,
           transition: swipeX === 0 ? 'transform 0.2s ease' : 'none',
         }}
-        className={`relative group bg-[#1E1E1E] rounded-xl overflow-hidden cursor-pointer border transition-all duration-300 shadow-md hover:shadow-2xl hover:scale-[1.03] aspect-[3/4] flex flex-col select-none ${
-          isOnline ? 'border-emerald-500/50 shadow-emerald-500/10' : 'border-neutral-800/80 hover:border-[#FFC107]/50'
-        } ${isBoostOrPremium ? 'ring-2 ring-amber-500/40 animate-pulse' : ''}`}
+        className={`relative group bg-[#1E1E1E] rounded-xl overflow-hidden cursor-pointer border border-neutral-800/80 hover:border-[#FFC107]/50 transition-all duration-300 shadow-md hover:shadow-2xl hover:scale-[1.03] aspect-[3/4] flex flex-col select-none ${
+          isBoostOrPremium ? 'ring-2 ring-amber-500/40 animate-pulse' : ''
+        }`}
       >
         {/* Swipe Feedback Overlay */}
         {swipeDirection === 'right' && (
@@ -215,11 +215,10 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
           )}
         </div>
 
-        {/* Top badges: Distance & Top-right Action Icons */}
+        {/* Top badges: Distance & Quick Preview */}
         <div className="relative z-10 p-2 flex items-center justify-between">
           <div className="flex items-center space-x-1.5">
             <div className="flex items-center space-x-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
               <span className="text-xs font-bold text-white tracking-wide">
                 {profile.distance === 0 ? 'Here' : `${profile.distance} mi`}
               </span>
@@ -239,31 +238,6 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             >
               <Eye className="w-3.5 h-3.5" />
             </button>
-
-            {/* Red Report Flag Icon */}
-            <button
-              onClick={handleReport}
-              className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-red-400 hover:bg-red-500/20 transition shadow"
-              title="Report Profile"
-            >
-              <Flag className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Delete / Remove from Platform Button */}
-            {onDelete && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  triggerHaptic(40);
-                  if (window.confirm(`Are you sure you want to delete and remove ${profile.name} from the platform?`)) {
-                    onDelete(profile.id);
-                  }
-                }}
-                className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-neutral-400 hover:text-red-400 hover:bg-red-500/20 transition shadow"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            )}
           </div>
         </div>
 
@@ -314,11 +288,13 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             }
           }}
           onReportSubmitted={(reason, details) => {
-            console.log('🚨 Profile Reported:', { profileId: profile.id, name: profile.name, reason, details, timestamp: Date.now() });
-            if (showToast) {
-              showToast(`🛡️ Report successfully sent to the moderation team for ${profile.name} (${reason}). Thank you for keeping our community safe.`);
+            if (onReportSubmitted) {
+              onReportSubmitted(profile, reason, details);
             } else {
-              alert(`Report successfully sent to the moderation team for ${profile.name} (${reason}). Thank you for keeping our community safe.`);
+              console.log('🚨 Profile Reported:', { profileId: profile.id, name: profile.name, reason, details, timestamp: Date.now() });
+              if (showToast) {
+                showToast(`🛡️ Report successfully sent to the moderation team for ${profile.name} (${reason}). Thank you for keeping our community safe.`);
+              }
             }
           }}
         />

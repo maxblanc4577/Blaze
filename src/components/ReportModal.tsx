@@ -61,14 +61,19 @@ export const ReportModal: React.FC<ReportModalProps> = ({ profile, onClose, onRe
         </div>
 
         {isSubmitted ? (
-          <div className="p-8 text-center space-y-3">
-            <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/30 animate-bounce">
-              <CheckCircle className="w-8 h-8" />
+          <div className="p-8 text-center space-y-4 animate-in fade-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-500/40 shadow-xl shadow-emerald-500/20 animate-bounce">
+              <CheckCircle className="w-10 h-10 animate-pulse" />
             </div>
-            <h4 className="text-white font-bold text-lg">Report Submitted</h4>
-            <p className="text-sm text-neutral-400 max-w-xs mx-auto">
-              Thank you for speaking up. Our trust & safety team will review this report promptly.
+            <h4 className="text-white font-extrabold text-xl tracking-tight">Report Submitted Successfully</h4>
+            <p className="text-xs sm:text-sm text-neutral-300 max-w-xs mx-auto leading-relaxed">
+              Thank you for keeping our community safe. Your report for <strong className="text-amber-400">{profile.name}</strong> has been securely transmitted to our 24/7 moderation team.
             </p>
+            <div className="pt-2">
+              <span className="inline-block px-3.5 py-1.5 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-bold shadow-sm">
+                ✓ Verified & Logged to Moderation Hub
+              </span>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-5">

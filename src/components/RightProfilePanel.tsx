@@ -13,6 +13,7 @@ interface RightProfilePanelProps {
   onDelete?: (profileId: string) => void;
   onInviteToGroup?: (profile: UserProfile, groupName: string) => void;
   showToast?: (msg: string) => void;
+  onReportSubmitted?: (profile: UserProfile, reason: string, details: string) => void;
 }
 
 export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
@@ -25,6 +26,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   onDelete,
   onInviteToGroup,
   showToast,
+  onReportSubmitted,
 }) => {
   const [copied, setCopied] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -151,11 +153,15 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
       if (onBlockUser && alsoBlock) {
         onBlockUser(profile.id);
       }
-      const msg = `🛡️ Report successfully sent to the moderation team for ${profile.name} (Reason: ${reportReason}). Thank you for keeping our community safe.`;
-      if (showToast) {
-        showToast(msg);
+      if (onReportSubmitted) {
+        onReportSubmitted(profile, reportReason, 'Reported via Right Profile Panel');
       } else {
-        alert(msg);
+        const msg = `🛡️ Report successfully sent to the moderation team for ${profile.name} (Reason: ${reportReason}). Thank you for keeping our community safe.`;
+        if (showToast) {
+          showToast(msg);
+        } else {
+          alert(msg);
+        }
       }
       onClose();
     }, 1200);
