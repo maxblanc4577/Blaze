@@ -12,6 +12,7 @@ interface RightProfilePanelProps {
   onBlockUser?: (profileId: string) => void;
   onDelete?: (profileId: string) => void;
   onInviteToGroup?: (profile: UserProfile, groupName: string) => void;
+  showToast?: (msg: string) => void;
 }
 
 export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
@@ -23,6 +24,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   onBlockUser,
   onDelete,
   onInviteToGroup,
+  showToast,
 }) => {
   const [copied, setCopied] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -149,7 +151,12 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
       if (onBlockUser && alsoBlock) {
         onBlockUser(profile.id);
       }
-      alert(`Report submitted for ${profile.name} (Reason: ${reportReason}). Profile has been successfully removed from your discovery grid.`);
+      const msg = `🛡️ Report successfully sent to the moderation team for ${profile.name} (Reason: ${reportReason}). Thank you for keeping our community safe.`;
+      if (showToast) {
+        showToast(msg);
+      } else {
+        alert(msg);
+      }
       onClose();
     }, 1200);
   };

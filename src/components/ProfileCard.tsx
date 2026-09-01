@@ -215,32 +215,15 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
           )}
         </div>
 
-        {/* Top badges: Online status with ping dot & Top-right Action Icons (Eye preview & Red Report flag) */}
+        {/* Top badges: Distance & Top-right Action Icons */}
         <div className="relative z-10 p-2 flex items-center justify-between">
           <div className="flex items-center space-x-1.5">
-            <div className="flex items-center space-x-1.5 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10">
-              {isOnline ? (
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-              ) : (
-                <span className="w-2 h-2 rounded-full bg-neutral-500" />
-              )}
-              <span className="text-[11px] font-semibold text-white tracking-wide">
+            <div className="flex items-center space-x-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-bold text-white tracking-wide">
                 {profile.distance === 0 ? 'Here' : `${profile.distance} mi`}
               </span>
             </div>
-            {profile.currentMood && (
-              <span className="bg-black/50 backdrop-blur-md px-2 py-0.5 rounded-full text-xs border border-white/10 shadow" title={`Mood: ${profile.currentMood}`}>
-                {profile.currentMood}
-              </span>
-            )}
-            {isPrivacyBlurred && (
-              <span className="bg-black/60 text-amber-300 border border-amber-500/30 font-bold text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
-                <Lock className="w-2.5 h-2.5" /> Blur
-              </span>
-            )}
           </div>
 
           <div className="flex items-center space-x-1">
@@ -281,49 +264,22 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             )}
-
-
           </div>
         </div>
 
-        {/* Bottom Info Overlay with Interest Cloud */}
-        <div className="relative z-10 mt-auto p-2.5 flex items-end justify-between">
+        {/* Bottom Info Overlay with Name, Age, and Distance */}
+        <div className="relative z-10 mt-auto p-3 flex items-end justify-between">
           <div className="w-full">
-            <h3 className="font-bold text-white text-sm sm:text-base flex items-center gap-1.5">
-              <span>{profile.name}</span>
-              <span className="text-neutral-300 font-normal">{profile.age}</span>
+            <h3 className="font-extrabold text-white text-base sm:text-lg flex items-center gap-2 drop-shadow-md">
+              <span>{profile.name},</span>
+              <span>{profile.age}</span>
               {(profile.verified || profile.isVerified) && (
                 <ShieldCheck className="w-4 h-4 text-blue-500 fill-blue-500/20" title="Verified Profile" />
               )}
             </h3>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] bg-black/50 backdrop-blur-md text-emerald-300 px-1.5 py-0.5 rounded font-medium border border-white/10">
-                {profile.lastActive || 'Active 10m ago'}
-              </span>
-              {profile.headline && (
-                <p className="text-[11px] text-neutral-300 line-clamp-1 opacity-90">
-                  {profile.headline}
-                </p>
-              )}
-            </div>
-
-            {/* Interest Tags */}
-            {displayInterests.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {displayInterests.map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onBadgeClick) onBadgeClick(tag);
-                    }}
-                    className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-black/40 text-neutral-300 border border-white/10 hover:bg-black/60 transition"
-                  >
-                    <span>{tag}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            <p className="text-xs text-neutral-300 font-medium mt-0.5 flex items-center gap-1">
+              <span>📍 {profile.distance === 0 ? 'Less than a mile away' : `${profile.distance} miles away`}</span>
+            </p>
           </div>
 
           {/* Quick Tap Button */}
@@ -333,7 +289,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
               triggerHaptic(30);
               onTap(e, profile);
             }}
-            className="p-2 rounded-full bg-black/50 hover:bg-[#FFC107] text-[#FFC107] hover:text-[#121212] backdrop-blur-md border border-white/10 transition group/btn active:scale-90 flex-shrink-0 ml-1.5"
+            className="p-2.5 rounded-full bg-black/60 hover:bg-[#FFC107] text-[#FFC107] hover:text-[#121212] backdrop-blur-md border border-white/10 transition group/btn active:scale-90 flex-shrink-0 ml-1.5 shadow-lg"
           >
             <Flame className="w-4 h-4 fill-current group-hover/btn:scale-110 transition-transform" />
           </button>
@@ -352,12 +308,17 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
         <ReportModal
           profile={profile}
           onClose={() => setShowReportModal(false)}
+          onReasonSelect={(reason) => {
+            if (showToast) {
+              showToast(`⚠️ Reason selected: ${reason}`);
+            }
+          }}
           onReportSubmitted={(reason, details) => {
             console.log('🚨 Profile Reported:', { profileId: profile.id, name: profile.name, reason, details, timestamp: Date.now() });
             if (showToast) {
-              showToast(`🚨 Report submitted for ${profile.name} (${reason}). Thank you for keeping our community safe.`);
+              showToast(`🛡️ Report successfully sent to the moderation team for ${profile.name} (${reason}). Thank you for keeping our community safe.`);
             } else {
-              alert(`Report submitted for ${profile.name} (${reason}). Thank you for keeping our community safe.`);
+              alert(`Report successfully sent to the moderation team for ${profile.name} (${reason}). Thank you for keeping our community safe.`);
             }
           }}
         />

@@ -6,21 +6,29 @@ interface ReportModalProps {
   profile: UserProfile;
   onClose: () => void;
   onReportSubmitted: (reason: string, details: string) => void;
+  onReasonSelect?: (reason: string) => void;
 }
 
-export const ReportModal: React.FC<ReportModalProps> = ({ profile, onClose, onReportSubmitted }) => {
-  const [selectedReason, setSelectedReason] = useState<string>('Inappropriate content');
+export const ReportModal: React.FC<ReportModalProps> = ({ profile, onClose, onReportSubmitted, onReasonSelect }) => {
+  const [selectedReason, setSelectedReason] = useState<string>('Inappropriate content or photos');
   const [details, setDetails] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const reasons = [
-    { id: 'inappropriate', label: 'Inappropriate content or photos', icon: '🔞' },
-    { id: 'spam', label: 'Spam or commercial solicitation', icon: '🤖' },
-    { id: 'harassment', label: 'Harassment, bullying, or offensive language', icon: '⚠️' },
-    { id: 'fake', label: 'Fake profile / Catfishing', icon: '🎭' },
-    { id: 'underage', label: 'Suspected underage user', icon: '👶' },
-    { id: 'other', label: 'Other violation', icon: '🚩' },
+    { id: 'inappropriate', label: 'Inappropriate content or photos', icon: '🔞', desc: 'Explicit media, nudity, or offensive imagery' },
+    { id: 'spam', label: 'Spam or commercial solicitation', icon: '🤖', desc: 'Promoting external links, bots, or paid services' },
+    { id: 'harassment', label: 'Harassment, bullying, or offensive language', icon: '⚠️', desc: 'Threats, abusive messages, or targeted attacks' },
+    { id: 'fake', label: 'Fake profile / Catfishing', icon: '🎭', desc: 'Impersonation or using stolen photos' },
+    { id: 'underage', label: 'Suspected underage user', icon: '👶', desc: 'Profiles belonging to minors' },
+    { id: 'other', label: 'Other community guideline violation', icon: '🚩', desc: 'General misconduct or policy breach' },
   ];
+
+  const handleReasonChange = (label: string) => {
+    setSelectedReason(label);
+    if (onReasonSelect) {
+      onReasonSelect(label);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,9 +80,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({ profile, onClose, onRe
                 {reasons.map((r) => (
                   <label
                     key={r.id}
-                    className={`flex items-center space-x-3 p-3 rounded-xl border cursor-pointer transition ${
+                    className={`flex items-start space-x-3 p-3.5 rounded-xl border cursor-pointer transition ${
                       selectedReason === r.label
-                        ? 'bg-red-500/10 border-red-500/50 text-white shadow'
+                        ? 'bg-red-500/15 border-red-500 text-white shadow-md ring-1 ring-red-500/30'
                         : 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:bg-neutral-800/80'
                     }`}
                   >
@@ -83,11 +91,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({ profile, onClose, onRe
                       name="reportReason"
                       value={r.label}
                       checked={selectedReason === r.label}
-                      onChange={() => setSelectedReason(r.label)}
-                      className="accent-red-500"
+                      onChange={() => handleReasonChange(r.label)}
+                      className="accent-red-500 mt-1"
                     />
-                    <span className="text-base">{r.icon}</span>
-                    <span className="text-xs sm:text-sm font-medium flex-1">{r.label}</span>
+                    <span className="text-lg">{r.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs sm:text-sm font-bold text-white">{r.label}</div>
+                      <div className="text-[11px] text-neutral-400 mt-0.5">{r.desc}</div>
+                    </div>
                   </label>
                 ))}
               </div>

@@ -997,6 +997,7 @@ export default function App() {
               setSelectedProfile(null);
               showToast('🗑️ Profile permanently deleted and removed from platform.');
             }}
+            showToast={showToast}
           />
         )}
       </AnimatePresence>
