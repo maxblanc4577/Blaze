@@ -17,6 +17,7 @@ interface ChatWindowProps {
   onUpdateConversationReadReceipts?: (conversationId: string, enabled: boolean) => void;
   onUnsend?: (conversationId: string, messageId: string) => void;
   onUpdateConversationMute?: (conversationId: string, isMuted: boolean) => void;
+  onUpdateConversationTheme?: (conversationId: string, theme: string) => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -33,6 +34,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onUpdateConversationReadReceipts,
   onUnsend,
   onUpdateConversationMute,
+  onUpdateConversationTheme,
 }) => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -43,6 +45,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const currentTheme = conversation.chatTheme || 'gold';
+  const getThemeBubbleClass = (theme?: string) => {
+    switch (theme) {
+      case 'cyan': return 'bg-cyan-500 text-black font-medium';
+      case 'emerald': return 'bg-emerald-500 text-black font-medium';
+      case 'violet': return 'bg-violet-600 text-white font-medium';
+      case 'rose': return 'bg-rose-600 text-white font-medium';
+      default: return 'bg-[#FFC107] text-[#121212] font-medium';
+    }
+  };
 
   const [translations, setTranslations] = useState<Record<string, { translatedText: string; detectedLanguage: string }>>({});
   const [translatingMsgId, setTranslatingMsgId] = useState<string | null>(null);
@@ -56,7 +69,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { /* fallback */ }
     }
-    return ['Hey!', "What's up?", 'Coffee later?', 'Nice to meet you!', 'Sounds good!'];
+    return ['Hey!', 'How are you?', 'Coffee soon?', "What's up?", 'Nice to meet you!'];
   });
   const [showQuickReplyConfigModal, setShowQuickReplyConfigModal] = useState(false);
   const [newReplyInput, setNewReplyInput] = useState('');
@@ -65,6 +78,31 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const [pinnedIds, setPinnedIds] = useState<string[]>(conversation.pinnedMessageIds || []);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [isGeneratingIcebreaker, setIsGeneratingIcebreaker] = useState(false);
+
+  const handleGenerateIcebreakers = async () => {
+    setIsGeneratingIcebreaker(true);
+    try {
+      const res = await fetch('/api/ai/icebreaker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          myName: currentUser.name,
+          targetName: profile.name,
+          targetBio: profile.bio,
+          targetTribes: profile.tribes,
+        }),
+      });
+      const data = await res.json();
+      if (data.icebreakers && Array.isArray(data.icebreakers)) {
+        setAiSuggestions(data.icebreakers);
+      }
+    } catch (e) {
+      console.error("Icebreaker error:", e);
+    } finally {
+      setIsGeneratingIcebreaker(false);
+    }
+  };
 
   const togglePinMessage = (msgId: string) => {
     setPinnedIds(prev => {
@@ -560,7 +598,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 <div
                   className={`rounded-2xl px-4 py-3 shadow-sm ${
                     isMe
-                      ? 'bg-[#FFC107] text-[#121212] rounded-br-none font-medium'
+                      ? `${getThemeBubbleClass(currentTheme)} rounded-br-none`
                       : 'bg-[#222222] text-white rounded-bl-none border border-neutral-800'
                   }`}
                 >
@@ -839,14 +877,26 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() => setShowQuickReplyConfigModal(true)}
-            className="text-xs text-neutral-400 hover:text-[#FFC107] bg-[#252525] hover:bg-neutral-800 border border-neutral-700 px-2.5 py-1.5 rounded-full flex items-center gap-1 transition flex-shrink-0"
-            title="Configure Quick Replies"
-          >
-            <span>⚙️ Configure</span>
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleGenerateIcebreakers}
+              disabled={isGeneratingIcebreaker}
+              className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition shadow-sm active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
+              title="Generate AI Icebreakers based on profile interests and tags"
+            >
+              <Sparkles className={`w-3.5 h-3.5 text-amber-400 ${isGeneratingIcebreaker ? 'animate-spin' : ''}`} />
+              <span>{isGeneratingIcebreaker ? 'Generating...' : '🧊 AI Icebreaker'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowQuickReplyConfigModal(true)}
+              className="text-xs text-neutral-400 hover:text-[#FFC107] bg-[#252525] hover:bg-neutral-800 border border-neutral-700 px-2.5 py-1.5 rounded-full flex items-center gap-1 transition"
+              title="Configure Quick Replies"
+            >
+              <span>⚙️ Configure</span>
+            </button>
+          </div>
         </div>
 
         {/* Emoji Picker Popover */}
@@ -1166,6 +1216,39 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   />
                   <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500 border border-neutral-700"></div>
                 </label>
+              </div>
+
+              {/* Chat Theme Selector */}
+              <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-3">
+                <h4 className="font-bold text-sm text-white flex items-center gap-1.5">
+                  <span>🎨 Chat Accent Theme</span>
+                </h4>
+                <p className="text-xs text-neutral-400">
+                  Choose an accent colour specifically for your conversation with {profile.name}.
+                </p>
+                <div className="flex items-center gap-3 pt-1">
+                  {[
+                    { id: 'gold', name: 'Gold', color: 'bg-[#FFC107]' },
+                    { id: 'cyan', name: 'Cyan', color: 'bg-cyan-500' },
+                    { id: 'emerald', name: 'Emerald', color: 'bg-emerald-500' },
+                    { id: 'violet', name: 'Violet', color: 'bg-violet-600' },
+                    { id: 'rose', name: 'Rose', color: 'bg-rose-600' },
+                  ].map(theme => (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      onClick={() => {
+                        if (onUpdateConversationTheme) {
+                          onUpdateConversationTheme(conversation.id, theme.id);
+                        }
+                      }}
+                      className={`w-9 h-9 rounded-full ${theme.color} flex items-center justify-center transition shadow-lg transform hover:scale-110 ${
+                        currentTheme === theme.id ? 'ring-4 ring-white/80 scale-105' : 'opacity-70 hover:opacity-100'
+                      }`}
+                      title={theme.name}
+                    />
+                  ))}
+                </div>
               </div>
 
               {/* Clear Conversation Option */}

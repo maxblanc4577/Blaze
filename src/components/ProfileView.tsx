@@ -6,7 +6,7 @@ import { DETAILED_LOCATIONS } from '../utils/detailedLocations';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { ExportProfileModal } from './ExportProfileModal';
 import { ImageCropModal } from './ImageCropModal';
-import { VerificationCenterModal } from './VerificationCenterModal';
+import { VerificationSubmissionModal } from './VerificationSubmissionModal';
 import { GoogleMapsCityPickerModal } from './GoogleMapsCityPickerModal';
 
 interface ProfileViewProps {
@@ -332,12 +332,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                 <span className="flex items-center gap-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs px-2 py-0.5 rounded-full font-medium">
                   <ShieldCheck className="w-3.5 h-3.5" /> Verified
                 </span>
+              ) : currentUser.verificationPending ? (
+                <span className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-2 py-0.5 rounded-full font-medium">
+                  <ShieldCheck className="w-3.5 h-3.5 animate-pulse" /> Verification Pending
+                </span>
               ) : (
                 <button
                   onClick={() => setShowVerificationModal(true)}
                   className="flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs px-2.5 py-1 rounded-full font-semibold transition"
                 >
-                  <ShieldCheck className="w-3.5 h-3.5" /> Request Verification
+                  <ShieldCheck className="w-3.5 h-3.5" /> Initiate Verification
                 </button>
               )}
             </div>
@@ -1743,11 +1747,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
         currentLocation={formData.locationName}
       />
 
-      {/* Verification Center Modal */}
-      <VerificationCenterModal
+      {/* Verification Submission Modal */}
+      <VerificationSubmissionModal
         isOpen={showVerificationModal}
         onClose={() => setShowVerificationModal(false)}
-        onVerifiedSuccess={handleVerifiedSuccess}
+        currentUser={currentUser}
+        onUpdateUser={onUpdateUser}
+        showToast={(msg) => {
+          setSuccessMsg(msg);
+          setTimeout(() => setSuccessMsg(''), 3000);
+        }}
       />
 
       {/* Export Profile Card Modal */}

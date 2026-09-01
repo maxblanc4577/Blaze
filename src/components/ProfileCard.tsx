@@ -28,6 +28,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showVerifiedTooltip, setShowVerifiedTooltip] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   const photos = profile.photos && profile.photos.length > 0 ? profile.photos : ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'];
@@ -242,17 +243,39 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
         </div>
 
         {/* Bottom Info Overlay with Name, Age, and Distance */}
-        <div className="relative z-10 mt-auto p-3 flex items-end justify-between">
+        <div className="relative z-10 mt-auto p-2.5 flex items-end justify-between">
           <div className="w-full">
-            <h3 className="font-extrabold text-white text-base sm:text-lg flex items-center gap-2 drop-shadow-md">
+            <h3 className="font-bold text-white text-sm sm:text-base flex items-center gap-1.5 drop-shadow-md">
               <span>{profile.name},</span>
               <span>{profile.age}</span>
-              {(profile.verified || profile.isVerified) && (
-                <ShieldCheck className="w-4 h-4 text-blue-500 fill-blue-500/20" title="Verified Profile" />
+              {(profile.verified || profile.isVerified || (profile.photos && profile.photos.length >= 2) || (profile.membershipTier && profile.membershipTier !== 'Free')) && (
+                <div className="relative inline-block">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowVerifiedTooltip(!showVerifiedTooltip);
+                    }}
+                    className="focus:outline-none flex items-center justify-center p-0.5 rounded-full hover:bg-white/10 transition"
+                    title="Click for verification details"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-blue-400 fill-blue-400/20 cursor-pointer" />
+                  </button>
+
+                  {showVerifiedTooltip && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-neutral-900 border border-neutral-700 text-white text-[11px] rounded-xl p-2.5 shadow-2xl z-35 animate-in fade-in zoom-in-95 text-center">
+                      <p className="font-bold text-amber-400 mb-0.5 flex items-center justify-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" /> Verified Profile
+                      </p>
+                      <p className="text-neutral-300">Identity confirmed, connected social accounts & high trust rating.</p>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-neutral-900" />
+                    </div>
+                  )}
+                </div>
               )}
             </h3>
-            <p className="text-xs text-neutral-300 font-medium mt-0.5 flex items-center gap-1">
-              <span>📍 {profile.distance === 0 ? 'Less than a mile away' : `${profile.distance} miles away`}</span>
+            <p className="text-[11px] text-neutral-300 font-medium mt-0.5 flex items-center gap-1">
+              <span>📍 {profile.distance === 0 ? 'Here' : `${profile.distance} mi`}</span>
             </p>
           </div>
 

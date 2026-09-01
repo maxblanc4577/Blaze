@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Eye, EyeOff } from 'lucide-react';
 import { UserProfile, FilterState, ChatConversation, Message } from './types';
 import { MOCK_PROFILES, CURRENT_USER } from './data/mockProfiles';
 import { calculateDistance } from './utils/geo';
@@ -75,7 +76,20 @@ export default function App() {
   };
 
   const [profiles, setProfiles] = useState<UserProfile[]>(MOCK_PROFILES);
-  const [currentUser, setCurrentUser] = useState<UserProfile>(CURRENT_USER);
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
+    try {
+      const saved = localStorage.getItem('blaze_current_user');
+      return saved ? JSON.parse(saved) : CURRENT_USER;
+    } catch {
+      return CURRENT_USER;
+    }
+  });
+
+  const handleSaveProfile = (updated: UserProfile) => {
+    setCurrentUser(updated);
+    localStorage.setItem('blaze_current_user', JSON.stringify(updated));
+    showToast('💾 Profile changes saved successfully!');
+  };
   
   const [filters, setFilters] = useState<FilterState>({
     onlineOnly: false,
@@ -190,7 +204,61 @@ export default function App() {
     showToast(`🎉 Success! ${type === '1-day' ? '1-Day Pass ($1.99)' : type === '7-day' ? '7-Day Pass ($4.99)' : type === 'monthly' ? 'Monthly Pass ($9.99)' : 'Yearly VIP Pass ($59.99)'} activated! Enjoy unlimited profile views.`);
   };
   const [gridSubTab, setGridSubTab] = useState<'all' | 'recently_viewed'>('all');
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    try {
+      const sessionToken = sessionStorage.getItem('blaze_session_token');
+      const loginTime = sessionStorage.getItem('blaze_login_time');
+      const now = Date.now();
+      if (sessionToken && loginTime && (now - parseInt(loginTime, 10) < 24 * 60 * 60 * 1000)) {
+        return true;
+      }
+    } catch {}
+    return false;
+  });
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      sessionStorage.setItem('blaze_session_token', 'token_' + Date.now());
+      if (!sessionStorage.getItem('blaze_login_time')) {
+        sessionStorage.setItem('blaze_login_time', Date.now().toString());
+      }
+    } else {
+      sessionStorage.removeItem('blaze_session_token');
+      sessionStorage.removeItem('blaze_login_time');
+    }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    let idleTimer: NodeJS.Timeout;
+
+    const resetIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        setIsLoggedIn(false);
+        showToast('🔒 Session expired due to 15 minutes of inactivity. Please log in again.');
+      }, 15 * 60 * 1000); // 15 minutes
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetIdleTimer));
+
+    resetIdleTimer();
+
+    return () => {
+      clearTimeout(idleTimer);
+      events.forEach(event => window.removeEventListener(event, resetIdleTimer));
+    };
+  }, [isLoggedIn]);
+
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [loginEmail, setLoginEmail] = useState('user@blaze.io');
+  const [loginPassword, setLoginPassword] = useState('blaze2026');
+  const [registerName, setRegisterName] = useState('Alex Morgan');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeChat, setActiveChat] = useState<ChatConversation | null>(null);
   const [isContactsOpen, setIsContactsOpen] = useState<boolean>(false);
@@ -431,6 +499,13 @@ export default function App() {
       if (filters.suggestedForYou) {
         const scoreA = (a.tribes?.length || 0) + (a.interestTags?.length || 0);
         const scoreB = (b.tribes?.length || 0) + (b.interestTags?.length || 0);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+      }
+      if (filters.sortBy === 'compatibility') {
+        const userInterests = currentUser.interestTags || [];
+        const userTribes = currentUser.tribes || [];
+        const scoreA = (a.interestTags || []).filter(t => userInterests.includes(t)).length * 2 + (a.tribes || []).filter(tr => userTribes.includes(tr)).length * 3;
+        const scoreB = (b.interestTags || []).filter(t => userInterests.includes(t)).length * 2 + (b.tribes || []).filter(tr => userTribes.includes(tr)).length * 3;
         if (scoreB !== scoreA) return scoreB - scoreA;
       }
       if (filters.sortBy === 'newest') {
@@ -697,7 +772,7 @@ export default function App() {
                 className={`w-full sm:flex-1 border rounded-xl px-4 py-3 text-sm outline-none transition shadow-sm ${isDarkMode ? 'bg-[#1E1E1E] border-neutral-800 focus:border-[#FFC107] text-white' : 'bg-white border-neutral-300 focus:border-amber-500 text-neutral-900'}`}
               />
 
-              {/* Sorting Toggle: Closest vs Newest */}
+              {/* Sorting Toggle: Closest, Newest, Compatibility */}
               <div className="flex items-center space-x-1 bg-[#1E1E1E] border border-neutral-800 p-1 rounded-xl flex-shrink-0">
                 <button
                   type="button"
@@ -721,6 +796,17 @@ export default function App() {
                 >
                   <span>✨ Newest</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setFilters({ ...filters, sortBy: 'compatibility' })}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    filters.sortBy === 'compatibility'
+                      ? 'bg-[#FFC107] text-[#121212] shadow'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span>🔥 Compatibility</span>
+                </button>
               </div>
             </div>
 
@@ -743,39 +829,85 @@ export default function App() {
               }
 
               return (
-                <div
-                  className={`grid gap-3`}
-                  style={{
-                    gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
-                  }}
-                >
-                  {profilesToDisplay.map((profile, idx) => (
-                    <ProfileCard
-                      key={profile.id}
-                      profile={profile}
-                      index={idx}
-                      currentUserInterests={currentUser.interestTags}
-                      onClick={() => handleSelectProfile(profile)}
-                      onTap={handleSendTap}
-                      onBadgeClick={(tag) => {
-                        setFilters({ ...filters, searchQuery: tag });
-                        showToast(`✨ Filtered discovery grid by interest: ${tag}`);
-                      }}
-                      onPass={(profileId) => {
-                        setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
-                        showToast('🚫 Profile passed and hidden.');
-                      }}
-                      onDelete={(profileId) => {
-                        setProfiles(prev => prev.filter(p => p.id !== profileId));
-                        showToast('🗑️ Profile permanently deleted and removed from platform.');
-                      }}
-                      viewedCount={currentAreaViewedIds.length}
-                      hasActiveSubscription={hasActiveSubscription}
-                      showToast={showToast}
-                      onReportSubmitted={handleReportSubmitted}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div
+                    className={`grid gap-3`}
+                    style={{
+                      gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {profilesToDisplay.map((profile, idx) => (
+                      <ProfileCard
+                        key={profile.id}
+                        profile={profile}
+                        index={idx}
+                        currentUserInterests={currentUser.interestTags}
+                        onClick={() => handleSelectProfile(profile)}
+                        onTap={handleSendTap}
+                        onBadgeClick={(tag) => {
+                          setFilters({ ...filters, searchQuery: tag });
+                          showToast(`✨ Filtered discovery grid by interest: ${tag}`);
+                        }}
+                        onPass={(profileId) => {
+                          setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, isBlocked: true } : p));
+                          showToast('🚫 Profile passed and hidden.');
+                        }}
+                        onDelete={(profileId) => {
+                          setProfiles(prev => prev.filter(p => p.id !== profileId));
+                          showToast('🗑️ Profile permanently deleted and removed from platform.');
+                        }}
+                        viewedCount={currentAreaViewedIds.length}
+                        hasActiveSubscription={hasActiveSubscription}
+                        showToast={showToast}
+                        onReportSubmitted={handleReportSubmitted}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Who Viewed Me Footer Section */}
+                  <div className="mt-12 bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-[#FFC107] font-bold">
+                          👁️
+                        </div>
+                        <div>
+                          <h3 className="text-white font-bold text-base">Who Viewed Me</h3>
+                          <p className="text-xs text-neutral-400">Recent profile visitors in {currentArea}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setGridSubTab(gridSubTab === 'recently_viewed' ? 'all' : 'recently_viewed')}
+                        className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-[#FFC107] text-xs font-bold transition border border-neutral-700"
+                      >
+                        {gridSubTab === 'recently_viewed' ? 'Show All Profiles' : `View All Visitors (${currentAreaViewedIds.length})`}
+                      </button>
+                    </div>
+
+                    {currentAreaViewedIds.length === 0 ? (
+                      <p className="text-sm text-neutral-500 text-center py-4">No recent visitors yet. Browse profiles or check back soon!</p>
+                    ) : (
+                      <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                        {profiles.filter(p => currentAreaViewedIds.includes(p.id)).map(visitor => (
+                          <div
+                            key={visitor.id}
+                            onClick={() => handleSelectProfile(visitor)}
+                            className="flex items-center gap-2.5 bg-neutral-900 border border-neutral-800 hover:border-[#FFC107]/50 p-2.5 rounded-xl cursor-pointer transition flex-shrink-0"
+                          >
+                            <img src={visitor.photos[0]} alt={visitor.name} className="w-10 h-10 rounded-full object-cover" referrerPolicy="no-referrer" />
+                            <div>
+                              <p className="text-xs font-bold text-white flex items-center gap-1">
+                                <span>{visitor.name}</span>
+                                <span>{visitor.age}</span>
+                              </p>
+                              <p className="text-[10px] text-neutral-400">Viewed recently</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
               );
             })()}
           </div>
@@ -836,7 +968,7 @@ export default function App() {
         {activeTab === 'profile' && (
           <ProfileView
             currentUser={currentUser}
-            onUpdateUser={(updated) => setCurrentUser(updated)}
+            onUpdateUser={handleSaveProfile}
             onOpenCompanionModal={() => setIsCompanionModalOpen(true)}
             onLogOff={() => {
               setIsLoggedIn(false);
@@ -846,29 +978,124 @@ export default function App() {
         )}
       </main>
 
-      {/* Logged Off Screen Overlay */}
+      {/* Logged Off / Login & Register Screen Overlay */}
       {!isLoggedIn && (
         <div className="fixed inset-0 z-50 bg-[#121212] flex items-center justify-center p-4">
-          <div className="bg-[#1A1A1A] border border-neutral-800 rounded-3xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl animate-in fade-in">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              sessionStorage.setItem('blaze_session_token', 'token_' + Date.now());
+              sessionStorage.setItem('blaze_login_time', Date.now().toString());
+              if (authMode === 'register') {
+                const updated: UserProfile = {
+                  ...currentUser,
+                  name: registerName,
+                  email: registerEmail || 'user@blaze.io',
+                };
+                setCurrentUser(updated);
+                localStorage.setItem('blaze_current_user', JSON.stringify(updated));
+                showToast('🎉 Account registered and logged in successfully!');
+              } else {
+                showToast('👋 Welcome back! Logged in successfully.');
+              }
+              setIsLoggedIn(true);
+            }}
+            className="bg-[#1A1A1A] border border-neutral-800 rounded-3xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl animate-in fade-in"
+          >
             <div className="w-16 h-16 rounded-2xl bg-[#FFC107] flex items-center justify-center font-black text-[#121212] text-2xl mx-auto shadow-lg shadow-[#FFC107]/20">
               B
             </div>
+
+            {/* Mode Tabs */}
+            <div className="flex bg-[#252525] p-1 rounded-2xl border border-neutral-800">
+              <button
+                type="button"
+                onClick={() => setAuthMode('login')}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
+                  authMode === 'login' ? 'bg-[#FFC107] text-[#121212] shadow' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                Log In
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode('register')}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
+                  authMode === 'register' ? 'bg-[#FFC107] text-[#121212] shadow' : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                Register
+              </button>
+            </div>
+
             <div>
-              <h2 className="text-2xl font-black text-white">Logged Off</h2>
+              <h2 className="text-2xl font-black text-white">
+                {authMode === 'login' ? 'Log In Required' : 'Create Account'}
+              </h2>
               <p className="text-xs text-neutral-400 mt-2">
-                You are currently logged off from your Blaze profile. Log back in to connect, chat, and browse discovery.
+                {authMode === 'login'
+                  ? 'Your session has expired or you logged off. Enter your credentials to re-authenticate.'
+                  : 'Join Blaze today to connect, chat, and discover people near you.'}
               </p>
             </div>
+
+            <div className="space-y-4 text-left">
+              {authMode === 'register' && (
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={registerName}
+                    onChange={(e) => setRegisterName(e.target.value)}
+                    className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FFC107]"
+                    placeholder="Enter your full name"
+                    required
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-bold text-neutral-400 mb-1">
+                  {authMode === 'login' ? 'Email / Username' : 'Email Address'}
+                </label>
+                <input
+                  type={authMode === 'login' ? 'text' : 'email'}
+                  value={authMode === 'login' ? loginEmail : registerEmail}
+                  onChange={(e) => authMode === 'login' ? setLoginEmail(e.target.value) : setRegisterEmail(e.target.value)}
+                  className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FFC107]"
+                  placeholder={authMode === 'login' ? 'Enter email or username' : 'name@example.com'}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-400 mb-1">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={authMode === 'login' ? loginPassword : registerPassword}
+                    onChange={(e) => authMode === 'login' ? setLoginPassword(e.target.value) : setRegisterPassword(e.target.value)}
+                    className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 pr-12 text-sm text-white focus:outline-none focus:border-[#FFC107]"
+                    placeholder="Enter password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-1"
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <button
-              onClick={() => {
-                setIsLoggedIn(true);
-                showToast('👋 Welcome back! Logged in successfully.');
-              }}
+              type="submit"
               className="w-full py-3.5 bg-[#FFC107] text-[#121212] font-black text-sm rounded-xl hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20"
             >
-              Log In to Blaze
+              {authMode === 'login' ? 'Log In to Blaze' : 'Register & Join Blaze'}
             </button>
-          </div>
+          </form>
         </div>
       )}
 
@@ -978,6 +1205,11 @@ export default function App() {
             setConversations(prev => prev.map(c => c.id === convId ? { ...c, isMuted } : c));
             setActiveChat(prev => prev && prev.id === convId ? { ...prev, isMuted } : null);
             showToast(isMuted ? '🔇 Conversation muted (notifications silenced)' : '🔔 Conversation unmuted (notifications resumed)');
+          }}
+          onUpdateConversationTheme={(convId, theme) => {
+            setConversations(prev => prev.map(c => c.id === convId ? { ...c, chatTheme: theme } : c));
+            setActiveChat(prev => prev && prev.id === convId ? { ...prev, chatTheme: theme } : null);
+            showToast(`🎨 Chat accent theme updated to ${theme}!`);
           }}
         />
       )}

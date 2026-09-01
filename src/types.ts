@@ -41,6 +41,7 @@ export interface UserProfile {
   profileTheme?: string; // e.g. 'amber', 'emerald', 'cyan', 'violet', 'rose'
   verified?: boolean; // Added verified status property
   isVerified?: boolean;
+  verificationPending?: boolean;
   verificationPhoto?: string;
   lockedAlbum?: {
     photos: string[]; // up to 10
@@ -150,6 +151,7 @@ export interface ChatConversation {
   readReceiptsEnabled?: boolean;
   pinnedMessageIds?: string[];
   isMuted?: boolean;
+  chatTheme?: string; // e.g. 'gold', 'cyan', 'emerald', 'violet', 'rose'
 }
 
 export interface FilterState {
@@ -163,7 +165,7 @@ export interface FilterState {
   statusFilter?: 'all' | 'online' | 'offline' | 'away';
   positionFilter?: PositionRole | 'all';
   suggestedForYou?: boolean;
-  sortBy?: 'closest' | 'newest';
+  sortBy?: 'closest' | 'newest' | 'compatibility';
 }
 
 export interface Group {

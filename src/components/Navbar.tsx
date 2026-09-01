@@ -98,22 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
-            🌟 All
-          </button>
-          <button
-            onClick={() => setGridSubTab('recently_viewed')}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 ${
-              gridSubTab === 'recently_viewed'
-                ? 'bg-[#FFC107] text-[#121212] shadow'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            <span>🕒 Recent</span>
-            {viewedCount > 0 && (
-              <span className={`px-1 py-0.2 rounded-full text-[10px] ${gridSubTab === 'recently_viewed' ? 'bg-[#121212] text-[#FFC107]' : 'bg-neutral-800 text-neutral-300'}`}>
-                {viewedCount}
-              </span>
-            )}
+            🌟 All Profiles
           </button>
         </div>
       )}
