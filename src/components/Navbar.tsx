@@ -32,6 +32,7 @@ interface NavbarProps {
   onOpenAdmin: () => void;
   deviceMode: 'responsive' | 'ios' | 'android';
   onDeviceModeChange: (mode: 'responsive' | 'ios' | 'android') => void;
+  boostActiveUntil?: number | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -62,7 +63,27 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdmin,
   deviceMode,
   onDeviceModeChange,
+  boostActiveUntil,
 }) => {
+  const [remainingBoostMs, setRemainingBoostMs] = useState<number>(0);
+
+  useEffect(() => {
+    if (!boostActiveUntil) {
+      setRemainingBoostMs(0);
+      return;
+    }
+    const update = () => {
+      const diff = boostActiveUntil - Date.now();
+      if (diff <= 0) {
+        setRemainingBoostMs(0);
+      } else {
+        setRemainingBoostMs(diff);
+      }
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [boostActiveUntil]);
   const languages = [
     { code: 'en', label: 'English' },
     { code: 'es', label: 'Español' },
@@ -87,23 +108,30 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Grid Sub-Tabs in Header when activeTab === 'grid' */}
-      {activeTab === 'grid' && gridSubTab && setGridSubTab && (
-        <div className="hidden sm:flex items-center space-x-1 bg-[#252525] p-1 rounded-xl border border-neutral-700">
-          <button
-            onClick={() => setGridSubTab('all')}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-              gridSubTab === 'all'
-                ? 'bg-[#FFC107] text-[#121212] shadow'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            🌟 All Profiles
-          </button>
-        </div>
-      )}
+
 
       <div className="flex items-center space-x-2">
+        {/* Active Boost Progress & Countdown Timer */}
+        {remainingBoostMs > 0 && (
+          <div className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/40 px-3 py-1 rounded-xl shadow-inner animate-pulse">
+            <Zap className="w-4 h-4 text-[#FFC107] animate-bounce" />
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#FFC107]">
+                <span>⚡ Boost Active</span>
+                <span className="font-mono text-[10px] bg-black/50 px-1.5 py-0.2 rounded text-white">
+                  {Math.floor(remainingBoostMs / 60000)}m {Math.floor((remainingBoostMs % 60000) / 1000)}s
+                </span>
+              </div>
+              <div className="w-20 h-1.5 bg-neutral-800 rounded-full overflow-hidden mt-0.5">
+                <div 
+                  className="h-full bg-gradient-to-r from-amber-400 to-yellow-300 transition-all duration-1000"
+                  style={{ width: `${Math.max(0, Math.min(100, (remainingBoostMs / (30 * 60 * 1000)) * 100))}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Ghost Mode Stealth Badge */}
         {currentUser?.isGhostMode && (
           <div className="flex items-center gap-1 bg-neutral-800 text-purple-300 border border-purple-500/40 px-2.5 py-1 rounded-full text-xs font-bold shadow-md" title="Ghost Mode Active: Browsing stealthily">

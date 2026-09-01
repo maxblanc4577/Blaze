@@ -165,7 +165,9 @@ export interface FilterState {
   statusFilter?: 'all' | 'online' | 'offline' | 'away';
   positionFilter?: PositionRole | 'all';
   suggestedForYou?: boolean;
+  onlyVisitedMe?: boolean;
   sortBy?: 'closest' | 'newest' | 'compatibility';
+  excludeAlreadyMessaged?: boolean;
 }
 
 export interface Group {

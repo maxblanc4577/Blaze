@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Trash2, Star } from 'lucide-react';
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { UserProfile, FilterState, ChatConversation, Message } from './types';
 import { MOCK_PROFILES, CURRENT_USER } from './data/mockProfiles';
 import { calculateDistance } from './utils/geo';
@@ -112,6 +113,35 @@ export default function App() {
     }
   });
 
+  const [visitorVisitTimes, setVisitorVisitTimes] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('blaze_visitor_visit_times');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [visitorSources, setVisitorSources] = useState<Record<string, 'Map' | 'Discovery Grid'>>(() => {
+    try {
+      const saved = localStorage.getItem('blaze_visitor_sources');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [visitorSortMostRecent, setVisitorSortMostRecent] = useState(false);
+  const [visitorFilterTab, setVisitorFilterTab] = useState<'all' | 'from_map' | 'from_grid' | 'favorited'>('all');
+
+  useEffect(() => {
+    localStorage.setItem('blaze_visitor_visit_times', JSON.stringify(visitorVisitTimes));
+  }, [visitorVisitTimes]);
+
+  useEffect(() => {
+    localStorage.setItem('blaze_visitor_sources', JSON.stringify(visitorSources));
+  }, [visitorSources]);
+
   const [subscription, setSubscription] = useState<{ type: 'none' | '1-day' | '7-day' | 'monthly' | 'yearly'; expiresAt: number }>(() => {
     try {
       const saved = localStorage.getItem('blaze_subscription');
@@ -166,11 +196,17 @@ export default function App() {
   const currentAreaViewedIds = viewedByArea[currentArea] || [];
   const allViewedIds = Array.from(new Set(Object.values(viewedByArea).flat()));
 
-  const handleSelectProfile = (profile: UserProfile) => {
+  const handleSelectProfile = (profile: UserProfile, explicitSource?: 'Map' | 'Discovery Grid') => {
     const area = profile.locationName || currentUser.locationName || 'Downtown';
     const areaViewed = viewedByArea[area] || [];
+    const source = explicitSource || (activeTab === 'map' ? 'Map' : 'Discovery Grid');
+
+    setVisitorSources(prev => ({ ...prev, [profile.id]: source }));
 
     if (hasActiveSubscription || areaViewed.includes(profile.id)) {
+      if (!visitorVisitTimes[profile.id]) {
+        setVisitorVisitTimes(prev => ({ ...prev, [profile.id]: Date.now() }));
+      }
       setSelectedProfile(profile);
       return;
     }
@@ -181,6 +217,7 @@ export default function App() {
         ...prev,
         [area]: updatedAreaViewed
       }));
+      setVisitorVisitTimes(prev => ({ ...prev, [profile.id]: Date.now() }));
       setSelectedProfile(profile);
       const remaining = 20 - updatedAreaViewed.length;
       if (remaining <= 5 && remaining > 0) {
@@ -204,6 +241,7 @@ export default function App() {
     showToast(`🎉 Success! ${type === '1-day' ? '1-Day Pass ($1.99)' : type === '7-day' ? '7-Day Pass ($4.99)' : type === 'monthly' ? 'Monthly Pass ($9.99)' : 'Yearly VIP Pass ($59.99)'} activated! Enjoy unlimited profile views.`);
   };
   const [gridSubTab, setGridSubTab] = useState<'all' | 'recently_viewed'>('all');
+  const [selectedVisitorIds, setSelectedVisitorIds] = useState<string[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     try {
       const sessionToken = sessionStorage.getItem('blaze_session_token');
@@ -477,6 +515,11 @@ export default function App() {
       if (p.isBlocked) return false;
       if (filters.onlineOnly && p.status !== 'online') return false;
       if (filters.withPhotoOnly && (!p.photos || p.photos.length === 0)) return false;
+      if (filters.onlyVisitedMe && !allViewedIds.includes(p.id)) return false;
+      if (filters.excludeAlreadyMessaged) {
+        const messagedIds = conversations.map(c => c.profile.id);
+        if (messagedIds.includes(p.id)) return false;
+      }
       if (p.distance > filters.maxDistance) return false;
       if (p.age < filters.ageRange[0] || p.age > filters.ageRange[1]) return false;
       if (filters.lookingFor && filters.lookingFor.length > 0 && (!p.lookingFor || !filters.lookingFor.some(l => p.lookingFor?.includes(l)))) return false;
@@ -763,17 +806,42 @@ export default function App() {
           <div className="max-w-7xl mx-auto p-3 sm:p-4 pb-24">
 
             {/* Search Input, Geolocation Status Bar & Sorting Toggle */}
-            <div className="mb-4 flex flex-col sm:flex-row gap-2.5 items-center justify-between">
+            <div className="mb-4 flex flex-col md:flex-row gap-2.5 items-center justify-between">
               <input
                 type="text"
                 placeholder="Search by name, bio, or interests..."
                 value={filters.searchQuery}
                 onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
-                className={`w-full sm:flex-1 border rounded-xl px-4 py-3 text-sm outline-none transition shadow-sm ${isDarkMode ? 'bg-[#1E1E1E] border-neutral-800 focus:border-[#FFC107] text-white' : 'bg-white border-neutral-300 focus:border-amber-500 text-neutral-900'}`}
+                className={`w-full sm:flex-1 border rounded-xl px-3 py-2.5 text-xs sm:text-sm outline-none transition shadow-sm ${isDarkMode ? 'bg-[#1E1E1E] border-neutral-800 focus:border-[#FFC107] text-white' : 'bg-white border-neutral-300 focus:border-amber-500 text-neutral-900'}`}
               />
 
-              {/* Sorting Toggle: Closest, Newest, Compatibility */}
-              <div className="flex items-center space-x-1 bg-[#1E1E1E] border border-neutral-800 p-1 rounded-xl flex-shrink-0">
+              {/* Sorting & Visitors Toggle: All Profiles, Who Viewed Me, Closest, Newest, Compatibility */}
+              <div className="flex items-center space-x-1 bg-[#1E1E1E] border border-neutral-800 p-1 rounded-xl flex-shrink-0 overflow-x-auto max-w-full">
+                <button
+                  type="button"
+                  onClick={() => setGridSubTab('all')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    gridSubTab === 'all'
+                      ? 'bg-[#FFC107] text-[#121212] shadow'
+                      : 'text-neutral-400 hover:text-white bg-neutral-800/40'
+                  }`}
+                  title="Show all profiles"
+                >
+                  <span>🌟 All Profiles</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGridSubTab('recently_viewed')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    gridSubTab === 'recently_viewed'
+                      ? 'bg-amber-500 text-[#121212] shadow'
+                      : 'text-neutral-300 hover:text-white bg-neutral-800/60'
+                  }`}
+                  title="Show only profiles that viewed me"
+                >
+                  <span>👀 Viewed Me ({currentAreaViewedIds.length})</span>
+                </button>
+                <div className="w-[1px] h-5 bg-neutral-800 mx-1" />
                 <button
                   type="button"
                   onClick={() => setFilters({ ...filters, sortBy: 'closest' })}
@@ -838,7 +906,7 @@ export default function App() {
                   >
                     {profilesToDisplay.map((profile, idx) => (
                       <ProfileCard
-                        key={profile.id}
+                        key={`${profile.id}-${filters.sortBy}-${idx}`}
                         profile={profile}
                         index={idx}
                         currentUserInterests={currentUser.interestTags}
@@ -864,49 +932,324 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* Who Viewed Me Footer Section */}
-                  <div className="mt-12 bg-[#1E1E1E] border border-neutral-800 rounded-2xl p-6 shadow-xl">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-[#FFC107] font-bold">
-                          👁️
-                        </div>
-                        <div>
-                          <h3 className="text-white font-bold text-base">Who Viewed Me</h3>
-                          <p className="text-xs text-neutral-400">Recent profile visitors in {currentArea}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setGridSubTab(gridSubTab === 'recently_viewed' ? 'all' : 'recently_viewed')}
-                        className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-[#FFC107] text-xs font-bold transition border border-neutral-700"
-                      >
-                        {gridSubTab === 'recently_viewed' ? 'Show All Profiles' : `View All Visitors (${currentAreaViewedIds.length})`}
-                      </button>
-                    </div>
+                  {/* Who Viewed Me Footer Section with Select All, Staggered Entrance Animation, and Clear All */}
+                  {(() => {
+                    const visitorProfiles = profiles.filter(p => currentAreaViewedIds.includes(p.id) && !p.isBlocked);
+                    if (visitorProfiles.length === 0) return null;
 
-                    {currentAreaViewedIds.length === 0 ? (
-                      <p className="text-sm text-neutral-500 text-center py-4">No recent visitors yet. Browse profiles or check back soon!</p>
-                    ) : (
-                      <div className="flex items-center gap-3 overflow-x-auto pb-2">
-                        {profiles.filter(p => currentAreaViewedIds.includes(p.id)).map(visitor => (
-                          <div
-                            key={visitor.id}
-                            onClick={() => handleSelectProfile(visitor)}
-                            className="flex items-center gap-2.5 bg-neutral-900 border border-neutral-800 hover:border-[#FFC107]/50 p-2.5 rounded-xl cursor-pointer transition flex-shrink-0"
-                          >
-                            <img src={visitor.photos[0]} alt={visitor.name} className="w-10 h-10 rounded-full object-cover" referrerPolicy="no-referrer" />
+                    const allSelected = selectedVisitorIds.length === visitorProfiles.length && visitorProfiles.length > 0;
+
+                    const handleSelectAllToggle = () => {
+                      if (allSelected) {
+                        setSelectedVisitorIds([]);
+                      } else {
+                        setSelectedVisitorIds(visitorProfiles.map(p => p.id));
+                      }
+                    };
+
+                    const handleClearAllVisitors = () => {
+                      setViewedByArea(prev => ({
+                        ...prev,
+                        [currentArea]: []
+                      }));
+                      setSelectedVisitorIds([]);
+                      showToast('🗑️ Cleared all recent visitor history.');
+                    };
+
+                    const handleBulkTap = () => {
+                      setProfiles(prev => prev.map(p => selectedVisitorIds.includes(p.id) ? { ...p, isTapped: true } : p));
+                      showToast(`🔥 Sent Taps to ${selectedVisitorIds.length} visitors!`);
+                      setSelectedVisitorIds([]);
+                    };
+
+                    const handleBulkFavorite = () => {
+                      setProfiles(prev => prev.map(p => selectedVisitorIds.includes(p.id) ? { ...p, isFavorite: !p.isFavorite } : p));
+                      showToast(`⭐ Updated favorites for ${selectedVisitorIds.length} visitors.`);
+                      setSelectedVisitorIds([]);
+                    };
+
+                    const handleBulkMessage = () => {
+                      if (selectedVisitorIds.length === 0) return;
+                      const target = profiles.find(p => p.id === selectedVisitorIds[0]);
+                      if (target) {
+                        handleStartChat(target);
+                        showToast(`💬 Opened chat with ${target.name}`);
+                      }
+                    };
+
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5 }}
+                        className={`mt-12 p-5 rounded-2xl border ${isDarkMode ? 'bg-[#181818] border-neutral-800' : 'bg-white border-neutral-200 shadow-xl'} space-y-4`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-800">
+                          <div className="flex items-center space-x-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
+                              👀
+                            </div>
                             <div>
-                              <p className="text-xs font-bold text-white flex items-center gap-1">
-                                <span>{visitor.name}</span>
-                                <span>{visitor.age}</span>
-                              </p>
-                              <p className="text-[10px] text-neutral-400">Viewed recently</p>
+                              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                                <span>Who Viewed Me ({visitorProfiles.length})</span>
+                                <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                                  {currentArea}
+                                </span>
+                              </h3>
+                              <p className="text-[11px] text-neutral-400">Profiles that opened your discovery card recently</p>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            {/* Select All Checkbox */}
+                            <label className="cursor-pointer flex items-center gap-2 text-xs font-semibold text-neutral-300 hover:text-white bg-neutral-900 px-3 py-2 rounded-xl border border-neutral-700 select-none">
+                              <input
+                                type="checkbox"
+                                checked={allSelected}
+                                onChange={handleSelectAllToggle}
+                                className="w-4 h-4 accent-[#FFC107] rounded cursor-pointer"
+                              />
+                              <span>Select All ({selectedVisitorIds.length}/{visitorProfiles.length})</span>
+                            </label>
+
+                            {/* Clear All Button */}
+                            <button
+                              type="button"
+                              onClick={handleClearAllVisitors}
+                              className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs px-3 py-2 rounded-xl font-bold transition flex items-center gap-1.5"
+                              title="Remove all current entries from visitor history"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Clear All</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Summary Dashboard Metrics */}
+                        {(() => {
+                          const todayCount = visitorProfiles.filter(v => {
+                            const t = visitorVisitTimes[v.id] || Date.now();
+                            return (Date.now() - t) <= 86400000;
+                          }).length;
+
+                          const mapCount = visitorProfiles.filter(v => visitorSources[v.id] === 'Map').length;
+                          const gridCount = visitorProfiles.length - mapCount;
+                          const topSource = mapCount >= gridCount ? 'Map (Radar)' : 'Discovery Grid';
+
+                          return (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl flex items-center justify-between">
+                                <div>
+                                  <p className="text-[11px] text-neutral-400 font-medium">Total Visitors Today</p>
+                                  <p className="text-base font-bold text-white">{todayCount} <span className="text-xs font-normal text-emerald-400">({visitorProfiles.length} total)</span></p>
+                                </div>
+                                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">📈</div>
+                              </div>
+                              <div className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl flex items-center justify-between">
+                                <div>
+                                  <p className="text-[11px] text-neutral-400 font-medium">Most Active Hour</p>
+                                  <p className="text-base font-bold text-white">14:00 - 15:00 <span className="text-xs font-normal text-amber-400">Peak</span></p>
+                                </div>
+                                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold">⏰</div>
+                              </div>
+                              <div className="p-3 bg-neutral-900 border border-neutral-800 rounded-xl flex items-center justify-between">
+                                <div>
+                                  <p className="text-[11px] text-neutral-400 font-medium">Top Interaction Source</p>
+                                  <p className="text-base font-bold text-white truncate max-w-[140px]">{topSource}</p>
+                                </div>
+                                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold">🧭</div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Filter Pills Row */}
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                          <span className="text-neutral-400 font-medium mr-1">Filter:</span>
+                          {[
+                            { id: 'all', label: 'All Visitors', count: visitorProfiles.length },
+                            { id: 'from_map', label: 'From Map', count: visitorProfiles.filter(v => visitorSources[v.id] === 'Map').length },
+                            { id: 'from_grid', label: 'From Grid', count: visitorProfiles.filter(v => !visitorSources[v.id] || visitorSources[v.id] === 'Discovery Grid').length },
+                            { id: 'favorited', label: 'Favorited', count: visitorProfiles.filter(v => v.isFavorite).length },
+                          ].map(tab => (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setVisitorFilterTab(tab.id as any)}
+                              className={`px-3 py-1.5 rounded-xl font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                                visitorFilterTab === tab.id
+                                  ? 'bg-[#FFC107] text-[#121212] shadow'
+                                  : 'bg-neutral-900 text-neutral-300 border border-neutral-800 hover:bg-neutral-800 hover:text-white'
+                              }`}
+                            >
+                              <span>{tab.label}</span>
+                              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${visitorFilterTab === tab.id ? 'bg-[#121212]/20 text-[#121212]' : 'bg-neutral-800 text-neutral-400'}`}>
+                                {tab.count}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Bulk Action Toolbar if items selected */}
+                        {selectedVisitorIds.length > 0 && (
+                          <div className="bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-xl flex items-center justify-between animate-in fade-in duration-200">
+                            <span className="text-xs text-amber-300 font-bold ml-1">
+                              {selectedVisitorIds.length} visitor{selectedVisitorIds.length > 1 ? 's' : ''} selected
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={handleBulkTap}
+                                className="bg-[#FFC107] text-[#121212] px-3 py-1.5 rounded-lg text-xs font-black hover:opacity-90 transition shadow"
+                              >
+                                ⚡ Tap Selected
+                              </button>
+                              <button
+                                onClick={handleBulkFavorite}
+                                className="bg-neutral-800 text-neutral-200 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-neutral-700 transition"
+                              >
+                                ⭐ Favorite
+                              </button>
+                              <button
+                                onClick={handleBulkMessage}
+                                className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-cyan-500/30 transition"
+                              >
+                                💬 Message
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Staggered Entrance Visitor Cards */}
+                        {(() => {
+                          const filteredVisitors = visitorProfiles.filter(visitor => {
+                            const src = visitorSources[visitor.id] || 'Discovery Grid';
+                            if (visitorFilterTab === 'from_map') return src === 'Map';
+                            if (visitorFilterTab === 'from_grid') return src === 'Discovery Grid';
+                            if (visitorFilterTab === 'favorited') return visitor.isFavorite;
+                            return true;
+                          });
+
+                          if (filteredVisitors.length === 0) {
+                            return (
+                              <div className="text-center py-8 text-neutral-400 text-xs">
+                                No visitors match the selected filter.
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                              {filteredVisitors.map((visitor, idx) => {
+                            const isSelected = selectedVisitorIds.includes(visitor.id);
+                            const visitTime = visitorVisitTimes[visitor.id] || Date.now() - (idx * 600000);
+                            const timeAgoMins = Math.round((Date.now() - visitTime) / 60000);
+                            const timeStr = timeAgoMins < 60 ? `${timeAgoMins}m ago` : `${Math.round(timeAgoMins / 60)}h ago`;
+
+                            return (
+                              <motion.div
+                                key={visitor.id}
+                                initial={{ opacity: 0, y: 25, scale: 0.96 }}
+                                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 0.35, delay: idx * 0.06 }}
+                                onClick={() => handleSelectProfile(visitor)}
+                                className={`p-3 rounded-xl border cursor-pointer transition flex flex-col justify-between group relative overflow-hidden ${
+                                  isSelected
+                                    ? 'bg-amber-500/10 border-amber-500/50 shadow-md'
+                                    : 'bg-neutral-900 border-neutral-800 hover:border-neutral-700 hover:bg-[#222]'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex items-center space-x-2.5">
+                                    <div className="relative">
+                                      <img
+                                        src={visitor.photos[0]}
+                                        alt={visitor.name}
+                                        className="w-12 h-12 rounded-xl object-cover border border-neutral-700 group-hover:scale-105 transition"
+                                        referrerPolicy="no-referrer"
+                                      />
+                                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-neutral-900"></span>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-bold text-sm text-white group-hover:text-[#FFC107] transition flex items-center gap-1">
+                                        <span>{visitor.name}</span>
+                                        <span className="text-xs text-neutral-400 font-normal">{visitor.age}</span>
+                                      </h4>
+                                      <p className="text-[10px] text-cyan-400 font-medium">Visited {timeStr}</p>
+                                    </div>
+                                  </div>
+
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedVisitorIds(prev =>
+                                        isSelected ? prev.filter(id => id !== visitor.id) : [...prev, visitor.id]
+                                      );
+                                    }}
+                                    className="w-4 h-4 accent-[#FFC107] rounded cursor-pointer mt-1"
+                                  />
+                                </div>
+
+                                <p className="text-[11px] text-neutral-300 line-clamp-1 mb-3">
+                                  {visitor.headline || visitor.bio || 'Explore profile details...'}
+                                </p>
+
+                                <div className="flex items-center justify-between pt-2 border-t border-neutral-800 text-xs">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSendTap(e, visitor);
+                                    }}
+                                    className={`px-2 py-1 rounded-lg font-bold text-[11px] transition ${
+                                      visitor.isTapped
+                                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                        : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'
+                                    }`}
+                                  >
+                                    {visitor.isTapped ? '🔥 Tapped' : '⚡ Tap'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleFavorite(visitor.id);
+                                      showToast(visitor.isFavorite ? '⭐ Removed from favorites' : '⭐ Added to favorites!');
+                                    }}
+                                    className={`p-1.5 rounded-lg border transition ${
+                                      visitor.isFavorite
+                                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                                        : 'bg-neutral-800 text-neutral-400 hover:text-white border-neutral-700'
+                                    }`}
+                                    title="Toggle Favorite"
+                                  >
+                                    <Star className="w-3.5 h-3.5 fill-current" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStartChat(visitor);
+                                    }}
+                                    className="px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 rounded-lg font-bold text-[11px] transition"
+                                  >
+                                    💬 Message
+                                  </button>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                            </div>
+                          );
+                        })()}
+                      </motion.div>
+                    );
+                  })()}
+
+
                 </>
               );
             })()}

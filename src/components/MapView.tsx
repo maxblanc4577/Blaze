@@ -70,7 +70,7 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
               gestureHandling={'greedy'}
               className="w-full h-full"
             >
-              {/* Clustered profiles grouping logic */}
+               {/* Clustered profiles grouping logic */}
               {(() => {
                 // Group profiles that are very close to each other (approx delta < 0.015)
                 const clusters: { centerLat: number; centerLng: number; profiles: typeof filteredProfiles }[] = [];
@@ -93,7 +93,24 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
                   }
                 });
 
-                return clusters.map((cluster, cIdx) => {
+                return (
+                  <>
+                    {/* Density Heatmap Overlay Rings */}
+                    {showHeatmap && clusters.map((cluster, hIdx) => (
+                      <AdvancedMarker
+                        key={`heatmap-${hIdx}`}
+                        position={{ lat: cluster.centerLat, lng: cluster.centerLng }}
+                        zIndex={0}
+                      >
+                        <div className="relative pointer-events-none -translate-x-1/2 -translate-y-1/2">
+                          <div className={`rounded-full animate-pulse transition-all duration-500 blur-md ${
+                            cluster.profiles.length > 3 ? 'w-36 h-36 bg-red-500/30' : cluster.profiles.length > 1 ? 'w-28 h-28 bg-orange-500/25' : 'w-20 h-20 bg-amber-500/20'
+                          }`} />
+                        </div>
+                      </AdvancedMarker>
+                    ))}
+
+                    {clusters.map((cluster, cIdx) => {
                   if (cluster.profiles.length > 1) {
                     // Render Cluster Badge
                     return (
@@ -137,7 +154,9 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
                       </div>
                     </AdvancedMarker>
                   );
-                });
+                })}
+                  </>
+                );
               })()}
 
               {selectedProfile && (

@@ -79,6 +79,49 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             </label>
           </div>
 
+          {/* Only Show Visited Me Toggle */}
+          <div className="bg-[#222222] border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <span className="text-xl">👁️</span>
+              <div>
+                <h4 className="font-bold text-sm text-white">Visitors Only</h4>
+                <p className="text-[11px] text-neutral-400">Only show profiles that have viewed my profile.</p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.onlyVisitedMe || false}
+                onChange={e => setFilters(prev => ({ ...prev, onlyVisitedMe: e.target.checked }))}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FFC107]"></div>
+            </label>
+          </div>
+
+          {/* Interaction History Category */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Interaction History</h3>
+            <div className="bg-[#222222] border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <span className="text-xl">💬</span>
+                <div>
+                  <h4 className="font-bold text-sm text-white">Exclude already messaged</h4>
+                  <p className="text-[11px] text-neutral-400">Hide users you have already started a chat or conversation with.</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.excludeAlreadyMessaged || false}
+                  onChange={e => setFilters(prev => ({ ...prev, excludeAlreadyMessaged: e.target.checked }))}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FFC107]"></div>
+              </label>
+            </div>
+          </div>
+
           {/* Status Filter (Online, Offline, Away) */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Online Status</h3>

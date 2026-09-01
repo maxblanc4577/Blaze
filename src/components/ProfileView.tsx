@@ -8,6 +8,7 @@ import { ExportProfileModal } from './ExportProfileModal';
 import { ImageCropModal } from './ImageCropModal';
 import { VerificationSubmissionModal } from './VerificationSubmissionModal';
 import { GoogleMapsCityPickerModal } from './GoogleMapsCityPickerModal';
+import { processAndResizeImage } from '../utils/imageProcessor';
 
 interface ProfileViewProps {
   currentUser: UserProfile;
@@ -38,7 +39,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<UserProfile>({ ...currentUser });
   const [successMsg, setSuccessMsg] = useState('');
-  const [photoInputType, setPhotoInputType] = useState<'url' | 'preset'>('url');
+  const [photoInputType, setPhotoInputType] = useState<'url' | 'preset' | 'file'>('url');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
   
@@ -133,50 +134,65 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
     'https://assets.mixkit.co/videos/preview/mixkit-happy-woman-dancing-in-the-street-41624-large.mp4',
   ];
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'publicPhoto' | 'publicVideo' | 'lockedPhoto' | 'lockedVideo') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'primaryPhoto' | 'publicPhoto' | 'publicVideo' | 'lockedPhoto' | 'lockedVideo') => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    if (type === 'publicPhoto') {
-      const current = formData.photos || [];
-      if (current.length >= 8) {
-        alert('Maximum 8 public photos allowed.');
-        return;
-      }
-      setFormData(prev => ({ ...prev, photos: [...current, url] }));
-    } else if (type === 'publicVideo') {
-      const current = formData.videos || [];
-      if (current.length >= 5) {
-        alert('Maximum 5 public videos allowed.');
-        return;
-      }
-      setFormData(prev => ({ ...prev, videos: [...current, url] }));
-    } else if (type === 'lockedPhoto') {
-      const current = formData.lockedAlbum?.photos || [];
-      if (current.length >= 10) {
-        alert('Maximum 10 locked photos allowed.');
-        return;
-      }
-      setFormData(prev => ({
-        ...prev,
-        lockedAlbum: {
-          photos: [...current, url],
-          videos: prev.lockedAlbum?.videos || []
+
+    if (type === 'primaryPhoto' || type === 'publicPhoto' || type === 'lockedPhoto') {
+      try {
+        // Automatically resize to 800px width and compress for fast grid load times
+        const optimizedUrl = await processAndResizeImage(file, 800, 0.85);
+
+        if (type === 'primaryPhoto') {
+          setFormData(prev => ({ ...prev, photos: [optimizedUrl, ...(prev.photos.slice(1))] }));
+        } else if (type === 'publicPhoto') {
+          const current = formData.photos || [];
+          if (current.length >= 8) {
+            alert('Maximum 8 public photos allowed.');
+            return;
+          }
+          setFormData(prev => ({ ...prev, photos: [...current, optimizedUrl] }));
+        } else if (type === 'lockedPhoto') {
+          const current = formData.lockedAlbum?.photos || [];
+          if (current.length >= 10) {
+            alert('Maximum 10 locked photos allowed.');
+            return;
+          }
+          setFormData(prev => ({
+            ...prev,
+            lockedAlbum: {
+              photos: [...current, optimizedUrl],
+              videos: prev.lockedAlbum?.videos || []
+            }
+          }));
         }
-      }));
-    } else if (type === 'lockedVideo') {
-      const current = formData.lockedAlbum?.videos || [];
-      if (current.length >= 10) {
-        alert('Maximum 10 locked videos allowed.');
-        return;
+      } catch (err) {
+        console.error("Image processing error:", err);
+        alert("Failed to process image file.");
       }
-      setFormData(prev => ({
-        ...prev,
-        lockedAlbum: {
-          photos: prev.lockedAlbum?.photos || [],
-          videos: [...current, url]
+    } else {
+      const url = URL.createObjectURL(file);
+      if (type === 'publicVideo') {
+        const current = formData.videos || [];
+        if (current.length >= 5) {
+          alert('Maximum 5 public videos allowed.');
+          return;
         }
-      }));
+        setFormData(prev => ({ ...prev, videos: [...current, url] }));
+      } else if (type === 'lockedVideo') {
+        const current = formData.lockedAlbum?.videos || [];
+        if (current.length >= 10) {
+          alert('Maximum 10 locked videos allowed.');
+          return;
+        }
+        setFormData(prev => ({
+          ...prev,
+          lockedAlbum: {
+            photos: prev.lockedAlbum?.photos || [],
+            videos: [...current, url]
+          }
+        }));
+      }
     }
   };
 
@@ -629,6 +645,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
               >
                 Preset Avatars
               </button>
+              <button
+                type="button"
+                onClick={() => setPhotoInputType('file')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${photoInputType === 'file' ? 'bg-[#FFC107] text-[#121212]' : 'bg-[#252525] text-neutral-300'}`}
+              >
+                📁 Upload File
+              </button>
             </div>
 
             {photoInputType === 'url' ? (
@@ -651,7 +674,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                   </button>
                 )}
               </div>
-            ) : (
+            ) : photoInputType === 'preset' ? (
               <div className="grid grid-cols-4 gap-2">
                 {presetAvatars.map((url, i) => (
                   <div
@@ -663,6 +686,48 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                   </div>
                 ))}
               </div>
+            ) : (
+              <div className="p-4 bg-[#252525] border border-neutral-800 rounded-xl flex flex-col items-center justify-center space-y-3">
+                <div className="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-xl flex items-center justify-center">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-white mb-1">Upload Profile Picture</p>
+                  <p className="text-[11px] text-neutral-400">
+                    Supported: <strong className="text-amber-400">JPEG, AVIF, JPEG XL, WebP, PNG</strong> (Auto-resized to 800px)
+                  </p>
+                </div>
+                <label className="cursor-pointer px-4 py-2 bg-[#FFC107] text-[#121212] font-bold text-xs rounded-xl hover:opacity-90 transition">
+                  <span>Browse Image File</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/avif,image/jxl,image/heic,image/heif,image/gif,image/bmp,image/svg+xml,image/*"
+                    onChange={e => handleFileUpload(e, 'primaryPhoto')}
+                    className="hidden"
+                  />
+                </label>
+                {formData.photos[0] && (
+                  <div className="w-full mt-3 p-3 bg-[#1E1E1E] border border-amber-500/30 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5" /> Real-Time Discovery Grid Card Preview
+                      </span>
+                      <span className="text-[10px] text-neutral-400">Live preview</span>
+                    </div>
+                    <div className="w-40 mx-auto bg-[#121212] border border-neutral-800 rounded-xl overflow-hidden shadow-lg relative aspect-[3/4]">
+                      <img src={formData.photos[0]} alt="Thumbnail Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-2.5">
+                        <div className="flex items-center gap-1">
+                          <span className="text-white font-bold text-xs">{formData.name || 'Name'}</span>
+                          <span className="text-white/80 text-[11px]">{formData.age}</span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        </div>
+                        <p className="text-[9px] text-neutral-300 line-clamp-1">{formData.bio || 'Bio...'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -672,7 +737,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
               <span className="flex items-center gap-1.5"><ImageIcon className="w-4 h-4 text-[#FFC107]" /> Public Photos Gallery ({formData.photos.length}/8)</span>
               <label className="text-[11px] text-[#FFC107] hover:underline cursor-pointer flex items-center gap-1 bg-[#252525] px-2 py-1 rounded-lg border border-neutral-700">
                 <span>📁 Upload File</span>
-                <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'publicPhoto')} className="hidden" />
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/jxl,image/heic,image/heif,image/gif,image/bmp,image/svg+xml,image/*" onChange={e => handleFileUpload(e, 'publicPhoto')} className="hidden" />
               </label>
             </label>
             <div className="flex gap-2">
@@ -1272,7 +1337,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                 <div className="flex items-center gap-2">
                   <label className="text-[10px] text-amber-400 hover:underline cursor-pointer bg-[#1A1A1A] px-2 py-0.5 rounded border border-neutral-700">
                     📁 Upload File
-                    <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'lockedPhoto')} className="hidden" />
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/jxl,image/heic,image/heif,image/gif,image/bmp,image/svg+xml,image/*" onChange={e => handleFileUpload(e, 'lockedPhoto')} className="hidden" />
                   </label>
                   <span>{(formData.lockedAlbum?.photos || []).length}/10</span>
                 </div>

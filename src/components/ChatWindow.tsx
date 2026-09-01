@@ -79,6 +79,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [pinnedIds, setPinnedIds] = useState<string[]>(conversation.pinnedMessageIds || []);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isGeneratingIcebreaker, setIsGeneratingIcebreaker] = useState(false);
+  const [isGeneratingSmartReplies, setIsGeneratingSmartReplies] = useState(false);
 
   const handleGenerateIcebreakers = async () => {
     setIsGeneratingIcebreaker(true);
@@ -101,6 +102,27 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       console.error("Icebreaker error:", e);
     } finally {
       setIsGeneratingIcebreaker(false);
+    }
+  };
+
+  const handleGenerateSmartReplies = async () => {
+    setIsGeneratingSmartReplies(true);
+    try {
+      const lastMsg = conversation.messages[conversation.messages.length - 1];
+      const lastMessageText = lastMsg ? lastMsg.text : "Hey";
+      const res = await fetch('/api/ai/suggested-responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lastMessageText, profileName: profile.name }),
+      });
+      const data = await res.json();
+      if (data.suggestions && Array.isArray(data.suggestions)) {
+        setAiSuggestions(data.suggestions);
+      }
+    } catch (e) {
+      console.error("Smart replies error:", e);
+    } finally {
+      setIsGeneratingSmartReplies(false);
     }
   };
 
@@ -878,6 +900,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             ))}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleGenerateSmartReplies}
+              disabled={isGeneratingSmartReplies}
+              className="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition shadow-sm active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
+              title="Generate 3 contextually relevant smart replies based on the last message"
+            >
+              <Sparkles className={`w-3.5 h-3.5 text-cyan-400 ${isGeneratingSmartReplies ? 'animate-spin' : ''}`} />
+              <span>{isGeneratingSmartReplies ? 'Thinking...' : '⚡ Smart Replies'}</span>
+            </button>
             <button
               type="button"
               onClick={handleGenerateIcebreakers}
