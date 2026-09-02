@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { UserProfile } from '../types.ts';
-import { MapPin, Shield, Key, AlertCircle } from 'lucide-react';
+import { MapPin, Shield, Key, AlertCircle, Lock, Unlock } from 'lucide-react';
 
 interface MapViewProps {
   profiles: UserProfile[];
@@ -16,6 +16,12 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
   const [mapError, setMapError] = useState<boolean>(false);
   const [showHeatmap, setShowHeatmap] = useState<boolean>(true);
   const [searchRadius, setSearchRadius] = useState<number>(25); // miles
+  const [isViewLocked, setIsViewLocked] = useState<boolean>(true);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [touchDistStart, setTouchDistStart] = useState<number | null>(null);
 
   const defaultCenter = { lat: 37.7749, lng: -122.4194 };
   const effectiveApiKey = apiKeyInput || "AIzaSyDummyKey";
@@ -24,8 +30,19 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
 
   return (
     <div className="w-full h-[calc(100vh-140px)] rounded-2xl overflow-hidden shadow-sm border border-stone-200 relative bg-stone-900 flex flex-col">
-      {/* Top Bar for Map Mode / API Key & Heatmap Toggle & Radius Slider */}
+      {/* Top Bar for Map Mode / API Key & Heatmap Toggle & Radius Slider & View Lock */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-3 bg-stone-900/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg border border-stone-800 text-xs text-white">
+        <button
+          onClick={() => setIsViewLocked(!isViewLocked)}
+          className={`px-2.5 py-1 rounded-lg font-semibold transition flex items-center gap-1.5 ${
+            isViewLocked ? 'bg-emerald-600 text-white shadow' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+          }`}
+          title="Toggle Auto-Recenter Lock"
+        >
+          {isViewLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+          <span>{isViewLocked ? 'View Locked' : 'View Unlocked'}</span>
+        </button>
+        <span className="text-stone-700">|</span>
         <div className="flex items-center gap-2">
           <span className="text-stone-400 font-medium">Radius:</span>
           <input
@@ -72,7 +89,6 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
             >
                {/* Clustered profiles grouping logic */}
               {(() => {
-                // Group profiles that are very close to each other (approx delta < 0.015)
                 const clusters: { centerLat: number; centerLng: number; profiles: typeof filteredProfiles }[] = [];
                 
                 filteredProfiles.forEach((profile, index) => {
@@ -112,7 +128,6 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
 
                     {clusters.map((cluster, cIdx) => {
                   if (cluster.profiles.length > 1) {
-                    // Render Cluster Badge
                     return (
                       <AdvancedMarker
                         key={`cluster-${cIdx}`}
@@ -158,100 +173,83 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
                   </>
                 );
               })()}
-
-              {selectedProfile && (
-                <InfoWindow
-                  position={{
-                    lat: selectedProfile.latitude || 37.7749,
-                    lng: selectedProfile.longitude || -122.4194,
-                  }}
-                  onCloseClick={() => setSelectedProfile(null)}
-                >
-                  <div className="p-2 max-w-xs flex flex-col gap-2">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={selectedProfile.photos[0]}
-                        alt={selectedProfile.name}
-                        className="w-12 h-12 rounded-full object-cover border border-stone-200"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div>
-                        <h4 className="font-semibold text-stone-900 text-sm flex items-center gap-1">
-                          {selectedProfile.name}, {selectedProfile.age}
-                          {selectedProfile.isVerified && <Shield className="w-3.5 h-3.5 text-blue-500 fill-blue-500" />}
-                        </h4>
-                        <p className="text-xs text-stone-500 flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-orange-500" /> {selectedProfile.distance} miles away · {selectedProfile.locationName}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-stone-600 line-clamp-2">{selectedProfile.headline || selectedProfile.aboutMe}</p>
-                    <button
-                      onClick={() => onSelectProfile(selectedProfile)}
-                      className="mt-1 w-full bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium py-1.5 px-3 rounded-lg transition-colors"
-                    >
-                      View Profile
-                    </button>
-                  </div>
-                </InfoWindow>
-              )}
             </Map>
           </APIProvider>
-          {mapError && (
-            <div className="absolute inset-0 bg-stone-900/90 flex flex-col items-center justify-center p-6 text-center text-white z-30">
-              <AlertCircle className="w-12 h-12 text-orange-500 mb-3" />
-              <h4 className="text-lg font-bold mb-1">Google Maps API Key Required</h4>
-              <p className="text-sm text-stone-300 max-w-md mb-4">
-                To view the live Google Maps tiles, please enter a valid Google Maps JavaScript API key below, or switch back to Interactive Radar Mode.
-              </p>
-              <div className="flex gap-2 w-full max-w-md">
-                <input
-                  type="text"
-                  placeholder="Paste Google Maps API Key..."
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  className="flex-1 bg-stone-800 border border-stone-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500"
-                />
-                <button
-                  onClick={() => setMapError(false)}
-                  className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium px-4 py-2 rounded-xl transition-colors"
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
-        /* Custom Interactive Radar Canvas */
-        <div className="w-full h-full relative bg-stone-950 flex items-center justify-center overflow-hidden">
-          {/* Heatmap Hotspot Glows */}
-          {showHeatmap && (
-            <>
-              <div className="absolute w-96 h-96 rounded-full bg-amber-500/15 blur-3xl pointer-events-none transform -translate-x-20 -translate-y-16 animate-pulse"></div>
-              <div className="absolute w-80 h-80 rounded-full bg-orange-600/20 blur-3xl pointer-events-none transform translate-x-32 translate-y-24"></div>
-              <div className="absolute w-72 h-72 rounded-full bg-red-500/15 blur-3xl pointer-events-none transform -translate-x-28 translate-y-36"></div>
-            </>
-          )}
+        <div 
+          className="w-full h-full flex items-center justify-center relative overflow-hidden bg-stone-950 cursor-grab active:cursor-grabbing select-none"
+          onMouseDown={(e) => {
+            setIsDragging(true);
+            setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+          }}
+          onMouseMove={(e) => {
+            if (!isDragging) return;
+            setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+          }}
+          onMouseUp={() => setIsDragging(false)}
+          onMouseLeave={() => setIsDragging(false)}
+          onWheel={(e) => {
+            e.preventDefault();
+            setZoom(prev => Math.max(0.5, Math.min(3, prev - e.deltaY * 0.002)));
+          }}
+          onTouchStart={(e) => {
+            if (e.touches.length === 1) {
+              setIsDragging(true);
+              setDragStart({ x: e.touches[0].clientX - pan.x, y: e.touches[0].clientY - pan.y });
+            } else if (e.touches.length === 2) {
+              const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+              setTouchDistStart(dist);
+            }
+          }}
+          onTouchMove={(e) => {
+            if (isDragging && e.touches.length === 1) {
+              setPan({ x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y });
+            } else if (e.touches.length === 2 && touchDistStart !== null) {
+              const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+              const factor = dist / touchDistStart;
+              setZoom(prev => Math.max(0.5, Math.min(3, prev * factor)));
+              setTouchDistStart(dist);
+            }
+          }}
+          onTouchEnd={() => {
+            setIsDragging(false);
+            setTouchDistStart(null);
+          }}
+        >
+          {/* Zoom & Pan Transform Container */}
+          <div 
+            className="w-full h-full flex items-center justify-center relative transition-transform duration-75"
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          >
+          {/* Concentric Distance Rings (5mi, 10mi, 25mi, 50mi) */}
+          <div className="absolute w-[120px] h-[120px] rounded-full border border-orange-500/30 flex items-center justify-center pointer-events-none">
+            <span className="absolute top-1 text-[9px] text-orange-400/80 font-bold">5 mi</span>
+          </div>
+          <div className="absolute w-[240px] h-[240px] rounded-full border border-orange-500/25 flex items-center justify-center pointer-events-none">
+            <span className="absolute top-2 text-[9px] text-orange-400/80 font-bold">10 mi</span>
+          </div>
+          <div className="absolute w-[380px] h-[380px] rounded-full border border-amber-500/20 flex items-center justify-center pointer-events-none">
+            <span className="absolute top-3 text-[9px] text-amber-400/80 font-bold">25 mi</span>
+          </div>
+          <div className="absolute w-[520px] h-[520px] rounded-full border border-stone-700/30 flex items-center justify-center pointer-events-none">
+            <span className="absolute top-3 text-[9px] text-stone-400/80 font-bold">50 mi</span>
+          </div>
 
-          {/* Radar background circles */}
-          <div className="absolute w-[500px] h-[500px] rounded-full border border-orange-500/20 animate-ping opacity-20 pointer-events-none"></div>
-          <div className="absolute w-[350px] h-[350px] rounded-full border border-orange-500/30"></div>
-          <div className="absolute w-[200px] h-[200px] rounded-full border border-orange-500/40"></div>
-          <div className="absolute w-[50px] h-[50px] rounded-full bg-orange-500/20 flex items-center justify-center">
-            <div className="w-3 h-3 rounded-full bg-orange-500 animate-pulse"></div>
+          <div className="absolute w-[50px] h-[50px] rounded-full bg-orange-500/20 flex items-center justify-center shadow-lg">
+            <div className="w-3.5 h-3.5 rounded-full bg-orange-500 animate-pulse shadow-orange-500/50 shadow-md"></div>
           </div>
 
           {/* Search Radius Circle Overlay based on searchRadius */}
           <div
             className="absolute rounded-full border-2 border-amber-500/50 bg-amber-500/5 pointer-events-none transition-all duration-300"
-            style={{ width: `${Math.min(500, searchRadius * 8)}px`, height: `${Math.min(500, searchRadius * 8)}px` }}
+            style={{ width: `${Math.min(600, searchRadius * 10)}px`, height: `${Math.min(600, searchRadius * 10)}px` }}
           ></div>
 
           {/* Profile Avatars Placed Radially */}
           {filteredProfiles.map((profile, idx) => {
             const angle = (idx / filteredProfiles.length) * 2 * Math.PI;
-            const radius = 100 + (idx % 3) * 45;
+            const radius = 90 + (idx % 3) * 55;
             const x = Math.cos(angle) * radius;
             const y = Math.sin(angle) * radius;
 
@@ -277,6 +275,7 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
             );
           })}
 
+          </div>
           {selectedProfile && (
             <div className="absolute bottom-6 left-6 right-6 max-w-sm mx-auto bg-stone-900/95 backdrop-blur-md border border-stone-800 p-4 rounded-2xl shadow-2xl z-30 flex flex-col gap-3 text-white">
               <div className="flex items-center justify-between">
@@ -316,11 +315,10 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
 
           <div className="absolute top-4 left-4 bg-stone-900/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-stone-800 text-xs font-medium text-stone-300 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-orange-500 animate-bounce" />
-            <span>Interactive Radar: Showing profiles near you</span>
+            <span>Interactive Radar: Showing concentric distance rings (5, 10, 25 mi)</span>
           </div>
         </div>
       )}
     </div>
   );
 };
-

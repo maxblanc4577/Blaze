@@ -21,6 +21,8 @@ interface SettingsModalProps {
   subscription: { type: string; expiresAt: number };
   viewedCount: number;
   onOpenSubscription: () => void;
+  gridColumns: number;
+  onGridColumnsChange: (cols: number) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -43,8 +45,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   subscription,
   viewedCount,
   onOpenSubscription,
+  gridColumns,
+  onGridColumnsChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'merchant' | 'safety' | 'activity' | 'customization'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'merchant' | 'safety' | 'account_safety' | 'private_albums' | 'activity' | 'customization'>('general');
+  const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('blaze_sounds_enabled') !== 'false';
+  });
+
+  const toggleSounds = (val: boolean) => {
+    setSoundsEnabled(val);
+    localStorage.setItem('blaze_sounds_enabled', String(val));
+  };
+  const [blockedUsersList, setBlockedUsersList] = useState([
+    { id: 'user_blk_1', name: 'Blocked User X', age: 28, distance: 4.2, photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200', reason: 'Harassment', date: 'Aug 15, 2026' },
+    { id: 'user_blk_2', name: 'Spam Bot 99', age: 34, distance: 12.1, photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200', reason: 'Spam', date: 'Aug 20, 2026' },
+  ]);
   const [blockedUsers, setBlockedUsers] = useState<string[]>(['user_blocked_99', 'user_spam_42']);
   const [reportedList, setReportedList] = useState<{ id: string; name: string; reason: string; date: string }[]>([
     { id: 'rep_1', name: 'Fake Account Test', reason: 'Spam', date: '2 days ago' },
@@ -62,6 +78,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     { id: 'v_2', name: 'Marcus Vance', time: '1h ago', photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80' },
     { id: 'v_3', name: 'Elena Rostova', time: '3h ago', photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80' },
   ]);
+
+  const [privateAlbumViewers, setPrivateAlbumViewers] = useState([
+    { id: 'usr_101', name: 'Sophia Sterling', photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=200&q=80', status: 'allowed', hasOpenAlbum: true },
+    { id: 'usr_102', name: 'Marcus Vance', photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=200&q=80', status: 'disallowed', hasOpenAlbum: true },
+    { id: 'usr_103', name: 'Elena Rostova', photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=200&q=80', status: 'allowed', hasOpenAlbum: false },
+  ]);
+
+  const [myAlbumPhotos, setMyAlbumPhotos] = useState<string[]>([
+    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=400',
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
+  ]);
+  const [newAlbumPhotoUrl, setNewAlbumPhotoUrl] = useState('');
 
   // Payment history and linked methods state
   const [paymentHistory, setPaymentHistory] = useState([
@@ -162,48 +190,61 @@ For support, contact support@blazeapp.io
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-[#1C1C1C] border border-neutral-800 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-neutral-800">
-          <h3 className="text-lg font-black text-white tracking-wide">Settings & Preferences</h3>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+      <div className="bg-[#1C1C1C] border border-neutral-800 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* Left Vertical Sidebar Navigation */}
+        <div className="w-full md:w-64 bg-[#161616] border-b md:border-b-0 md:border-r border-neutral-800 flex flex-col shrink-0">
+          <div className="p-5 border-b border-neutral-800 flex items-center justify-between">
+            <h3 className="text-base font-black text-white tracking-wide">Settings & Preferences</h3>
+            <button
+              onClick={onClose}
+              className="md:hidden p-2 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="p-3 space-y-1.5 overflow-y-auto flex-1">
+            {[
+              { id: 'general', label: 'General', icon: Bell },
+              { id: 'merchant', label: 'Merchant Dashboard', icon: CreditCard },
+              { id: 'safety', label: 'Safety & Privacy', icon: Shield },
+              { id: 'account_safety', label: `Account Safety (${blockedUsersList.length})`, icon: Shield },
+              { id: 'private_albums', label: 'Private Albums & Access', icon: Eye },
+              { id: 'activity', label: 'Who Viewed Me', icon: Users },
+              { id: 'customization', label: 'Customization', icon: Sparkles },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`w-full flex items-center gap-3 py-3 px-4 rounded-xl text-xs font-bold transition ${
+                    isActive
+                      ? 'bg-amber-500 text-black shadow'
+                      : 'text-neutral-400 hover:text-white hover:bg-neutral-800/50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Tabs Bar */}
-        <div className="flex border-b border-neutral-800 bg-[#161616] px-4 gap-2 overflow-x-auto">
-          {[
-            { id: 'general', label: 'General', icon: Bell },
-            { id: 'merchant', label: 'Merchant Dashboard', icon: CreditCard },
-            { id: 'safety', label: 'Safety & Privacy', icon: Shield },
-            { id: 'activity', label: 'Who Viewed Me', icon: Users },
-            { id: 'customization', label: 'Customization', icon: Sparkles },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1.5 py-3 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap ${
-                  isActive
-                    ? 'border-[#FFC107] text-[#FFC107]'
-                    : 'border-transparent text-neutral-400 hover:text-neutral-200'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Right Content Area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#1C1C1C]">
+          <div className="hidden md:flex items-center justify-end p-4 border-b border-neutral-800">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-        {/* Content Body */}
-        <div className="p-6 space-y-5 overflow-y-auto flex-1">
+          <div className="p-6 space-y-5 overflow-y-auto flex-1">
           {activeTab === 'general' && (
             <div className="space-y-4">
               {/* Membership Status Box */}
@@ -251,6 +292,31 @@ For support, contact support@blazeapp.io
                   <div
                     className={`w-4 h-4 rounded-full bg-white transition-transform ${
                       readReceiptsEnabled ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Sound Effects */}
+              <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
+                    <Bell className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Incoming Message & Wink Sounds</h4>
+                    <p className="text-xs text-neutral-400">Play audio feedback for incoming chat messages and winks.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => toggleSounds(!soundsEnabled)}
+                  className={`w-12 h-6 rounded-full transition-colors relative p-1 ${
+                    soundsEnabled ? 'bg-amber-500' : 'bg-neutral-700'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                      soundsEnabled ? 'translate-x-6' : 'translate-x-0'
                     }`}
                   />
                 </button>
@@ -640,6 +706,32 @@ For support, contact support@blazeapp.io
                 </div>
               </div>
 
+              {/* Grid Density Layout Slider */}
+              <div className="bg-[#252525] border border-neutral-800 p-4 rounded-2xl space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Profile Grid Density</h4>
+                    <p className="text-xs text-neutral-400">Adjust grid columns ({gridColumns} columns: {gridColumns <= 2 ? 'Wide / Large' : gridColumns === 3 ? 'Standard' : 'Compact'})</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 pt-1">
+                  <span className="text-xs text-neutral-400 font-semibold">2 (Wide)</span>
+                  <input
+                    type="range"
+                    min="2"
+                    max="5"
+                    step="1"
+                    value={gridColumns}
+                    onChange={(e) => onGridColumnsChange(Number(e.target.value))}
+                    className="flex-1 accent-[#FFC107] bg-neutral-800 h-2 rounded-lg cursor-pointer"
+                  />
+                  <span className="text-xs text-neutral-400 font-semibold">5 (Compact)</span>
+                </div>
+              </div>
+
               {/* Language Preference */}
               <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
                 <div className="flex items-center space-x-3">
@@ -665,15 +757,166 @@ For support, contact support@blazeapp.io
               </div>
             </div>
           )}
-        </div>
 
-        <div className="p-4 bg-[#222222] border-t border-neutral-800 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl bg-[#FFC107] text-[#121212] font-bold text-xs hover:opacity-90 transition shadow"
-          >
-            Save & Close
-          </button>
+          {activeTab === 'account_safety' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-white">Blocked Users & Account Safety</h4>
+                  <p className="text-xs text-neutral-400">Review profiles you have blocked and unblock them if needed.</p>
+                </div>
+                <span className="text-xs bg-red-500/20 text-red-300 px-2.5 py-1 rounded-full font-bold">
+                  {blockedUsersList.length} Blocked
+                </span>
+              </div>
+
+              {blockedUsersList.length === 0 ? (
+                <div className="text-center py-12 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-400">
+                  <p className="text-sm font-medium">No blocked users</p>
+                  <p className="text-xs text-neutral-500 mt-1">Users you block will appear here for review.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {blockedUsersList.map((user) => (
+                    <div key={user.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                      <div className="flex items-center space-x-3">
+                        <img
+                          src={user.photo}
+                          alt={user.name}
+                          className="w-12 h-12 rounded-xl object-cover border border-neutral-700 filter grayscale"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div>
+                          <h5 className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span>{user.name}, {user.age}</span>
+                            <span className="text-[9px] bg-red-500/20 text-red-300 px-1.5 py-0.2 rounded font-bold">Blocked</span>
+                          </h5>
+                          <p className="text-[11px] text-neutral-400 mt-0.5">Reason: <span className="text-amber-400 font-semibold">{user.reason}</span> • {user.date}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setBlockedUsersList(prev => prev.filter(u => u.id !== user.id));
+                        }}
+                        className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-bold text-xs rounded-xl transition border border-neutral-700 shadow"
+                      >
+                        Unblock
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'private_albums' && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-white">Private Albums & Access Control</h4>
+                  <p className="text-xs text-neutral-400">Manage who can view your private album and explore users with open private albums.</p>
+                </div>
+                <span className="text-xs bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-full font-bold">
+                  🔒 Secure Access
+                </span>
+              </div>
+
+              {/* Edit My Private Album */}
+              <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-300">Edit My Private Album Photos</h5>
+                  <span className="text-[11px] text-neutral-400">{myAlbumPhotos.length} Photos</span>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {myAlbumPhotos.map((url, idx) => (
+                    <div key={idx} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-neutral-700">
+                      <img src={url} alt={`Album ${idx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <button
+                        onClick={() => setMyAlbumPhotos(myAlbumPhotos.filter((_, i) => i !== idx))}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-red-400 text-xs font-bold transition"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <input
+                    type="text"
+                    placeholder="Paste Photo URL for private album..."
+                    value={newAlbumPhotoUrl}
+                    onChange={(e) => setNewAlbumPhotoUrl(e.target.value)}
+                    className="flex-1 bg-neutral-800 border border-neutral-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500"
+                  />
+                  <button
+                    onClick={() => {
+                      if (newAlbumPhotoUrl.trim()) {
+                        setMyAlbumPhotos([...myAlbumPhotos, newAlbumPhotoUrl.trim()]);
+                        setNewAlbumPhotoUrl('');
+                      }
+                    }}
+                    className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:opacity-90 transition"
+                  >
+                    Add Photo
+                  </button>
+                </div>
+              </div>
+
+              {/* Manage Viewers & Open Albums */}
+              <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-3">
+                <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-300">Viewers & Open Private Albums</h5>
+                <div className="space-y-2.5">
+                  {privateAlbumViewers.map((viewer) => (
+                    <div key={viewer.id} className="bg-[#222222] border border-neutral-800 p-3.5 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <img src={viewer.photo} alt={viewer.name} className="w-10 h-10 rounded-xl object-cover border border-neutral-700" referrerPolicy="no-referrer" />
+                        <div>
+                          <h6 className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span>{viewer.name}</span>
+                            {viewer.hasOpenAlbum && (
+                              <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded font-bold">Open Private Album</span>
+                            )}
+                          </h6>
+                          <p className="text-[10px] text-neutral-400 mt-0.5">Access status: <span className={viewer.status === 'allowed' ? 'text-emerald-400 font-bold' : 'text-neutral-400 font-bold'}>{viewer.status}</span></p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {viewer.status === 'allowed' ? (
+                          <button
+                            onClick={() => {
+                              setPrivateAlbumViewers(privateAlbumViewers.map(v => v.id === viewer.id ? { ...v, status: 'disallowed' } : v));
+                            }}
+                            className="px-3 py-1.5 bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 font-bold text-xs rounded-xl transition"
+                          >
+                            Disallow
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setPrivateAlbumViewers(privateAlbumViewers.map(v => v.id === viewer.id ? { ...v, status: 'allowed' } : v));
+                            }}
+                            className="px-3 py-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 font-bold text-xs rounded-xl transition"
+                          >
+                            Allow View
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          </div>
+
+          <div className="p-4 bg-[#222222] border-t border-neutral-800 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-xl bg-[#FFC107] text-[#121212] font-bold text-xs hover:opacity-90 transition shadow"
+            >
+              Save & Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

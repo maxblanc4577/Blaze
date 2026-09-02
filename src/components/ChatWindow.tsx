@@ -36,6 +36,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onUpdateConversationMute,
   onUpdateConversationTheme,
 }) => {
+  const [perChatReadReceipts, setPerChatReadReceipts] = useState<boolean>(
+    conversation.readReceiptsEnabled !== false
+  );
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -431,21 +434,28 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
 
         <div className="flex items-center space-x-2">
-          {/* Read Receipts Toggle */}
+          {/* Per-Chat Read Receipts Toggle */}
           <button
             type="button"
             onClick={() => {
-              if (onToggleReadReceipts) onToggleReadReceipts();
+              const next = !perChatReadReceipts;
+              setPerChatReadReceipts(next);
+              if (onUpdateConversationReadReceipts) {
+                onUpdateConversationReadReceipts(conversation.id, next);
+              }
+              if (onToggleReadReceipts) {
+                onToggleReadReceipts();
+              }
             }}
             className={`flex items-center gap-1.5 border text-xs px-3 py-2 rounded-xl font-semibold transition shadow-sm ${
-              readReceiptsEnabled
+              perChatReadReceipts
                 ? 'bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25'
                 : 'bg-neutral-800 border-neutral-700 text-neutral-400 hover:bg-neutral-700'
             }`}
-            title="Toggle Read Receipts"
+            title="Toggle read receipts for this specific chat conversation"
           >
             <CheckCheck className="w-4 h-4" />
-            <span className="hidden sm:inline">Receipts: {readReceiptsEnabled ? 'On' : 'Off'}</span>
+            <span className="hidden sm:inline">Receipts: {perChatReadReceipts ? 'On' : 'Off'}</span>
           </button>
 
           {/* End-to-end Encrypted indicator */}

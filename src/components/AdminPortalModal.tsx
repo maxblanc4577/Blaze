@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserProfile, ChatConversation } from '../types';
-import { X, ShieldCheck, Lock, Key, Users, CheckCircle2, ShieldAlert, Megaphone, Trash2, Activity, LogOut, UserCheck, Search, BarChart3, TrendingUp, MessageSquare, Download, Wifi, WifiOff, DollarSign, Image as ImageIcon, AlertTriangle, Send, Crown, BellRing } from 'lucide-react';
+import { X, ShieldCheck, Lock, Key, Users, CheckCircle2, ShieldAlert, Megaphone, Trash2, Activity, LogOut, UserCheck, Search, BarChart3, TrendingUp, MessageSquare, Download, Wifi, WifiOff, DollarSign, Image as ImageIcon, AlertTriangle, Send, Crown, FileText, Settings, Shield } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 
 interface AdminPortalModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ interface AdminPortalModalProps {
     details: string;
     timestamp: number;
     dateStr: string;
+    category?: string;
+    justification?: string;
   }>;
   onUpdateReportHistory: (updated: any[]) => void;
 }
@@ -38,12 +41,48 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
-  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'users' | 'reports' | 'refunds' | 'moderation' | 'messages' | 'logs' | 'broadcast'>('analytics');
+  const [activeAdminTab, setActiveAdminTab] = useState<'dashboard' | 'reports' | 'users' | 'refunds' | 'subscriptions' | 'moderation' | 'logs' | 'broadcast' | 'master_override'>('dashboard');
+  
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [successToast, setSuccessToast] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [reportSearchQuery, setReportSearchQuery] = useState('');
+  const [reportFilterCategory, setReportFilterCategory] = useState('All');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [bulkAction, setBulkAction] = useState<string>('');
+  const [reportResponseTexts, setReportResponseTexts] = useState<Record<string, string>>({});
+
+  // Mandatory Confirmation Dialog State for Report Action
+  const [confirmingReport, setConfirmingReport] = useState<{
+    reportId: string;
+    profileName: string;
+    actionType: 'Warning' | 'Suspension' | 'Permanent Ban';
+  } | null>(null);
+  const [actionCategory, setActionCategory] = useState<'Warning' | 'Suspension' | 'Permanent Ban'>('Warning');
+  const [actionJustification, setActionJustification] = useState('');
+
+  const cannedResponses = [
+    {
+      category: "Fake profiles / catfishing",
+      text: "Thanks for reporting this — we've reviewed the account, confirmed it violated our policies, and it has been permanently removed. We appreciate you helping keep the community safe."
+    },
+    {
+      category: "Romance scams / money & crypto requests",
+      text: "We've investigated your report and removed the account involved in fraudulent activity. Please remember to never send money or crypto to matches. If you lost funds, we recommend also filing a report at reportfraud.ftc.gov."
+    },
+    {
+      category: "Verifying identity before meeting",
+      text: "Your report helped us confirm this profile was misrepresenting its identity, and it's been removed. For future matches, our photo verification badge and a quick video call are good ways to confirm authenticity before meeting."
+    },
+    {
+      category: "Harassment / unsolicited explicit content",
+      text: "We've reviewed your report and taken action against the account for violating our community guidelines. Thank you for flagging it — you're also welcome to block any user at any time."
+    },
+    {
+      category: "Physical safety when meeting in person",
+      text: "Thanks for letting us know what happened. We've reviewed the report and taken appropriate action on the account. Your safety is our priority — please continue to meet in public places and use our in-app check-in feature going forward."
+    }
+  ];
 
   const [disputes, setDisputes] = useState([
     { id: 'disp_101', user: 'Marcus Vance', amount: '$9.99', reason: 'Unauthorized subscription renewal charge after cancellation request', date: '2026-08-29', status: 'pending' },
@@ -75,87 +114,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
 
   const handleRejectPhotoToPrivate = (photoId: string) => {
     setPendingPhotos(prev => prev.map(p => p.id === photoId ? { ...p, status: 'moved_private' } : p));
-    setSuccessToast('Photo rejected for public profile and securely moved to Private Locked Album (anti-nude policy).');
+    setSuccessToast('Photo rejected for public profile and securely moved to Private Locked Album.');
     setTimeout(() => setSuccessToast(''), 4000);
-  };
-
-  const [selectedChatUserId, setSelectedChatUserId] = useState<string>(profiles[0]?.id || '');
-  const [adminMsgText, setAdminMsgText] = useState('');
-  const [userDisputeReason, setUserDisputeReason] = useState('');
-  const [userDisputeAmount, setUserDisputeAmount] = useState('$9.99');
-  const [mySubmittedDisputes, setMySubmittedDisputes] = useState<Array<{ id: string; amount: string; reason: string; status: string; date: string }>>([
-    { id: 'disp_my_1', amount: '$9.99', reason: 'Unrecognized double charge on monthly VIP renewal', status: 'pending', date: '2026-08-30' }
-  ]);
-
-  const handleSendAdminMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adminMsgText.trim() || !selectedChatUserId) return;
-    const targetProfile = profiles.find(p => p.id === selectedChatUserId);
-    if (!targetProfile) return;
-
-    const existingConv = conversations.find(c => c.profile.id === selectedChatUserId);
-    const newMsg = {
-      id: 'msg_admin_' + Date.now(),
-      senderId: 'admin_official',
-      receiverId: targetProfile.id,
-      text: `🛡️ [OFFICIAL ADMIN NOTICE]: ${adminMsgText}`,
-      timestamp: Date.now(),
-      isRead: false
-    };
-
-    if (existingConv) {
-      const updated = conversations.map(c => {
-        if (c.profile.id === selectedChatUserId) {
-          return {
-            ...c,
-            lastMessage: newMsg.text,
-            updatedAt: Date.now(),
-            messages: [...c.messages, newMsg]
-          };
-        }
-        return c;
-      });
-      onUpdateConversations(updated);
-    } else {
-      const newConv: ChatConversation = {
-        id: 'conv_' + Date.now(),
-        profile: targetProfile,
-        lastMessage: newMsg.text,
-        updatedAt: Date.now(),
-        unreadCount: 1,
-        messages: [newMsg]
-      };
-      onUpdateConversations([newConv, ...conversations]);
-    }
-
-    setAdminMsgText('');
-    setSuccessToast(`Successfully sent official admin direct message to ${targetProfile.name}!`);
-    showToast(`✉️ Admin message sent to ${targetProfile.name}`);
-  };
-
-  const handleIssueWarningReport = (reportId: string, userName: string, needEvidence: boolean) => {
-    if (needEvidence) {
-      setSuccessToast(`📩 Requested additional evidence from reporter for ${userName}. Notification sent.`);
-      showToast(`🔍 Evidence request notification sent to reporter regarding ${userName}.`);
-    } else {
-      setSuccessToast(`⚠️ Official warning issued to ${userName} based on abuse report. Resolution notification sent.`);
-      showToast(`🚨 Warning notification sent to ${userName} regarding abuse report.`);
-    }
-  };
-
-  const handleUserSubmitDispute = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userDisputeReason.trim()) return;
-    const newDisp = {
-      id: 'disp_user_' + Date.now(),
-      amount: userDisputeAmount,
-      reason: userDisputeReason,
-      status: 'pending',
-      date: new Date().toISOString().slice(0, 10)
-    };
-    setMySubmittedDisputes([newDisp, ...mySubmittedDisputes]);
-    setUserDisputeReason('');
-    showToast('💳 Billing dispute submitted to admin team successfully!');
   };
 
   if (!isOpen) return null;
@@ -199,6 +159,35 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     });
     onUpdateProfiles(updated);
     setSuccessToast('Switched user online/offline status for debugging.');
+    setTimeout(() => setSuccessToast(''), 3000);
+  };
+
+  const handleSuspendUser = (id: string, daysOrPerm: number | 'permanent') => {
+    const updated = profiles.map(p => {
+      if (p.id === id) {
+        if (daysOrPerm === 'permanent') {
+          return { ...p, isPermanentlySuspended: true, suspensionUntil: undefined };
+        } else {
+          const expiresAt = Date.now() + (daysOrPerm as number) * 24 * 60 * 60 * 1000;
+          return { ...p, isPermanentlySuspended: false, suspensionUntil: expiresAt };
+        }
+      }
+      return p;
+    });
+    onUpdateProfiles(updated);
+    setSuccessToast(daysOrPerm === 'permanent' ? 'User account permanently suspended.' : `User account suspended for ${daysOrPerm} day(s).`);
+    setTimeout(() => setSuccessToast(''), 3000);
+  };
+
+  const handleUnsuspendUser = (id: string) => {
+    const updated = profiles.map(p => {
+      if (p.id === id) {
+        return { ...p, isPermanentlySuspended: false, suspensionUntil: undefined };
+      }
+      return p;
+    });
+    onUpdateProfiles(updated);
+    setSuccessToast('User account suspension lifted.');
     setTimeout(() => setSuccessToast(''), 3000);
   };
 
@@ -250,17 +239,6 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
       setSelectedUserIds([]);
       setSuccessToast(`Successfully verified ${selectedUserIds.length} profiles.`);
       setTimeout(() => setSuccessToast(''), 3000);
-    } else if (bulkAction === 'unverify') {
-      const updated = profiles.map(p => {
-        if (selectedUserIds.includes(p.id)) {
-          return { ...p, isVerified: false };
-        }
-        return p;
-      });
-      onUpdateProfiles(updated);
-      setSelectedUserIds([]);
-      setSuccessToast(`Successfully unverified ${selectedUserIds.length} profiles.`);
-      setTimeout(() => setSuccessToast(''), 3000);
     }
     setBulkAction('');
   };
@@ -275,6 +253,49 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     downloadAnchor.remove();
     setSuccessToast('User data backup exported successfully as JSON.');
     setTimeout(() => setSuccessToast(''), 3000);
+  };
+
+  const handleExportReportsCSV = () => {
+    const headers = "ID,ProfileName,Reason,Details,Date,Category,Justification\n";
+    const rows = reportHistory.map(r => `"${r.id}","${r.profileName}","${r.reason}","${r.details || ''}","${r.dateStr}","${r.category || 'General'}","${r.justification || ''}"`).join("\n");
+    const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", url);
+    downloadAnchor.setAttribute("download", `report_history_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    setSuccessToast('Report history exported successfully as CSV.');
+    setTimeout(() => setSuccessToast(''), 3000);
+  };
+
+  const handleConfirmReportActionSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!confirmingReport) return;
+
+    if (!actionJustification.trim()) {
+      showToast('⚠️ Please provide a brief justification note.');
+      return;
+    }
+
+    // Update report history with category and justification
+    const updatedHistory = reportHistory.map(r => {
+      if (r.id === confirmingReport.reportId) {
+        return {
+          ...r,
+          category: actionCategory,
+          justification: actionJustification,
+        };
+      }
+      return r;
+    });
+    onUpdateReportHistory(updatedHistory);
+
+    setSuccessToast(`Action '${actionCategory}' executed for report #${confirmingReport.reportId}. Note logged.`);
+    showToast(`🛡️ Report action recorded with category: ${actionCategory}`);
+    setConfirmingReport(null);
+    setActionJustification('');
   };
 
   const handleSendBroadcast = (e: React.FormEvent) => {
@@ -294,9 +315,47 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
     );
   });
 
+  const filteredReports = reportHistory.filter(r => {
+    const matchesSearch = r.profileName.toLowerCase().includes(reportSearchQuery.toLowerCase()) ||
+                          r.reason.toLowerCase().includes(reportSearchQuery.toLowerCase()) ||
+                          r.id.toLowerCase().includes(reportSearchQuery.toLowerCase());
+    const matchesCategory = reportFilterCategory === 'All' || (r.category === reportFilterCategory) || (r.reason.toLowerCase().includes(reportFilterCategory.toLowerCase()));
+    return matchesSearch && matchesCategory;
+  });
+
+  // Prepare 30-day trend chart data for reports
+  const reportTrendData = (() => {
+    const daysMap: Record<string, { date: string; Warning: number; Suspension: number; PermanentBan: number; Total: number }> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().slice(0, 10);
+      daysMap[dateStr] = { date: dateStr.slice(5), Warning: 0, Suspension: 0, PermanentBan: 0, Total: 0 };
+    }
+
+    reportHistory.forEach(r => {
+      const dStr = new Date(r.timestamp).toISOString().slice(0, 10);
+      if (daysMap[dStr]) {
+        daysMap[dStr].Total += 1;
+        if (r.category === 'Warning' || r.reason.toLowerCase().includes('warning')) daysMap[dStr].Warning += 1;
+        else if (r.category === 'Suspension' || r.reason.toLowerCase().includes('suspend')) daysMap[dStr].Suspension += 1;
+        else daysMap[dStr].PermanentBan += 1;
+      } else {
+        // Fallback for demo distribution if dates vary
+        const keys = Object.keys(daysMap);
+        if (keys.length > 0) {
+          const lastKey = keys[keys.length - 1];
+          daysMap[lastKey].Total += 1;
+          daysMap[lastKey].Warning += 1;
+        }
+      }
+    });
+
+    return Object.values(daysMap);
+  })();
+
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-[#1C1C1C] border border-neutral-800 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-[#1C1C1C] border border-neutral-800 rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col h-[85vh] max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-neutral-800 bg-[#161616]">
@@ -329,7 +388,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
 
         {!isAuthenticated ? (
           /* Login Screen */
-          <div className="p-8 space-y-6 flex flex-col items-center justify-center">
+          <div className="p-8 space-y-6 flex flex-col items-center justify-center flex-1">
             <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-2 shadow-inner">
               <Lock className="w-8 h-8" />
             </div>
@@ -376,521 +435,809 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                 <span>Authenticate Admin</span>
               </button>
 
-              <div className="p-3 bg-neutral-900/60 border border-neutral-800 rounded-xl text-center">
+              <div className="p-3 bg-neutral-900/60 border border-neutral-800 rounded-xl text-center space-y-1">
                 <p className="text-[10px] text-neutral-400">
-                  Demo credentials: <code className="text-amber-400 font-bold">admin</code> / <code className="text-amber-400 font-bold">blaze2026</code>
+                  Standard Admin: <code className="text-amber-400 font-bold">admin</code> / <code className="text-amber-400 font-bold">blaze2026</code>
+                </p>
+                <p className="text-[10px] text-neutral-400">
+                  Master Admin: <code className="text-amber-400 font-bold">master</code> / <code className="text-amber-400 font-bold">masterblaze2026</code>
                 </p>
               </div>
             </form>
           </div>
         ) : (
-          /* Admin Dashboard */
-          <div className="flex flex-col flex-1 overflow-hidden">
-            {successToast && (
-              <div className="bg-emerald-500/20 border-b border-emerald-500/30 px-5 py-2.5 text-xs text-emerald-300 font-semibold flex items-center justify-between">
-                <span>{successToast}</span>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          /* Admin Dashboard with Vertical Sidebar Layout */
+          <div className="flex flex-1 overflow-hidden">
+            
+            {/* Vertical Sidebar Navigation */}
+            <div className="w-64 bg-[#141414] border-r border-neutral-800 flex flex-col justify-between p-4 flex-shrink-0">
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 px-3 mb-2">Admin Navigation</p>
+                {[
+                  { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+                  { id: 'reports', label: `Report History (${reportHistory.length})`, icon: ShieldAlert },
+                  { id: 'users', label: `User Management (${profiles.length})`, icon: Users },
+                  { id: 'refunds', label: `Billing & Refunds (${disputes.filter(d => d.status === 'pending').length})`, icon: DollarSign },
+                  { id: 'subscriptions', label: 'Subscriptions & Funds', icon: Crown },
+                  { id: 'moderation', label: `Photo Approval (${pendingPhotos.filter(p => p.status === 'pending').length})`, icon: ImageIcon },
+                  { id: 'logs', label: 'Activity Logs', icon: Activity },
+                  { id: 'broadcast', label: 'System Broadcast', icon: Megaphone },
+                  ...(isMasterAdmin ? [{ id: 'master_override', label: '⚡ Master Override', icon: Crown }] : []),
+                ].map(tab => {
+                  const Icon = tab.icon;
+                  const isActive = activeAdminTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveAdminTab(tab.id as any)}
+                      className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition text-left ${
+                        isActive
+                          ? 'bg-amber-500/15 text-[#FFC107] border border-amber-500/30'
+                          : 'text-neutral-400 hover:text-white hover:bg-neutral-800/60'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{tab.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-            )}
 
-            {/* Admin Tabs */}
-            <div className="flex border-b border-neutral-800 bg-[#151515] px-4 gap-2 overflow-x-auto">
-              {[
-                { id: 'analytics', label: 'Analytics Dashboard', icon: BarChart3 },
-                { id: 'users', label: `Manage Users (${profiles.length})`, icon: Users },
-                { id: 'reports', label: 'Moderation Reports (2)', icon: ShieldAlert },
-                { id: 'refunds', label: `Refunds & Disputes (${disputes.filter(d => d.status === 'pending').length})`, icon: DollarSign },
-                { id: 'moderation', label: `Photo Approval (${pendingPhotos.filter(p => p.status === 'pending').length})`, icon: ImageIcon },
-                { id: 'logs', label: 'System Activity Log', icon: Activity },
-                { id: 'broadcast', label: 'System Broadcast', icon: Megaphone },
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeAdminTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveAdminTab(tab.id as any)}
-                    className={`flex items-center gap-1.5 py-3 px-4 text-xs font-bold border-b-2 transition whitespace-nowrap ${
-                      isActive ? 'border-[#FFC107] text-[#FFC107]' : 'border-transparent text-neutral-400 hover:text-neutral-200'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-
-              <div className="ml-auto flex items-center">
+              <div className="pt-4 border-t border-neutral-800 space-y-3">
+                {isMasterAdmin && (
+                  <div className="px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300 font-bold flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <span>Master Admin Role Active</span>
+                  </div>
+                )}
                 <button
                   onClick={() => setIsAuthenticated(false)}
-                  className="px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-red-500/20 text-neutral-300 hover:text-red-400 text-xs font-bold transition flex items-center gap-1"
+                  className="w-full px-3.5 py-2 rounded-xl bg-neutral-800 hover:bg-red-500/20 text-neutral-300 hover:text-red-400 text-xs font-bold transition flex items-center gap-2"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Logout</span>
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout Admin</span>
                 </button>
               </div>
             </div>
 
-            {/* Content Panel */}
-            <div className="p-5 overflow-y-auto flex-1 space-y-4">
-              
-              {activeAdminTab === 'analytics' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">System Performance & Platform Metrics</h4>
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Live Telemetry
-                    </span>
-                  </div>
-
-                  {/* Analytics Metric Cards Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-2">
-                      <div className="flex items-center justify-between text-neutral-400">
-                        <span className="text-xs font-bold">Total Active Users</span>
-                        <Users className="w-4 h-4 text-amber-400" />
-                      </div>
-                      <p className="text-2xl font-black text-white font-mono">{profiles.length + 1420}</p>
-                      <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" /> +12.4% this week
-                      </p>
-                    </div>
-
-                    <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-2">
-                      <div className="flex items-center justify-between text-neutral-400">
-                        <span className="text-xs font-bold">New Registrations Today</span>
-                        <UserCheck className="w-4 h-4 text-cyan-400" />
-                      </div>
-                      <p className="text-2xl font-black text-white font-mono">38</p>
-                      <p className="text-[10px] text-cyan-400 font-bold flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" /> Peak signups at 8pm
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Secondary Activity Breakdown */}
-                  <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3">
-                    <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-300">Server & Database Status</h5>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between py-1.5 border-b border-neutral-800">
-                        <span className="text-neutral-400">Primary Database Latency</span>
-                        <span className="font-mono text-emerald-400 font-bold">14ms (Optimal)</span>
-                      </div>
-                      <div className="flex justify-between py-1.5 border-b border-neutral-800">
-                        <span className="text-neutral-400">AI Matching Engine</span>
-                        <span className="font-mono text-cyan-400 font-bold">Running (v3.2)</span>
-                      </div>
-                      <div className="flex justify-between py-1.5">
-                        <span className="text-neutral-400">Active WebSocket Connections</span>
-                        <span className="font-mono text-amber-400 font-bold">412 clients</span>
-                      </div>
-                    </div>
-                  </div>
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-[#1A1A1A]">
+              {successToast && (
+                <div className="bg-emerald-500/20 border-b border-emerald-500/30 px-5 py-2.5 text-xs text-emerald-300 font-semibold flex items-center justify-between">
+                  <span>{successToast}</span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 </div>
               )}
 
-              {activeAdminTab === 'users' && (
-                <div className="space-y-4">
-                  {/* Search and Bulk Actions Toolbar */}
-                  <div className="flex flex-col sm:flex-row items-center gap-3 justify-between">
-                    {/* Search Bar */}
-                    <div className="relative w-full sm:w-72">
-                      <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by name, bio, city..."
-                        className="w-full bg-neutral-900 border border-neutral-700 rounded-xl pl-9 pr-3 py-2 text-xs text-white outline-none focus:border-amber-500"
-                      />
-                    </div>
-
-                    {/* Bulk Action Dropdown & Selection Count */}
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                      <span className="text-[11px] text-neutral-400 font-mono">
-                        {selectedUserIds.length} selected
+              <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                
+                {activeAdminTab === 'subscriptions' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-black text-white">Subscriptions & Financial Ledger</h4>
+                        <p className="text-xs text-neutral-400">View all active user subscriptions, incoming subscription revenue, and merchant-paid funds.</p>
+                      </div>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full font-bold">
+                        💳 Secure Payment Gateway
                       </span>
-                      <select
-                        value={bulkAction}
-                        onChange={(e) => setBulkAction(e.target.value)}
-                        disabled={selectedUserIds.length === 0}
-                        className="bg-neutral-800 border border-neutral-700 text-white text-xs px-3 py-2 rounded-xl outline-none disabled:opacity-50"
-                      >
-                        <option value="">Bulk Actions...</option>
-                        <option value="verify">Verify Selected</option>
-                        <option value="unverify">Unverify Selected</option>
-                        <option value="delete">Delete Selected</option>
-                      </select>
-                      <button
-                        onClick={handleApplyBulkAction}
-                        disabled={!bulkAction || selectedUserIds.length === 0}
-                        className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:opacity-90 transition disabled:opacity-50 shadow"
-                      >
-                        Apply
-                      </button>
                     </div>
-                  </div>
 
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        onChange={handleSelectAll}
-                        checked={filteredProfiles.length > 0 && selectedUserIds.length === filteredProfiles.length}
-                        className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
-                      />
-                      <span className="text-xs font-bold text-neutral-300">Select All ({filteredProfiles.length})</span>
-                    </div>
-                    <span className="text-[10px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded-full font-mono">Showing {filteredProfiles.length} of {profiles.length}</span>
-                  </div>
-
-                  <div className="space-y-2">
-                    {filteredProfiles.map(p => {
-                      const isSelected = selectedUserIds.includes(p.id);
-                      const isOnline = p.status === 'online';
-                      return (
-                        <div key={p.id} className={`bg-neutral-900 border p-3.5 rounded-xl flex items-center justify-between transition ${isSelected ? 'border-amber-500/70 bg-amber-500/5' : 'border-neutral-800'}`}>
-                          <div className="flex items-center space-x-3">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleToggleSelectUser(p.id)}
-                              className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
-                            />
-                            <img src={p.photos[0]} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-neutral-700" referrerPolicy="no-referrer" />
-                            <div>
-                              <div className="flex items-center space-x-1.5">
-                                <p className="text-xs font-bold text-white">{p.name}, {p.age}</p>
-                                {p.isVerified && <span className="text-[9px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.2 rounded font-bold">Verified</span>}
-                              </div>
-                              <p className="text-[10px] text-neutral-400">{p.locationName} • Tier: {p.membershipTier || 'Free'}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            {/* Toggle User Status Column / Button */}
-                            <button
-                              onClick={() => toggleUserStatus(p.id)}
-                              className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1 transition ${
-                                isOnline 
-                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30' 
-                                  : 'bg-neutral-800 text-neutral-400 border border-neutral-700 hover:bg-neutral-700 hover:text-neutral-200'
-                              }`}
-                              title="Toggle Online/Offline Status for Debugging"
-                            >
-                              {isOnline ? <Wifi className="w-3 h-3 text-emerald-400" /> : <WifiOff className="w-3 h-3" />}
-                              <span className="capitalize">{p.status || 'offline'}</span>
-                            </button>
-
-                            <button
-                              onClick={() => toggleVerify(p.id)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                                p.isVerified ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                              }`}
-                            >
-                              {p.isVerified ? 'Unverify' : 'Verify'}
-                            </button>
-                            <button
-                              onClick={() => handleDeleteProfile(p.id)}
-                              className="p-1.5 rounded-xl bg-neutral-800 text-neutral-400 hover:text-red-400 hover:bg-red-500/20 transition"
-                              title="Delete Profile"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {activeAdminTab === 'reports' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">User Moderation & Safety Reports History</h4>
-                      <p className="text-[11px] text-neutral-400">Review all reported profiles, reasons selected, timestamps, and manage safety enforcement.</p>
-                    </div>
-                    <span className="text-[10px] bg-red-500/20 text-red-300 px-2.5 py-0.5 rounded-full font-bold">
-                      {reportHistory.length} Total Reports Logged
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {reportHistory.length === 0 ? (
-                      <div className="text-center py-10 bg-neutral-900 border border-neutral-800 rounded-xl text-neutral-400 text-xs">
-                        No active reports in the moderation queue.
+                    {/* Financial KPI Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
+                        <span className="text-[11px] text-neutral-400 font-bold">Active Subscriptions</span>
+                        <p className="text-2xl font-black text-white font-mono">342</p>
+                        <span className="text-[10px] text-emerald-400 font-semibold">+18% this month</span>
                       </div>
-                    ) : (
-                      reportHistory.map((rep) => (
-                        <div key={rep.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-red-400 flex items-center gap-1">
-                              <ShieldAlert className="w-3.5 h-3.5" /> Report ID: {rep.id} • Reason: {rep.reason}
-                            </span>
-                            <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">Pending Review</span>
-                          </div>
-                          <p className="text-xs text-neutral-300">Target Profile: <strong className="text-white">{rep.profileName}</strong> (ID: {rep.profileId}) • Timestamp: {rep.dateStr} at {new Date(rep.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                          {rep.details && (
-                            <p className="text-[11px] text-neutral-400 italic bg-neutral-950 p-2.5 rounded-lg border border-neutral-800">"{rep.details}"</p>
-                          )}
-                          <div className="flex items-center justify-between pt-1">
-                            <div className="flex gap-2">
+                      <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
+                        <span className="text-[11px] text-neutral-400 font-bold">Incoming Sub Funds (MRR)</span>
+                        <p className="text-2xl font-black text-amber-400 font-mono">$4,850.00</p>
+                        <span className="text-[10px] text-neutral-400 font-semibold">Recurring monthly</span>
+                      </div>
+                      <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
+                        <span className="text-[11px] text-neutral-400 font-bold">Paid via Merchant Gateway</span>
+                        <p className="text-2xl font-black text-emerald-400 font-mono">$3,420.00</p>
+                        <span className="text-[10px] text-emerald-400 font-semibold">Stripe / Apple / Google Pay</span>
+                      </div>
+                      <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-1">
+                        <span className="text-[11px] text-neutral-400 font-bold">Pending Payouts</span>
+                        <p className="text-2xl font-black text-orange-400 font-mono">$1,430.00</p>
+                        <span className="text-[10px] text-orange-400 font-semibold">Next settlement 1st</span>
+                      </div>
+                    </div>
+
+                    {/* Transactions Ledger Table */}
+                    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4">
+                      <h5 className="text-sm font-bold text-white">Recent Transactions & Subscriptions Ledger</h5>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-neutral-800 text-neutral-400 font-semibold">
+                              <th className="pb-3 px-3">Transaction ID</th>
+                              <th className="pb-3 px-3">User</th>
+                              <th className="pb-3 px-3">Plan / Tier</th>
+                              <th className="pb-3 px-3">Amount</th>
+                              <th className="pb-3 px-3">Gateway / Merchant</th>
+                              <th className="pb-3 px-3">Status</th>
+                              <th className="pb-3 px-3">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-800 text-neutral-300">
+                            {[
+                              { id: 'txn_9821', user: 'Marcus Vance', plan: 'Elite Companion (Monthly)', amount: '$29.99', merchant: 'Stripe Merchant', status: 'Paid', date: '2026-09-02 11:20' },
+                              { id: 'txn_9820', user: 'Elena Rostova', plan: 'Gold Booster Pass', amount: '$9.99', merchant: 'Apple In-App', status: 'Paid', date: '2026-09-02 10:15' },
+                              { id: 'txn_9819', user: 'Liam Gallagher', plan: 'VIP Unlimited', amount: '$49.99', merchant: 'Google Play Billing', status: 'Paid', date: '2026-09-01 22:40' },
+                              { id: 'txn_9818', user: 'Sofia Chen', plan: 'Elite Companion (Annual)', amount: '$199.99', merchant: 'Stripe Merchant', status: 'Paid', date: '2026-09-01 18:30' },
+                              { id: 'txn_9817', user: 'David Kim', plan: 'Gold Booster Pass', amount: '$9.99', merchant: 'Stripe Merchant', status: 'Refunded', date: '2026-08-30 14:10' },
+                            ].map(txn => (
+                              <tr key={txn.id} className="hover:bg-neutral-800/40 transition">
+                                <td className="py-3 px-3 font-mono text-amber-400 font-semibold">{txn.id}</td>
+                                <td className="py-3 px-3 font-bold text-white">{txn.user}</td>
+                                <td className="py-3 px-3">{txn.plan}</td>
+                                <td className="py-3 px-3 font-bold font-mono text-emerald-400">{txn.amount}</td>
+                                <td className="py-3 px-3 text-neutral-400">{txn.merchant}</td>
+                                <td className="py-3 px-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    txn.status === 'Paid' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                                  }`}>
+                                    {txn.status}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3 text-neutral-400">{txn.date}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeAdminTab === 'dashboard' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-black text-white">System Analytics & Overview</h4>
+                        <p className="text-xs text-neutral-400">Real-time telemetry and platform performance indicators.</p>
+                      </div>
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Live Telemetry
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2">
+                        <div className="flex items-center justify-between text-neutral-400">
+                          <span className="text-xs font-bold">Total Active Users</span>
+                          <Users className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <p className="text-3xl font-black text-white font-mono">{profiles.length + 1420}</p>
+                        <p className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
+                          <TrendingUp className="w-3.5 h-3.5" /> +12.4% this week
+                        </p>
+                      </div>
+
+                      <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2">
+                        <div className="flex items-center justify-between text-neutral-400">
+                          <span className="text-xs font-bold">Safety Reports Queue</span>
+                          <ShieldAlert className="w-4 h-4 text-red-400" />
+                        </div>
+                        <p className="text-3xl font-black text-white font-mono">{reportHistory.length}</p>
+                        <p className="text-[11px] text-neutral-400 font-bold">Active moderation review</p>
+                      </div>
+
+                      <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2">
+                        <div className="flex items-center justify-between text-neutral-400">
+                          <span className="text-xs font-bold">Pending Photo Approvals</span>
+                          <ImageIcon className="w-4 h-4 text-pink-400" />
+                        </div>
+                        <p className="text-3xl font-black text-white font-mono">{pendingPhotos.filter(p => p.status === 'pending').length}</p>
+                        <p className="text-[11px] text-pink-400 font-bold">Anti-nude policy check</p>
+                      </div>
+                    </div>
+
+                    {/* Report Trend Recharts Visualization */}
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="text-sm font-bold text-white">Report Trend Over Last 30 Days</h5>
+                          <p className="text-xs text-neutral-400">Visualizing reported profiles grouped by categories (Warning, Suspension, Permanent Ban).</p>
+                        </div>
+                        <span className="text-[10px] bg-neutral-800 text-neutral-300 px-2.5 py-1 rounded-lg font-mono">Recharts Analytics</span>
+                      </div>
+
+                      <div className="h-64 w-full pt-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={reportTrendData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                            <XAxis dataKey="date" stroke="#888" fontSize={11} />
+                            <YAxis stroke="#888" fontSize={11} />
+                            <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', borderColor: '#333', borderRadius: '12px', color: '#fff', fontSize: '12px' }} />
+                            <Legend wrapperStyle={{ fontSize: '11px' }} />
+                            <Bar dataKey="Warning" fill="#FFC107" name="Warning" stackId="a" />
+                            <Bar dataKey="Suspension" fill="#FF7043" name="Suspension" stackId="a" />
+                            <Bar dataKey="PermanentBan" fill="#E53935" name="Permanent Ban" stackId="a" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeAdminTab === 'reports' && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div>
+                        <h4 className="text-lg font-black text-white">User Moderation & Report History</h4>
+                        <p className="text-xs text-neutral-400">Review reported profiles, filter reasons, export CSV, and send canned responses.</p>
+                      </div>
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <button
+                          onClick={handleExportReportsCSV}
+                          className="px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-bold text-xs rounded-xl transition flex items-center gap-1.5 border border-amber-500/30"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Export CSV</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Search and Filter Toolbar */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+                        <input
+                          type="text"
+                          value={reportSearchQuery}
+                          onChange={(e) => setReportSearchQuery(e.target.value)}
+                          placeholder="Search reports by profile name, reason, ID..."
+                          className="w-full bg-neutral-900 border border-neutral-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white outline-none focus:border-amber-500"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={reportFilterCategory}
+                          onChange={(e) => setReportFilterCategory(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-700 text-neutral-200 text-xs px-3 py-2.5 rounded-xl outline-none"
+                        >
+                          <option value="All">All Categories / Reasons</option>
+                          <option value="Fake profiles">Fake profiles / catfishing</option>
+                          <option value="Romance scams">Romance scams / money</option>
+                          <option value="Harassment">Harassment / explicit</option>
+                          <option value="Physical safety">Physical safety</option>
+                          <option value="Warning">Action: Warning</option>
+                          <option value="Suspension">Action: Suspension</option>
+                          <option value="Permanent Ban">Action: Permanent Ban</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {filteredReports.length === 0 ? (
+                        <div className="text-center py-12 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-400 text-xs">
+                          No matching reports found in the moderation queue.
+                        </div>
+                      ) : (
+                        filteredReports.map((rep) => {
+                          const currentResponse = reportResponseTexts[rep.id] !== undefined 
+                            ? reportResponseTexts[rep.id] 
+                            : (cannedResponses.find(c => rep.reason.toLowerCase().includes(c.category.toLowerCase().split('/')[0].trim()))?.text || cannedResponses[0].text);
+
+                          return (
+                            <div key={rep.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4 shadow">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                                  <ShieldAlert className="w-4 h-4" /> Report ID: {rep.id} • Reason: {rep.reason}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  {rep.category && (
+                                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold uppercase">
+                                      Action: {rep.category}
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] bg-neutral-800 text-neutral-300 px-2.5 py-0.5 rounded-full font-bold">Pending Review</span>
+                                </div>
+                              </div>
+
+                              <div className="text-xs text-neutral-300 space-y-1">
+                                <p>Target Profile: <strong className="text-white">{rep.profileName}</strong> (ID: {rep.profileId}) • Date: {rep.dateStr} at {new Date(rep.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                {rep.details && (
+                                  <p className="text-neutral-400 italic bg-neutral-950 p-3 rounded-xl border border-neutral-800">"{rep.details}"</p>
+                                )}
+                                {rep.justification && (
+                                  <p className="text-amber-300 text-[11px] bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/30">
+                                    <strong>Admin Justification Note:</strong> {rep.justification}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Canned Response Selector */}
+                              <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                                    <MessageSquare className="w-4 h-4" /> Canned Response Library & Messaging:
+                                  </span>
+                                  <select
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (!val) return;
+                                      setReportResponseTexts(prev => ({ ...prev, [rep.id]: val }));
+                                    }}
+                                    defaultValue=""
+                                    className="bg-neutral-900 border border-neutral-700 text-neutral-200 text-xs px-3 py-1.5 rounded-lg outline-none cursor-pointer"
+                                  >
+                                    <option value="" disabled>Select Canned Template...</option>
+                                    {cannedResponses.map((c, i) => (
+                                      <option key={i} value={c.text}>[{c.category}]</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <textarea
+                                  value={currentResponse}
+                                  onChange={(e) => setReportResponseTexts(prev => ({ ...prev, [rep.id]: e.target.value }))}
+                                  rows={2}
+                                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-500 resize-none"
+                                />
+                                <div className="flex justify-end">
+                                  <button
+                                    onClick={() => {
+                                      setSuccessToast(`Official response sent to user regarding Report #${rep.id}!`);
+                                      setTimeout(() => setSuccessToast(''), 3000);
+                                    }}
+                                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl transition shadow flex items-center gap-1.5"
+                                  >
+                                    <Send className="w-3.5 h-3.5" />
+                                    <span>Send Response</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons triggering Mandatory Confirmation Dialog */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => setConfirmingReport({ reportId: rep.id, profileName: rep.profileName, actionType: 'Warning' })}
+                                    className="px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-bold rounded-xl transition border border-neutral-700"
+                                  >
+                                    Issue Warning
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmingReport({ reportId: rep.id, profileName: rep.profileName, actionType: 'Suspension' })}
+                                    className="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold rounded-xl transition border border-amber-500/40"
+                                  >
+                                    Apply Suspension
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmingReport({ reportId: rep.id, profileName: rep.profileName, actionType: 'Permanent Ban' })}
+                                    className="px-3.5 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold rounded-xl transition border border-red-500/40"
+                                  >
+                                    Permanent Ban
+                                  </button>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    const updated = reportHistory.filter(r => r.id !== rep.id);
+                                    onUpdateReportHistory(updated);
+                                    setSuccessToast(`Report log #${rep.id} deleted from history.`);
+                                    setTimeout(() => setSuccessToast(''), 3000);
+                                  }}
+                                  className="p-2 bg-neutral-800 text-neutral-400 hover:text-red-400 rounded-xl transition"
+                                  title="Delete Report"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeAdminTab === 'users' && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 justify-between">
+                      <div className="relative w-full sm:w-80">
+                        <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search users by name, bio, city..."
+                          className="w-full bg-neutral-900 border border-neutral-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white outline-none focus:border-amber-500"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                        <span className="text-xs text-neutral-400 font-mono">
+                          {selectedUserIds.length} selected
+                        </span>
+                        <select
+                          value={bulkAction}
+                          onChange={(e) => setBulkAction(e.target.value)}
+                          disabled={selectedUserIds.length === 0}
+                          className="bg-neutral-800 border border-neutral-700 text-white text-xs px-3 py-2.5 rounded-xl outline-none disabled:opacity-50"
+                        >
+                          <option value="">Bulk Actions...</option>
+                          <option value="verify">Verify Selected</option>
+                          <option value="unverify">Unverify Selected</option>
+                          <option value="delete">Delete Selected</option>
+                        </select>
+                        <button
+                          onClick={handleApplyBulkAction}
+                          disabled={!bulkAction || selectedUserIds.length === 0}
+                          className="px-4 py-2.5 bg-amber-500 text-black font-bold text-xs rounded-xl hover:opacity-90 transition disabled:opacity-50 shadow"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          onChange={handleSelectAll}
+                          checked={filteredProfiles.length > 0 && selectedUserIds.length === filteredProfiles.length}
+                          className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-neutral-300">Select All ({filteredProfiles.length})</span>
+                      </div>
+                      <span className="text-xs text-neutral-400 font-mono">Showing {filteredProfiles.length} of {profiles.length} profiles</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {filteredProfiles.map(p => {
+                        const isSelected = selectedUserIds.includes(p.id);
+                        const isOnline = p.status === 'online';
+                        const isSuspended = p.isPermanentlySuspended || (p.suspensionUntil && p.suspensionUntil > Date.now());
+                        const daysLeft = p.suspensionUntil ? Math.ceil((p.suspensionUntil - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+
+                        return (
+                          <div key={p.id} className={`bg-neutral-900 border p-4 rounded-2xl flex items-center justify-between transition ${isSelected ? 'border-amber-500/70 bg-amber-500/5' : 'border-neutral-800'}`}>
+                            <div className="flex items-center space-x-3.5">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleSelectUser(p.id)}
+                                className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                              />
+                              <img src={p.photos[0]} alt={p.name} className="w-11 h-11 rounded-full object-cover border border-neutral-700" referrerPolicy="no-referrer" />
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <p className="text-sm font-bold text-white">{p.name}, {p.age}</p>
+                                  {p.isVerified && <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-bold">Verified</span>}
+                                  {isSuspended && <span className="text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded font-bold">Suspended</span>}
+                                </div>
+                                <p className="text-xs text-neutral-400">{p.locationName} • Tier: {p.membershipTier || 'Free'}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2.5">
                               <button
-                                onClick={() => {
-                                  setSuccessToast(`Report resolved for ${rep.profileName}: Official warning issued.`);
-                                  setTimeout(() => setSuccessToast(''), 3000);
-                                }}
-                                className="px-3 py-1.5 bg-neutral-800 text-neutral-200 text-xs font-bold rounded-lg hover:bg-neutral-700 transition"
+                                onClick={() => toggleUserStatus(p.id)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                                  isOnline 
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                                    : 'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                                }`}
                               >
-                                Issue Warning
+                                {isOnline ? <Wifi className="w-3.5 h-3.5 text-emerald-400" /> : <WifiOff className="w-3.5 h-3.5" />}
+                                <span className="capitalize">{p.status || 'offline'}</span>
                               </button>
+
+                              {isSuspended ? (
+                                <div className="flex items-center gap-1.5 bg-red-500/20 text-red-300 border border-red-500/40 px-3 py-1.5 rounded-xl text-xs font-bold">
+                                  <span>{p.isPermanentlySuspended ? '🚫 Perm' : `⏳ ${daysLeft}d`}</span>
+                                  <button onClick={() => handleUnsuspendUser(p.id)} className="underline text-white hover:text-amber-300 ml-1">Lift</button>
+                                </div>
+                              ) : (
+                                <select
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (!val) return;
+                                    if (val === 'perm') handleSuspendUser(p.id, 'permanent');
+                                    else handleSuspendUser(p.id, parseInt(val, 10));
+                                    e.target.value = '';
+                                  }}
+                                  defaultValue=""
+                                  className="bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white text-xs px-3 py-1.5 rounded-xl outline-none cursor-pointer"
+                                >
+                                  <option value="" disabled>Suspend...</option>
+                                  <option value="1">1 Day</option>
+                                  <option value="7">7 Days</option>
+                                  <option value="30">30 Days</option>
+                                  <option value="perm">Permanently</option>
+                                </select>
+                              )}
+
                               <button
-                                onClick={() => {
-                                  const updated = reportHistory.filter(r => r.id !== rep.id);
-                                  onUpdateReportHistory(updated);
-                                  setSuccessToast(`Report log #${rep.id} marked resolved.`);
-                                  setTimeout(() => setSuccessToast(''), 3000);
-                                }}
-                                className="px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-lg hover:bg-emerald-500/30 transition border border-emerald-500/40"
+                                onClick={() => toggleVerify(p.id)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                                  p.isVerified ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'bg-neutral-800 text-neutral-300'
+                                }`}
                               >
-                                Mark Resolved
+                                {p.isVerified ? 'Unverify' : 'Verify'}
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteProfile(p.id)}
+                                className="p-2 rounded-xl bg-neutral-800 text-neutral-400 hover:text-red-400 hover:bg-red-500/20 transition"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
-                            <button
-                              onClick={() => {
-                                const updated = reportHistory.filter(r => r.id !== rep.id);
-                                onUpdateReportHistory(updated);
-                                setSuccessToast(`Report log #${rep.id} deleted from history.`);
-                                setTimeout(() => setSuccessToast(''), 3000);
-                              }}
-                              className="p-1.5 bg-neutral-800 text-neutral-400 hover:text-red-400 hover:bg-neutral-700 rounded-lg transition"
-                              title="Delete Report Log"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
                           </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {activeAdminTab === 'refunds' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400">Billing Disputes & Refund Requests</h4>
-                      <p className="text-[11px] text-neutral-400">Issue refunds and cancel subscriptions for fraudulent complaints or billing claims.</p>
+                        );
+                      })}
                     </div>
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
-                      {disputes.filter(d => d.status === 'pending').length} Pending
-                    </span>
                   </div>
+                )}
 
-                  <div className="space-y-3">
-                    {disputes.map(disp => {
-                      const isPending = disp.status === 'pending';
-                      return (
-                        <div key={disp.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-3">
+                {activeAdminTab === 'refunds' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-black text-white">Billing Disputes & Refund Requests</h4>
+                        <p className="text-xs text-neutral-400">Issue refunds and cancel subscriptions for disputed charges.</p>
+                      </div>
+                      <span className="text-xs bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full font-bold">
+                        {disputes.filter(d => d.status === 'pending').length} Pending
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {disputes.map(disp => (
+                        <div key={disp.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
                               <DollarSign className="w-4 h-4" /> Dispute ID: {disp.id} • Amount: <strong className="text-white">{disp.amount}</strong>
                             </span>
                             <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase ${
-                              disp.status === 'pending' ? 'bg-amber-500/20 text-amber-300' :
-                              disp.status === 'refunded' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                              disp.status === 'pending' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'
                             }`}>
                               {disp.status.replace('_', ' ')}
                             </span>
                           </div>
                           <div className="text-xs text-neutral-300 space-y-1">
                             <p>User: <strong className="text-white">{disp.user}</strong> • Date: {disp.date}</p>
-                            <p className="text-neutral-400 italic bg-neutral-950 p-2.5 rounded-xl border border-neutral-800">"{disp.reason}"</p>
+                            <p className="text-neutral-400 italic bg-neutral-950 p-3 rounded-xl border border-neutral-800">"{disp.reason}"</p>
                           </div>
-                          {isPending && (
-                            <div className="flex flex-wrap gap-2 pt-1">
+                          {disp.status === 'pending' && (
+                            <div className="flex gap-2 pt-1">
                               <button
                                 onClick={() => handleIssueRefund(disp.id, disp.amount)}
-                                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition shadow flex items-center gap-1"
+                                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition shadow"
                               >
-                                <DollarSign className="w-3.5 h-3.5" />
-                                <span>Issue Full Refund</span>
+                                Issue Full Refund ({disp.amount})
                               </button>
                               <button
                                 onClick={() => handleCancelSubFraud(disp.id, disp.user)}
-                                className="px-3.5 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 font-bold text-xs rounded-xl transition flex items-center gap-1"
+                                className="px-4 py-2 bg-red-500/20 text-red-300 border border-red-500/40 font-bold text-xs rounded-xl transition"
                               >
-                                <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                                <span>Cancel Sub & Flag Fraud</span>
+                                Cancel Sub & Flag Fraud
                               </button>
                             </div>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {activeAdminTab === 'moderation' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-pink-400">Profile Picture Moderation (Anti-Nude Policy)</h4>
-                      <p className="text-[11px] text-neutral-400">Approve profile photos. Nudes/NSFW content must be rejected and moved to Private Locked Album.</p>
+                      ))}
                     </div>
-                    <span className="text-[10px] bg-pink-500/20 text-pink-300 px-2.5 py-0.5 rounded-full font-bold">
-                      {pendingPhotos.filter(p => p.status === 'pending').length} Pending Review
-                    </span>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {pendingPhotos.map(photo => {
-                      const isPending = photo.status === 'pending';
-                      return (
+                {activeAdminTab === 'moderation' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-black text-white">Profile Picture Moderation (Anti-Nude Policy)</h4>
+                        <p className="text-xs text-neutral-400">Review and approve or reject profile photos.</p>
+                      </div>
+                      <span className="text-xs bg-pink-500/20 text-pink-300 px-3 py-1 rounded-full font-bold">
+                        {pendingPhotos.filter(p => p.status === 'pending').length} Pending
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {pendingPhotos.map(photo => (
                         <div key={photo.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-white">{photo.userName}</span>
-                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
-                              photo.status === 'pending' ? 'bg-amber-500/20 text-amber-300' :
-                              photo.status === 'approved' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-purple-500/20 text-purple-300'
-                            }`}>
-                              {photo.status.replace('_', ' ')}
-                            </span>
+                            <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold uppercase">{photo.status}</span>
                           </div>
-                          <div className="relative aspect-video rounded-xl overflow-hidden bg-neutral-950 border border-neutral-800">
+                          <div className="aspect-video rounded-xl overflow-hidden bg-neutral-950 border border-neutral-800">
                             <img src={photo.url} alt={photo.userName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           </div>
-                          {isPending ? (
+                          {photo.status === 'pending' && (
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleApprovePhoto(photo.id)}
-                                className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-1"
+                                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition"
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Approve Public</span>
+                                Approve Public
                               </button>
                               <button
                                 onClick={() => handleRejectPhotoToPrivate(photo.id)}
-                                className="flex-1 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1"
+                                className="flex-1 py-2.5 bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold text-xs rounded-xl transition"
                               >
-                                <ImageIcon className="w-3.5 h-3.5" />
-                                <span>Move to Private Album</span>
+                                Move to Private Album
                               </button>
                             </div>
-                          ) : (
-                            <p className="text-[11px] text-neutral-400 text-center italic">Action completed successfully.</p>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {activeAdminTab === 'logs' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">System Activity & Moderation Audit Trail</h4>
-                    <span className="text-[10px] bg-neutral-800 text-neutral-300 px-2.5 py-0.5 rounded-full font-mono">Read-Only Secure Log</span>
-                  </div>
-
-                  <div className="space-y-2 font-mono text-xs">
-                    <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">ACTION</span>
-                          <span className="text-white font-bold text-xs">Global Broadcast Sent</span>
-                        </div>
-                        <p className="text-[11px] text-neutral-400">Admin broadcasted system update notice to 1,460 connected clients.</p>
-                      </div>
-                      <span className="text-[10px] text-neutral-500 whitespace-nowrap">2026-08-30 00:01:22</span>
-                    </div>
-
-                    <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">REPORT</span>
-                          <span className="text-white font-bold text-xs">New User Report #892</span>
-                        </div>
-                        <p className="text-[11px] text-neutral-400">Anonymous user reported Marcus Vance for chat harassment.</p>
-                      </div>
-                      <span className="text-[10px] text-neutral-500 whitespace-nowrap">2026-08-29 23:42:10</span>
-                    </div>
-
-                    <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-bold">VERIFY</span>
-                          <span className="text-white font-bold text-xs">Verification Badge Granted</span>
-                        </div>
-                        <p className="text-[11px] text-neutral-400">Admin verified user profile #p_alex_99 after ID review.</p>
-                      </div>
-                      <span className="text-[10px] text-neutral-500 whitespace-nowrap">2026-08-29 21:15:04</span>
-                    </div>
-
-                    <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded font-bold">MODERATION</span>
-                          <span className="text-white font-bold text-xs">Account Suspension Executed</span>
-                        </div>
-                        <p className="text-[11px] text-neutral-400">Admin suspended spam account 'BotTest99'.</p>
-                      </div>
-                      <span className="text-[10px] text-neutral-500 whitespace-nowrap">2026-08-29 18:30:19</span>
-                    </div>
-
-                    <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">AUTH</span>
-                          <span className="text-white font-bold text-xs">Admin Session Initialized</span>
-                        </div>
-                        <p className="text-[11px] text-neutral-400">Successful administrator authentication from IP 192.168.1.42.</p>
-                      </div>
-                      <span className="text-[10px] text-neutral-500 whitespace-nowrap">2026-08-29 14:00:00</span>
+                      ))}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {activeAdminTab === 'broadcast' && (
-                <div className="space-y-4">
-                  <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                      <Megaphone className="w-4 h-4" />
+                {activeAdminTab === 'logs' && (
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-black text-white">System Activity & Moderation Audit Trail</h4>
+                    <div className="space-y-2 font-mono text-xs">
+                      {[
+                        { title: 'Global Broadcast Sent', desc: 'Admin broadcasted announcement to active users.', time: '2026-08-30 00:01', type: 'ACTION' },
+                        { title: 'New User Report Logged', desc: 'Safety report registered for review.', time: '2026-08-29 23:42', type: 'REPORT' },
+                        { title: 'Verification Badge Granted', desc: 'Admin verified user identity.', time: '2026-08-29 21:15', type: 'VERIFY' },
+                        { title: 'Account Suspension Executed', desc: 'Admin suspended violating account.', time: '2026-08-29 18:30', type: 'MOD' },
+                      ].map((log, idx) => (
+                        <div key={idx} className="bg-neutral-900 border border-neutral-800 p-3.5 rounded-xl flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold mr-2">{log.type}</span>
+                            <span className="font-bold text-white">{log.title}</span>
+                            <p className="text-[11px] text-neutral-400 mt-0.5">{log.desc}</p>
+                          </div>
+                          <span className="text-[10px] text-neutral-500">{log.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeAdminTab === 'broadcast' && (
+                  <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl space-y-4">
+                    <h4 className="text-lg font-black text-white flex items-center gap-2">
+                      <Megaphone className="w-5 h-5 text-amber-400" />
                       <span>Global System Announcement / Broadcast</span>
                     </h4>
-                    <p className="text-xs text-neutral-400 leading-relaxed">
-                      Broadcast real-time announcements to all active users on the platform. This will appear as an urgent floating alert banner on everyone's screen.
-                    </p>
-
-                    <form onSubmit={handleSendBroadcast} className="space-y-3">
+                    <form onSubmit={handleSendBroadcast} className="space-y-4">
                       <textarea
                         value={broadcastMessage}
                         onChange={(e) => setBroadcastMessage(e.target.value)}
-                        placeholder="Type system announcement here (e.g. Server maintenance scheduled for 2:00 AM UTC...)"
+                        placeholder="Type urgent system announcement here..."
                         rows={4}
-                        className="w-full bg-neutral-950 border border-neutral-700 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-500"
+                        className="w-full bg-neutral-950 border border-neutral-700 rounded-xl p-3.5 text-xs text-white outline-none focus:border-amber-500"
                         required
                       />
                       <button
                         type="submit"
-                        className="px-5 py-2.5 bg-[#FFC107] text-[#121212] font-black text-xs rounded-xl hover:opacity-90 transition shadow flex items-center gap-1.5"
+                        className="px-6 py-3 bg-[#FFC107] text-[#121212] font-black text-xs rounded-xl hover:opacity-90 transition shadow"
                       >
-                        <Megaphone className="w-4 h-4" />
-                        <span>Broadcast to All Users</span>
+                        Broadcast to All Active Users
                       </button>
                     </form>
                   </div>
+                )}
+
+                {activeAdminTab === 'master_override' && isMasterAdmin && (
+                  <div className="bg-gradient-to-r from-amber-500/10 via-neutral-900 to-neutral-900 border border-amber-500/30 p-6 rounded-2xl space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                        <Crown className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-base font-black text-white">Master Admin System Overrides</h4>
+                        <p className="text-xs text-neutral-400">Master-level platform commands and bypasses.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-2">
+                        <h5 className="text-xs font-bold text-white">🔓 Lift All Suspensions</h5>
+                        <button
+                          onClick={() => {
+                            const updated = profiles.map(p => ({ ...p, isPermanentlySuspended: false, suspensionUntil: undefined }));
+                            onUpdateProfiles(updated);
+                            setSuccessToast('⚡ Master Override: Lifted all suspensions.');
+                            setTimeout(() => setSuccessToast(''), 3000);
+                          }}
+                          className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:opacity-90 transition"
+                        >
+                          Execute
+                        </button>
+                      </div>
+
+                      <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-2">
+                        <h5 className="text-xs font-bold text-white">✅ Force Verify All</h5>
+                        <button
+                          onClick={() => {
+                            const updated = profiles.map(p => ({ ...p, isVerified: true }));
+                            onUpdateProfiles(updated);
+                            setSuccessToast('⚡ Master Override: Verified all profiles.');
+                            setTimeout(() => setSuccessToast(''), 3000);
+                          }}
+                          className="px-4 py-2 bg-cyan-500 text-black font-bold text-xs rounded-xl transition"
+                        >
+                          Execute
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* Mandatory Confirmation Dialog for Report Action */}
+        {confirmingReport && (
+          <div className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-[#1A1A1A] border border-neutral-800 rounded-3xl max-w-md w-full p-6 text-white space-y-5 shadow-2xl animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-400">
+                  <ShieldAlert className="w-5 h-5" />
+                  <h3 className="font-bold text-base">Confirm Report Action</h3>
                 </div>
-              )}
+                <button
+                  onClick={() => setConfirmingReport(null)}
+                  className="p-1 rounded-full bg-neutral-800 text-neutral-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-neutral-300">
+                You are about to execute action for report on <strong className="text-white">{confirmingReport.profileName}</strong> (Report ID: {confirmingReport.reportId}).
+              </p>
+
+              <form onSubmit={handleConfirmReportActionSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Action Category</label>
+                  <select
+                    value={actionCategory}
+                    onChange={(e) => setActionCategory(e.target.value as any)}
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none focus:border-amber-500"
+                  >
+                    <option value="Warning">Warning</option>
+                    <option value="Suspension">Suspension</option>
+                    <option value="Permanent Ban">Permanent Ban</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Mandatory Justification Note</label>
+                  <textarea
+                    value={actionJustification}
+                    onChange={(e) => setActionJustification(e.target.value)}
+                    rows={3}
+                    placeholder="Provide brief justification note for audit trail..."
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-500 resize-none"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingReport(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 text-xs font-semibold hover:bg-neutral-700 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-xs font-black hover:bg-amber-400 transition shadow"
+                  >
+                    Confirm & Update DB
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

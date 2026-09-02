@@ -6,6 +6,7 @@ import { UserProfile, FilterState, ChatConversation, Message } from './types';
 import { MOCK_PROFILES, CURRENT_USER } from './data/mockProfiles';
 import { calculateDistance } from './utils/geo';
 import { BuzzEvent, executeBuzz } from './utils/buzz';
+import { playSound } from './utils/audio';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { FilterModal } from './components/FilterModal';
@@ -16,6 +17,7 @@ import { ChatWindow } from './components/ChatWindow';
 import { TapsView } from './components/TapsView';
 import { FavoritesView } from './components/FavoritesView';
 import { ProfileView } from './components/ProfileView';
+import { NewActivityAreaModal } from './components/NewActivityAreaModal';
 
 import { CompanionMembershipModal } from './components/CompanionMembershipModal';
 import { BuzzAlertBanner } from './components/BuzzAlertBanner';
@@ -240,7 +242,7 @@ export default function App() {
     setIsSubscriptionModalOpen(false);
     showToast(`🎉 Success! ${type === '1-day' ? '1-Day Pass ($1.99)' : type === '7-day' ? '7-Day Pass ($4.99)' : type === 'monthly' ? 'Monthly Pass ($9.99)' : 'Yearly VIP Pass ($59.99)'} activated! Enjoy unlimited profile views.`);
   };
-  const [gridSubTab, setGridSubTab] = useState<'all' | 'recently_viewed'>('all');
+  const [gridSubTab, setGridSubTab] = useState<'all' | 'recently_viewed' | 'right_now'>('all');
   const [selectedVisitorIds, setSelectedVisitorIds] = useState<string[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     try {
@@ -302,6 +304,35 @@ export default function App() {
   const [isContactsOpen, setIsContactsOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+  const [isRightNowActive, setIsRightNowActive] = useState<boolean>(false);
+  const [rightNowNote, setRightNowNote] = useState<string>('');
+  const [rightNowExpiresAt, setRightNowExpiresAt] = useState<number | null>(null);
+  const [showPresets, setShowPresets] = useState<boolean>(true);
+  const [showRightNowModal, setShowRightNowModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isRightNowActive || !rightNowExpiresAt) return;
+    const interval = setInterval(() => {
+      if (Date.now() >= rightNowExpiresAt) {
+        setIsRightNowActive(false);
+        setRightNowNote('');
+        setRightNowExpiresAt(null);
+        setCurrentUser(prev => ({ ...prev, isRightNowActive: false, rightNowNote: undefined, rightNowExpiresAt: undefined }));
+        showToast('⚡ Your "Right Now" status has automatically expired after 2 hours.');
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isRightNowActive, rightNowExpiresAt]);
+
+  const getRemainingTimeStr = () => {
+    if (!rightNowExpiresAt) return '';
+    const diff = rightNowExpiresAt - Date.now();
+    if (diff <= 0) return 'Expired';
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours > 0) return `${hours}h ${minutes}m left`;
+    return `${minutes}m left`;
+  };
   const [readReceiptsEnabled, setReadReceiptsEnabled] = useState<boolean>(true);
   const [ghostModeEnabled, setGhostModeEnabled] = useState<boolean>(false);
   const [currentLanguage, setCurrentLanguage] = useState<string>('en');
@@ -364,6 +395,7 @@ export default function App() {
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isCompanionModalOpen, setIsCompanionModalOpen] = useState(false);
+  const [isNewActivityModalOpen, setIsNewActivityModalOpen] = useState(false);
   const [reportHistory, setReportHistory] = useState<Array<{
     id: string;
     profileId: string;
@@ -414,6 +446,7 @@ export default function App() {
   };
 
   const handleTriggerBuzzEvent = (event: BuzzEvent) => {
+    playSound(event.type === 'wink' ? 'wink' : 'message');
     executeBuzz(event.type === 'wink' ? 'wink' : event.type === 'message' ? 'message' : 'interest', event.senderName);
     setBuzzEvents((prev) => [event, ...prev]);
     setActiveBuzzAlert(event);
@@ -516,6 +549,9 @@ export default function App() {
       if (filters.onlineOnly && p.status !== 'online') return false;
       if (filters.withPhotoOnly && (!p.photos || p.photos.length === 0)) return false;
       if (filters.onlyVisitedMe && !allViewedIds.includes(p.id)) return false;
+      if (filters.activeToday && p.status !== 'online' && p.status !== 'away') return false;
+      if (filters.recentlyActive && p.status !== 'online') return false;
+      if (filters.newMembersOnly && !p.isNewUser) return false;
       if (filters.excludeAlreadyMessaged) {
         const messagedIds = conversations.map(c => c.profile.id);
         if (messagedIds.includes(p.id)) return false;
@@ -544,18 +580,17 @@ export default function App() {
         const scoreB = (b.tribes?.length || 0) + (b.interestTags?.length || 0);
         if (scoreB !== scoreA) return scoreB - scoreA;
       }
-      if (filters.sortBy === 'compatibility') {
-        const userInterests = currentUser.interestTags || [];
-        const userTribes = currentUser.tribes || [];
-        const scoreA = (a.interestTags || []).filter(t => userInterests.includes(t)).length * 2 + (a.tribes || []).filter(tr => userTribes.includes(tr)).length * 3;
-        const scoreB = (b.interestTags || []).filter(t => userInterests.includes(t)).length * 2 + (b.tribes || []).filter(tr => userTribes.includes(tr)).length * 3;
-        if (scoreB !== scoreA) return scoreB - scoreA;
-      }
       if (filters.sortBy === 'newest') {
         const isANew = a.isNewUser ? 1 : 0;
         const isBNew = b.isNewUser ? 1 : 0;
         if (isBNew !== isANew) return isBNew - isANew;
         return (b.lastPhotoUpdated || 0) - (a.lastPhotoUpdated || 0);
+      }
+      if (filters.sortBy === 'active_now') {
+        const rank = (s?: string) => s === 'online' ? 0 : s === 'away' ? 1 : 2;
+        const rA = rank(a.status);
+        const rB = rank(b.status);
+        if (rA !== rB) return rA - rB;
       }
       // Default / Closest sorting
       return a.distance - b.distance;
@@ -567,6 +602,9 @@ export default function App() {
 
   const handleSendTap = (e: React.MouseEvent, profile: UserProfile) => {
     e.stopPropagation();
+    if (navigator.vibrate) {
+      navigator.vibrate(40);
+    }
     setProfiles((prev) =>
       prev.map((p) => (p.id === profile.id ? { ...p, isTapped: true } : p))
     );
@@ -855,6 +893,32 @@ export default function App() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setFilters({ ...filters, sortBy: 'active_now' })}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    filters.sortBy === 'active_now'
+                      ? 'bg-[#FFC107] text-[#121212] shadow'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span>🟢 Active Now</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGridSubTab('right_now')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    gridSubTab === 'right_now'
+                      ? 'bg-amber-500 text-black shadow'
+                      : isRightNowActive
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      : 'text-neutral-300 hover:text-white bg-neutral-800/60'
+                  }`}
+                  title="View and set your Right Now status"
+                >
+                  <span>⚡ Right Now {isRightNowActive && `(${getRemainingTimeStr()})`}</span>
+                  {isRightNowActive && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>}
+                </button>
+                <button
+                  type="button"
                   onClick={() => setFilters({ ...filters, sortBy: 'newest' })}
                   className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
                     filters.sortBy === 'newest'
@@ -864,23 +928,15 @@ export default function App() {
                 >
                   <span>✨ Newest</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setFilters({ ...filters, sortBy: 'compatibility' })}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                    filters.sortBy === 'compatibility'
-                      ? 'bg-[#FFC107] text-[#121212] shadow'
-                      : 'text-neutral-400 hover:text-white'
-                  }`}
-                >
-                  <span>🔥 Compatibility</span>
-                </button>
+
               </div>
             </div>
 
             {(() => {
               const profilesToDisplay = gridSubTab === 'recently_viewed'
                 ? filteredProfiles.filter(p => allViewedIds.includes(p.id))
+                : gridSubTab === 'right_now'
+                ? filteredProfiles.filter(p => p.isRightNowActive || (p.id === currentUser.id && isRightNowActive))
                 : filteredProfiles;
 
               if (profilesToDisplay.length === 0) {
@@ -898,6 +954,49 @@ export default function App() {
 
               return (
                 <>
+                  {gridSubTab === 'right_now' && (
+                    <div className="mb-4 bg-gradient-to-r from-amber-500/15 via-neutral-900 to-neutral-900 border border-amber-500/30 p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500 text-black flex items-center justify-center font-black text-lg shadow-md animate-pulse">
+                          ⚡
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                            <span>Right Now Section</span>
+                            {isRightNowActive && <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">Active ({getRemainingTimeStr()})</span>}
+                          </h4>
+                          <p className="text-xs text-neutral-300">
+                            {isRightNowActive ? `Your status: "${rightNowNote || 'Ready to meet!'}"` : "You are not currently broadcasting in Right Now."}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowRightNowModal(true)}
+                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg flex items-center gap-1.5 shrink-0"
+                      >
+                        <span>⚡ {isRightNowActive ? 'Edit Status' : 'Set Right Now Status'}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="mb-4 flex items-center justify-between bg-neutral-900 border border-neutral-800 p-3 rounded-2xl shadow-sm">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm">
+                        🌟
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">What's New in {currentArea}</h4>
+                        <p className="text-[11px] text-neutral-400">See who uploaded new photos and new members nearby</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsNewActivityModalOpen(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1.5"
+                    >
+                      <span>✨ Area Activity</span>
+                    </button>
+                  </div>
+
                   <div
                     className={`grid gap-3`}
                     style={{
@@ -912,6 +1011,7 @@ export default function App() {
                         currentUserInterests={currentUser.interestTags}
                         onClick={() => handleSelectProfile(profile)}
                         onTap={handleSendTap}
+                        onOpenChat={handleStartChat}
                         onBadgeClick={(tag) => {
                           setFilters({ ...filters, searchQuery: tag });
                           showToast(`✨ Filtered discovery grid by interest: ${tag}`);
@@ -1602,6 +1702,8 @@ export default function App() {
         subscription={subscription}
         viewedCount={currentAreaViewedIds.length}
         onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+        gridColumns={gridColumns}
+        onGridColumnsChange={setGridColumns}
       />
 
       {/* Right-Side Profile Panel */}
@@ -1673,6 +1775,15 @@ export default function App() {
         onUpdateReportHistory={setReportHistory}
       />
 
+      {/* New Activity Area Modal */}
+      <NewActivityAreaModal
+        isOpen={isNewActivityModalOpen}
+        onClose={() => setIsNewActivityModalOpen(false)}
+        profiles={profiles}
+        onSelectProfile={handleSelectProfile}
+        currentArea={currentArea}
+      />
+
       {/* Download App Modal */}
       {isDownloadModalOpen && (
         <DownloadAppModal
@@ -1711,6 +1822,115 @@ export default function App() {
             showToast('🎉 Onboarding completed! Welcome to Blaze.');
           }}
         />
+      )}
+
+      {/* Right Now Status Modal */}
+      {showRightNowModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#181818] border border-neutral-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-white">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <span>⚡</span> Set Your "Right Now" Status
+              </h3>
+              <button
+                onClick={() => setShowRightNowModal(false)}
+                className="text-neutral-400 hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-neutral-400 leading-relaxed">
+              Let people nearby know what you're up to right now (e.g., "Grab coffee at Downtown", "Looking for hiking buddy").
+            </p>
+            <div className="space-y-1">
+              <div className="relative">
+                <textarea
+                  rows={3}
+                  maxLength={150}
+                  value={rightNowNote}
+                  onChange={(e) => setRightNowNote(e.target.value)}
+                  placeholder="What are you up to right now? (e.g. Coffee at Blue Bottle...)"
+                  className="w-full bg-[#121212] border border-neutral-800 rounded-xl p-3 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 resize-none"
+                />
+                <div className="absolute bottom-2 right-3 text-[10px] text-neutral-500">
+                  {rightNowNote.length} / 150
+                </div>
+              </div>
+
+              {/* Collapsible Preset Choices */}
+              <div className="pt-1">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] text-neutral-400 font-bold">Quick Presets</span>
+                  <button
+                    onClick={() => setShowPresets(!showPresets)}
+                    className="text-[11px] text-amber-400 hover:underline font-bold"
+                  >
+                    {showPresets ? 'Hide ▴' : 'Show ▾'}
+                  </button>
+                </div>
+                {showPresets && (
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-[#121212] rounded-xl border border-neutral-800">
+                    {[
+                      'Coffee Time',
+                      'Hiking',
+                      'Looking to Party',
+                      'Looking for fun',
+                      'one on one fun',
+                      "let's have a drink",
+                      "let's go for a drive",
+                      'Up for a 3sum?'
+                    ].map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => setRightNowNote(preset)}
+                        className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-[11px] font-semibold rounded-lg transition"
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {isRightNowActive && (
+              <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/30 px-3 py-2 rounded-xl text-xs text-amber-300">
+                <span>⏱️ Active Status Countdown</span>
+                <span className="font-bold">{getRemainingTimeStr()} (Auto-clears in 2h)</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                onClick={() => {
+                  setIsRightNowActive(false);
+                  setRightNowNote('');
+                  setRightNowExpiresAt(null);
+                  setCurrentUser(prev => ({ ...prev, isRightNowActive: false, rightNowNote: undefined, rightNowExpiresAt: undefined }));
+                  setShowRightNowModal(false);
+                  showToast('⚡ Cleared your Right Now status.');
+                }}
+                className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold text-xs rounded-xl transition"
+              >
+                Turn Off
+              </button>
+              <button
+                onClick={() => {
+                  setIsRightNowActive(true);
+                  const note = rightNowNote || 'Ready to meet!';
+                  const expires = Date.now() + 2 * 60 * 60 * 1000; // 2 hours
+                  setRightNowExpiresAt(expires);
+                  setCurrentUser(prev => ({ ...prev, isRightNowActive: true, rightNowNote: note, rightNowExpiresAt: expires }));
+                  setShowRightNowModal(false);
+                  showToast(`⚡ Published Right Now status: "${note}" (Expires in 2h)`);
+                }}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl transition shadow-lg"
+              >
+                Publish Right Now
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Bottom Navigation */}

@@ -60,6 +60,8 @@ export interface UserProfile {
   isFavorite?: boolean;
   isTapped?: boolean;
   isBlocked?: boolean;
+  suspensionUntil?: number; // timestamp when temporary suspension expires
+  isPermanentlySuspended?: boolean;
   latitude?: number;
   longitude?: number;
   isCompanionPro?: boolean;
@@ -71,6 +73,9 @@ export interface UserProfile {
   isWinked?: boolean;
   isLetsMet?: boolean;
   interestStatus?: 'interested' | 'not_interested' | 'none';
+  isRightNowActive?: boolean;
+  rightNowNote?: string;
+  rightNowExpiresAt?: number;
   isNewUser?: boolean;
   isMatchedUp?: boolean;
   lastPhotoUpdated?: number;
@@ -166,7 +171,10 @@ export interface FilterState {
   positionFilter?: PositionRole | 'all';
   suggestedForYou?: boolean;
   onlyVisitedMe?: boolean;
-  sortBy?: 'closest' | 'newest' | 'compatibility';
+  activeToday?: boolean;
+  recentlyActive?: boolean;
+  newMembersOnly?: boolean;
+  sortBy?: 'closest' | 'newest' | 'compatibility' | 'active_now';
   excludeAlreadyMessaged?: boolean;
 }
 

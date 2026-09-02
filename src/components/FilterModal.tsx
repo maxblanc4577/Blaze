@@ -99,6 +99,69 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             </label>
           </div>
 
+          {/* Activity & Membership Filter Category */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Activity & Membership Filters</h3>
+            <div className="space-y-2.5">
+              <div className="bg-[#222222] border border-neutral-800 rounded-xl p-3.5 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <span className="text-lg">☀️</span>
+                  <div>
+                    <h4 className="font-bold text-xs text-white">Active Today</h4>
+                    <p className="text-[10px] text-neutral-400">Show profiles active within the last 24 hours.</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.activeToday || false}
+                    onChange={e => setFilters(prev => ({ ...prev, activeToday: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FFC107]"></div>
+                </label>
+              </div>
+
+              <div className="bg-[#222222] border border-neutral-800 rounded-xl p-3.5 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <span className="text-lg">⚡</span>
+                  <div>
+                    <h4 className="font-bold text-xs text-white">Recently Active (within 1 hour)</h4>
+                    <p className="text-[10px] text-neutral-400">Show profiles online or active in the last 60 minutes.</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.recentlyActive || false}
+                    onChange={e => setFilters(prev => ({ ...prev, recentlyActive: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FFC107]"></div>
+                </label>
+              </div>
+
+              <div className="bg-[#222222] border border-neutral-800 rounded-xl p-3.5 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <span className="text-lg">✨</span>
+                  <div>
+                    <h4 className="font-bold text-xs text-white">New Members Only</h4>
+                    <p className="text-[10px] text-neutral-400">Show newly registered profiles.</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.newMembersOnly || false}
+                    onChange={e => setFilters(prev => ({ ...prev, newMembersOnly: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FFC107]"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+
           {/* Interaction History Category */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Interaction History</h3>

@@ -15,12 +15,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({ profile, onClose, onRe
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const reasons = [
-    { id: 'inappropriate', label: 'Inappropriate content or photos', icon: '🔞', desc: 'Explicit media, nudity, or offensive imagery' },
-    { id: 'spam', label: 'Spam or commercial solicitation', icon: '🤖', desc: 'Promoting external links, bots, or paid services' },
-    { id: 'harassment', label: 'Harassment, bullying, or offensive language', icon: '⚠️', desc: 'Threats, abusive messages, or targeted attacks' },
-    { id: 'fake', label: 'Fake profile / Catfishing', icon: '🎭', desc: 'Impersonation or using stolen photos' },
-    { id: 'underage', label: 'Suspected underage user', icon: '👶', desc: 'Profiles belonging to minors' },
-    { id: 'other', label: 'Other community guideline violation', icon: '🚩', desc: 'General misconduct or policy breach' },
+    { id: 'catfishing', label: 'Catfishing / fake profiles (stolen photos, fabricated identities)', icon: '🎭', desc: 'Impersonation, stolen photos, or misleading identity' },
+    { id: 'scams', label: 'Scams — romance fraud, requests for money or gift cards, crypto "investment" pitches', icon: '💰', desc: 'Financial scams, money requests, or investment pitches' },
+    { id: 'verification', label: 'Verifying someone is who they say they are before meeting in person', icon: '🔍', desc: 'Identity verification and pre-meetup authenticity checks' },
+    { id: 'harassment', label: 'Harassment or unsolicited explicit content', icon: '⚠️', desc: 'Abusive messaging, threats, or unwanted explicit media' },
+    { id: 'safety', label: 'Physical safety when meeting a match for the first time', icon: '🛡️', desc: 'In-person meetup safety concerns or suspicious real-world conduct' },
   ];
 
   const handleReasonChange = (label: string) => {

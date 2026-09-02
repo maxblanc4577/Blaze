@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, Crown, Sparkles, CheckCircle2, Plane, ShoppingBag, User, Briefcase, CreditCard, Check } from 'lucide-react';
+import { X, ShieldCheck, Crown, Sparkles, CheckCircle2, User, Briefcase, CreditCard, Check } from 'lucide-react';
 import { UserProfile } from '../types';
+import { PaymentVerificationModal } from './PaymentVerificationModal';
 
 interface CompanionMembershipModalProps {
   isOpen: boolean;
@@ -25,8 +26,11 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
     isCurrentlyPro ? 'professional' : 'regular'
   );
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual' | 'one_time'>('monthly');
-  const [showPaymentStep, setShowPaymentStep] = useState(false);
-  const [paymentCard, setPaymentCard] = useState('4242 •••• •••• 4242');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [successState, setSuccessState] = useState(false);
+
+  const planTitle = selectedPlan === 'monthly' ? 'Professional Companion Monthly' : selectedPlan === 'annual' ? 'Professional Companion Annual' : 'Professional Companion Setup';
+  const planAmount = selectedPlan === 'monthly' ? '$19.99/mo' : selectedPlan === 'annual' ? '$10.99/mo' : '$49.99';
 
   const handleProceed = () => {
     if (selectedProfileType === 'regular') {
@@ -34,16 +38,19 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
       showToast('👤 Switched to Regular User Profile successfully.');
       onClose();
     } else {
-      setShowPaymentStep(true);
+      setShowPaymentModal(true);
     }
   };
 
-  const handleCompletePayment = () => {
-    const rate = selectedPlan === 'monthly' ? '$19.99/mo' : selectedPlan === 'annual' ? '$10.99/mo' : '$49.99 one-time';
+  const handlePaymentSuccess = () => {
+    const rate = planAmount;
     onUpdateAccountType('Elite Companion', true, rate);
-    showToast('👑 Professional / Elite Companion Profile activated successfully!');
-    setShowPaymentStep(false);
-    onClose();
+    setSuccessState(true);
+    showToast('👑 Professional / Elite Companion Profile activated successfully via Stripe!');
+    setTimeout(() => {
+      setSuccessState(false);
+      onClose();
+    }, 2000);
   };
 
   return (
@@ -58,7 +65,17 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
           <X className="w-5 h-5" />
         </button>
 
-        {!showPaymentStep ? (
+        {successState ? (
+          <div className="py-12 text-center space-y-4 animate-in fade-in">
+            <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/30">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+            <h3 className="text-2xl font-black text-white">Upgrade Successful!</h3>
+            <p className="text-sm text-neutral-300 max-w-sm mx-auto">
+              Your Stripe payment has been confirmed. Welcome to Elite Professional Companion tier.
+            </p>
+          </div>
+        ) : (
           <>
             <div className="text-center space-y-2 mb-6">
               <div className="w-14 h-14 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-[#FFC107]">
@@ -195,72 +212,9 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
               onClick={handleProceed}
               className="w-full py-3.5 rounded-xl bg-[#FFC107] text-[#121212] font-black text-sm hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20 flex items-center justify-center space-x-2"
             >
-              <span>{selectedProfileType === 'regular' ? 'Confirm Regular User Profile' : `Proceed to Pay Fee (${selectedPlan === 'monthly' ? '$19.99/mo' : selectedPlan === 'annual' ? '$10.99/mo' : '$49.99'})`}</span>
+              <span>{selectedProfileType === 'regular' ? 'Confirm Regular User Profile' : `Proceed to Pay Fee (${planAmount})`}</span>
             </button>
           </>
-        ) : (
-          /* Payment Step for Professional Fee */
-          <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center mx-auto text-[#FFC107]">
-                <CreditCard className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-bold text-white">Pay Professional Registration Fee</h3>
-              <p className="text-xs text-neutral-400">
-                Secure payment for Professional Companion Profile activation.
-              </p>
-            </div>
-
-            <div className="bg-[#222222] p-4 rounded-2xl border border-neutral-800 space-y-3">
-              <div className="flex justify-between text-xs text-neutral-300">
-                <span>Profile Type:</span>
-                <span className="font-bold text-white">Professional Companion</span>
-              </div>
-              <div className="flex justify-between text-xs text-neutral-300">
-                <span>Billing Plan:</span>
-                <span className="font-bold text-[#FFC107]">
-                  {selectedPlan === 'monthly' ? 'Monthly ($19.99/mo)' : selectedPlan === 'annual' ? 'Annual ($10.99/mo)' : 'One-Time Professional Fee ($49.99)'}
-                </span>
-              </div>
-              <div className="pt-2 border-t border-neutral-700 flex justify-between text-sm font-bold text-white">
-                <span>Total Due Today:</span>
-                <span className="text-[#FFC107]">
-                  {selectedPlan === 'monthly' ? '$19.99' : selectedPlan === 'annual' ? '$10.99' : '$49.99'}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 block">Payment Method</label>
-              <div className="bg-[#252525] border border-neutral-700 rounded-xl p-3.5 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <span className="p-2 bg-neutral-800 rounded-lg">💳</span>
-                  <div>
-                    <p className="font-bold text-white">Mastercard ending in 4242</p>
-                    <p className="text-[10px] text-neutral-400">Expires 12/28 • Secure 256-bit encryption</p>
-                  </div>
-                </div>
-                <span className="text-emerald-400 font-bold">Default</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowPaymentStep(false)}
-                className="flex-1 py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold text-xs transition"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={handleCompletePayment}
-                className="flex-1 py-3 rounded-xl bg-[#FFC107] text-black font-black text-xs hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20"
-              >
-                Pay & Activate Profile
-              </button>
-            </div>
-          </div>
         )}
 
         <p className="text-[11px] text-neutral-500 text-center mt-4">
@@ -268,6 +222,17 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
         </p>
 
       </div>
+
+      {showPaymentModal && (
+        <PaymentVerificationModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          planTitle={planTitle}
+          planAmount={planAmount}
+          onSuccess={handlePaymentSuccess}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 };

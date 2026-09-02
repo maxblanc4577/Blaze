@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, getFilterStyle, getStyleTagIcon } from '../types';
-import { Flame, Star, ShieldCheck, Sparkles, Lock, Flag, Eye, Trash2 } from 'lucide-react';
+import { Flame, Star, ShieldCheck, Sparkles, Lock, Flag, Eye, Trash2, MessageCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { QuickPreviewModal } from './QuickPreviewModal';
 import { ReportModal } from './ReportModal';
@@ -13,6 +13,7 @@ interface ProfileCardProps {
   onPass?: (profileId: string) => void;
   onDelete?: (profileId: string) => void;
   onToggleFavorite?: (profileId: string) => void;
+  onOpenChat?: (profile: UserProfile) => void;
   currentUserInterests?: string[];
   onBadgeClick?: (badge: string) => void;
   viewedCount?: number;
@@ -21,7 +22,7 @@ interface ProfileCardProps {
   onReportSubmitted?: (profile: UserProfile, reason: string, details: string) => void;
 }
 
-export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onToggleFavorite, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false, showToast, onReportSubmitted }) => {
+export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onToggleFavorite, onOpenChat, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false, showToast, onReportSubmitted }) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeX, setSwipeX] = useState(0);
@@ -226,12 +227,23 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             </div>
           </div>
 
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-1.5">
+            {/* Direct Chat Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenChat) onOpenChat(profile);
+              }}
+              className="w-7 h-7 rounded-full bg-blue-500/80 hover:bg-blue-500 backdrop-blur-md flex items-center justify-center border border-blue-400/30 text-white transition shadow"
+              title="Open Chat & View History"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+            </button>
+
             {/* Quick Preview Eye Button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                triggerHaptic(20);
                 setShowPreview(true);
               }}
               className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-white hover:bg-neutral-800 transition shadow"

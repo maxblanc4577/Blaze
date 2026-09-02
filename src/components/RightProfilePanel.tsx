@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, getFilterStyle, PHOTO_FILTERS } from '../types';
 import { ShieldAlert, Sparkles, Heart, Share2, Check, ShieldCheck, Flag, AlertTriangle, Music, Play, Pause, Smile, Mic, Image as ImageIcon, Users, Shield, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { SafetyCheckInModal } from './SafetyCheckInModal';
 
 interface RightProfilePanelProps {
   profile: UserProfile | null;
@@ -49,6 +50,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const [groupInviteSent, setGroupInviteSent] = useState(false);
   const [showSocialsModal, setShowSocialsModal] = useState(false);
   const [showVirtualGiftModal, setShowVirtualGiftModal] = useState(false);
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [giftSentConfirmation, setGiftSentConfirmation] = useState<string | null>(null);
   const [isBioExpanded, setIsBioExpanded] = useState(false);
   const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'friends'>(profile.friendStatus || 'none');
@@ -226,11 +228,9 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
               {profile.isVerified && (
                 <ShieldCheck className="w-5 h-5 text-cyan-400 fill-cyan-400/20" title="Verified Profile" />
               )}
-              {(hasSocialLinks || profile.isVerified) && (
-                <span className="inline-flex items-center gap-1 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 px-2 py-0.5 rounded-full text-[10px] font-bold" title="Verified Authentic User with Linked Social Accounts">
-                  <Check className="w-3 h-3 text-cyan-400" /> Verified
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 px-2 py-0.5 rounded-full text-[10px] font-bold" title="Verified Email Address & Live Photo Authentication">
+                <Check className="w-3 h-3 text-cyan-400" /> Verified (Email & Live Photo)
+              </span>
             </h3>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shadow-sm" title="Last Active Availability">
@@ -306,6 +306,25 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
             ))}
           </div>
         )}
+
+        {/* Safety Check-In Button for meeting match for first time */}
+        <div className="bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30 rounded-xl p-3 mb-3 flex items-center justify-between shadow">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white">First-Time Meetup Safety</h4>
+              <p className="text-[10px] text-amber-300/80">Share live location for 2h with a friend</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowSafetyModal(true)}
+            className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1"
+          >
+            <span>🛡️ Check-In</span>
+          </button>
+        </div>
 
         {/* Profile Song Player */}
         <div className="bg-neutral-800/90 border border-neutral-700/80 rounded-xl p-3 mb-3 flex items-center justify-between shadow">
@@ -1137,6 +1156,13 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </div>
         </div>
       )}
+      {/* Safety Check-In Modal */}
+      <SafetyCheckInModal
+        isOpen={showSafetyModal}
+        onClose={() => setShowSafetyModal(false)}
+        matchName={profile.name}
+        matchPhoto={profile.photos[0]}
+      />
     </motion.div>
     </>
   );
