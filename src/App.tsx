@@ -300,6 +300,8 @@ export default function App() {
   const [registerPassword, setRegisterPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [blockedKeywords, setBlockedKeywords] = useState<string[]>(['spam', 'scam', 'crypto', 'telegram', 'whatsapp']);
+  const [registerAsElite, setRegisterAsElite] = useState(false);
   const [activeChat, setActiveChat] = useState<ChatConversation | null>(null);
   const [isContactsOpen, setIsContactsOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -309,6 +311,8 @@ export default function App() {
   const [rightNowExpiresAt, setRightNowExpiresAt] = useState<number | null>(null);
   const [showPresets, setShowPresets] = useState<boolean>(true);
   const [showRightNowModal, setShowRightNowModal] = useState<boolean>(false);
+  const [mintboysMode, setMintboysMode] = useState<boolean>(false);
+  const [bookingModalProfile, setBookingModalProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     if (!isRightNowActive || !rightNowExpiresAt) return;
@@ -546,6 +550,8 @@ export default function App() {
   const filteredProfiles = profiles
     .filter((p) => {
       if (p.isBlocked) return false;
+      if ((p.isCompanionPro || p.membershipTier === 'Elite Companion') && !p.isFeePaid) return false;
+      if (mintboysMode && !p.isCompanionPro && !p.companionRate) return false;
       if (filters.onlineOnly && p.status !== 'online') return false;
       if (filters.withPhotoOnly && (!p.photos || p.photos.length === 0)) return false;
       if (filters.onlyVisitedMe && !allViewedIds.includes(p.id)) return false;
@@ -556,7 +562,14 @@ export default function App() {
         const messagedIds = conversations.map(c => c.profile.id);
         if (messagedIds.includes(p.id)) return false;
       }
-      if (p.distance > filters.maxDistance) return false;
+      const isElite = p.isCompanionPro || p.membershipTier === 'Elite Companion';
+      if (filters.verifiedEliteOnly && (!isElite || !p.isFeePaid)) return false;
+      if (!isElite && p.distance > filters.maxDistance) return false;
+      if (filters.countryFilter && filters.countryFilter !== 'all') {
+        const loc = (p.locationName || '').toLowerCase();
+        const target = filters.countryFilter.toLowerCase();
+        if (!loc.includes(target)) return false;
+      }
       if (p.age < filters.ageRange[0] || p.age > filters.ageRange[1]) return false;
       if (filters.lookingFor && filters.lookingFor.length > 0 && (!p.lookingFor || !filters.lookingFor.some(l => p.lookingFor?.includes(l)))) return false;
       if (filters.selectedTribes.length > 0 && !filters.selectedTribes.some((t) => p.tribes.includes(t))) {
@@ -659,6 +672,12 @@ export default function App() {
   };
 
   const handleSendMessage = (conversationId: string, text: string, type: 'text' | 'image' | 'audio' | 'location' = 'text', mediaUrl?: string) => {
+    const lowerText = text.toLowerCase();
+    const isBlocked = blockedKeywords.some(kw => lowerText.includes(kw.toLowerCase()));
+    if (isBlocked) {
+      showToast('🛡️ Message blocked by admin blocked keywords filter.');
+      return;
+    }
     const msgId = `msg-${Date.now()}`;
     const newMsg: Message = {
       id: msgId,
@@ -843,6 +862,28 @@ export default function App() {
         {activeTab === 'grid' && (
           <div className="max-w-7xl mx-auto p-3 sm:p-4 pb-24">
 
+            {/* Elite Companion Subscription Expiration Alert (7 Days Warning) */}
+            {currentUser.membershipTier === 'Elite Companion' && (
+              <div className="mb-4 bg-gradient-to-r from-amber-500/20 via-neutral-900 to-neutral-900 border border-amber-500/40 rounded-2xl p-4 flex items-center justify-between text-white shadow-xl">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-black flex items-center justify-center font-black flex-shrink-0">
+                    👑
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-amber-300">Elite Companion Subscription Status: Active</h4>
+                    <p className="text-[11px] text-neutral-300">Your monthly subscription renews in 5 days (Oct 2, 2026). Ensure payment details are up-to-date to maintain priority discovery placement.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCompanionModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition flex-shrink-0 whitespace-nowrap shadow"
+                >
+                  Manage Billing
+                </button>
+              </div>
+            )}
+
             {/* Search Input, Geolocation Status Bar & Sorting Toggle */}
             <div className="mb-4 flex flex-col md:flex-row gap-2.5 items-center justify-between">
               <input
@@ -928,6 +969,18 @@ export default function App() {
                 >
                   <span>✨ Newest</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setMintboysMode(!mintboysMode)}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    mintboysMode
+                      ? 'bg-amber-500 text-black shadow-lg ring-2 ring-amber-400'
+                      : 'text-neutral-300 hover:text-white bg-neutral-800/60'
+                  }`}
+                  title="Toggle MintBoys Elite Companions mode"
+                >
+                  <span>👔 MintBoys Elite</span>
+                </button>
 
               </div>
             </div>
@@ -943,10 +996,10 @@ export default function App() {
                 return (
                   <div className="text-center py-20 text-neutral-400">
                     <p className="text-lg font-bold mb-1">
-                      {gridSubTab === 'recently_viewed' ? 'No recently viewed profiles yet' : 'No profiles match your filters'}
+                      {mintboysMode ? 'No MintBoys Elite companions currently match criteria' : gridSubTab === 'recently_viewed' ? 'No recently viewed profiles yet' : 'No profiles match your filters'}
                     </p>
                     <p className="text-sm">
-                      {gridSubTab === 'recently_viewed' ? 'Browse the discovery grid and click on profiles to spend a free view.' : 'Try broadening your distance radius or resetting your filters.'}
+                      {mintboysMode ? 'Try toggling off MintBoys Elite mode or broadening your filters.' : gridSubTab === 'recently_viewed' ? 'Browse the discovery grid and click on profiles to spend a free view.' : 'Try broadening your distance radius or resetting your filters.'}
                     </p>
                   </div>
                 );
@@ -954,6 +1007,33 @@ export default function App() {
 
               return (
                 <>
+                  {mintboysMode && (
+                    <div className="mb-4 bg-gradient-to-r from-amber-500/20 via-neutral-900 to-neutral-900 border border-amber-500/40 p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500 text-black flex items-center justify-center font-black text-lg shadow-md">
+                          👔
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                            <span>MintBoys Elite Companions Directory</span>
+                            <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">Global Verified</span>
+                          </h4>
+                          <p className="text-xs text-neutral-300">
+                            Worldwide premier independent male escorts & companions. Incall/outcall rates, VIP screening & direct booking across all regions.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-amber-400 font-semibold">Active Mode</span>
+                        <button
+                          onClick={() => setMintboysMode(false)}
+                          className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold rounded-xl transition"
+                        >
+                          Exit MintBoys
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {gridSubTab === 'right_now' && (
                     <div className="mb-4 bg-gradient-to-r from-amber-500/15 via-neutral-900 to-neutral-900 border border-amber-500/30 p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
                       <div className="flex items-center space-x-3">
@@ -1434,10 +1514,15 @@ export default function App() {
                   ...currentUser,
                   name: registerName,
                   email: registerEmail || 'user@blaze.io',
+                  membershipTier: registerAsElite ? 'Elite Companion' : currentUser.membershipTier,
+                  isCompanionPro: registerAsElite ? true : currentUser.isCompanionPro,
+                  isFeePaid: registerAsElite ? true : currentUser.isFeePaid,
+                  verified: registerAsElite ? true : currentUser.verified,
+                  isVerified: registerAsElite ? true : currentUser.isVerified,
                 };
                 setCurrentUser(updated);
                 localStorage.setItem('blaze_current_user', JSON.stringify(updated));
-                showToast('🎉 Account registered and logged in successfully!');
+                showToast(registerAsElite ? '👑 Mintboys Elite Companion registered & activated successfully!' : '🎉 Account registered and logged in successfully!');
               } else {
                 showToast('👋 Welcome back! Logged in successfully.');
               }
@@ -1484,17 +1569,35 @@ export default function App() {
 
             <div className="space-y-4 text-left">
               {authMode === 'register' && (
-                <div>
-                  <label className="block text-xs font-bold text-neutral-400 mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    value={registerName}
-                    onChange={(e) => setRegisterName(e.target.value)}
-                    className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FFC107]"
-                    placeholder="Enter your full name"
-                    required
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-400 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={registerName}
+                      onChange={(e) => setRegisterName(e.target.value)}
+                      className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FFC107]"
+                      placeholder="Enter your full name"
+                      required
+                    />
+                  </div>
+
+                  <div className="bg-[#252525] border border-amber-500/30 rounded-xl p-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <span className="text-xl">👑</span>
+                      <div>
+                        <p className="text-xs font-bold text-amber-300">Register as Mintboys Elite Companion</p>
+                        <p className="text-[10px] text-neutral-400">Join as professional companion with verified badge & priority discovery.</p>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={registerAsElite}
+                      onChange={e => setRegisterAsElite(e.target.checked)}
+                      className="w-4 h-4 accent-[#FFC107] cursor-pointer"
+                    />
+                  </div>
+                </>
               )}
               <div>
                 <label className="block text-xs font-bold text-neutral-400 mb-1">
@@ -1581,11 +1684,12 @@ export default function App() {
         onClose={() => setIsCompanionModalOpen(false)}
         currentUser={currentUser}
         showToast={showToast}
-        onUpdateAccountType={(tier, isCompanionPro, rate) => {
+        onUpdateAccountType={(tier, isCompanionPro, rate, isFeePaid) => {
           setCurrentUser(prev => ({
             ...prev,
             membershipTier: tier,
             isCompanionPro,
+            isFeePaid: isFeePaid ?? (tier === 'Elite Companion' ? true : prev.isFeePaid),
             companionServices: isCompanionPro ? (prev.companionServices?.length ? prev.companionServices : ['Travel Companion', 'Shopping Companion', 'Event Partner']) : prev.companionServices,
             companionRate: rate || prev.companionRate
           }));
@@ -1773,6 +1877,8 @@ export default function App() {
         showToast={showToast}
         reportHistory={reportHistory}
         onUpdateReportHistory={setReportHistory}
+        blockedKeywords={blockedKeywords}
+        onUpdateBlockedKeywords={setBlockedKeywords}
       />
 
       {/* New Activity Area Modal */}

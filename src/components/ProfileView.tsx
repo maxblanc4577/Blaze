@@ -588,12 +588,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             </p>
           </div>
         </div>
-        <button
-          onClick={onOpenCompanionModal}
-          className="px-5 py-2.5 rounded-xl bg-[#FFC107] text-[#121212] font-black text-xs hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20 whitespace-nowrap"
-        >
-          {currentUser.membershipTier === 'Elite Companion' ? 'Switch / Manage Profile' : 'Register Professional / View Fees'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {currentUser.membershipTier === 'Elite Companion' && !currentUser.isFeePaid && (
+            <button
+              onClick={onOpenCompanionModal}
+              className="px-4 py-2.5 rounded-xl bg-emerald-500 text-black font-black text-xs hover:opacity-90 transition shadow-lg shadow-emerald-500/20 whitespace-nowrap flex items-center gap-1.5"
+            >
+              <span>💳 Pay Subscription ($19.99)</span>
+            </button>
+          )}
+          <button
+            onClick={onOpenCompanionModal}
+            className="px-5 py-2.5 rounded-xl bg-[#FFC107] text-[#121212] font-black text-xs hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20 whitespace-nowrap"
+          >
+            {currentUser.membershipTier === 'Elite Companion' ? 'Switch / Manage Profile' : 'Register Professional / View Fees'}
+          </button>
+        </div>
       </div>
 
       {/* Edit Form or Display View */}

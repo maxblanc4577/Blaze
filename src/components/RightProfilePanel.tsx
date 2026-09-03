@@ -53,6 +53,8 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [giftSentConfirmation, setGiftSentConfirmation] = useState<string | null>(null);
   const [isBioExpanded, setIsBioExpanded] = useState(false);
+  const [photoVerificationStatus, setPhotoVerificationStatus] = useState<'none' | 'pending' | 'verified'>('none');
+  const [showBlockConfirmModal, setShowBlockConfirmModal] = useState(false);
   const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'friends'>(profile.friendStatus || 'none');
   const [privateNote, setPrivateNote] = useState<string>(() => {
     return profile ? localStorage.getItem(`blaze_private_note_${profile.id}`) || '' : '';
@@ -134,16 +136,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   };
 
   const handleBlock = () => {
-    if (
-      window.confirm(
-        `Are you sure you want to block ${profile.name}? They will be permanently hidden from your view and all notifications from them will be stopped.`
-      )
-    ) {
-      if (onBlockUser) {
-        onBlockUser(profile.id);
-      }
-      onClose();
-    }
+    setShowBlockConfirmModal(true);
   };
 
   const handleSendReport = (e: React.FormEvent) => {
@@ -323,6 +316,32 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
             className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1"
           >
             <span>🛡️ Check-In</span>
+          </button>
+        </div>
+
+        {/* Request Photo Verification Section */}
+        <div className="bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-transparent border border-blue-500/30 rounded-xl p-3 mb-3 flex items-center justify-between shadow">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white">Photo Verification Status</h4>
+              <p className="text-[10px] text-blue-300/80">
+                {photoVerificationStatus === 'pending' ? 'Verification Request Pending Admin Review' : photoVerificationStatus === 'verified' ? 'Photos Authenticated & Verified' : 'Verify authenticity of profile photos'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setPhotoVerificationStatus('pending');
+              if (showToast) showToast(`📸 Photo verification requested for ${profile.name}. Status: Pending.`);
+            }}
+            disabled={photoVerificationStatus !== 'none'}
+            className="px-3 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-neutral-700 text-black disabled:text-neutral-400 font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1"
+          >
+            <span>{photoVerificationStatus === 'pending' ? '⏳ Pending' : photoVerificationStatus === 'verified' ? '✓ Verified' : 'Request Verification'}</span>
           </button>
         </div>
 
@@ -1163,6 +1182,51 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
         matchName={profile.name}
         matchPhoto={profile.photos[0]}
       />
+
+      {/* Block User Confirmation Modal */}
+      {showBlockConfirmModal && (
+        <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#1C1C1C] border border-neutral-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-6 space-y-4">
+            <div className="flex items-center space-x-3 text-red-400">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/15 flex items-center justify-center text-xl">
+                🚫
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white">Block {profile.name}?</h3>
+                <p className="text-xs text-neutral-400">Require confirmation to prevent accidental blocks.</p>
+              </div>
+            </div>
+
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3 text-xs text-neutral-300 space-y-1.5">
+              <p>• {profile.name} will be permanently hidden from your view.</p>
+              <p>• All messages and notifications will be stopped.</p>
+            </div>
+
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowBlockConfirmModal(false)}
+                className="flex-1 py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold text-xs transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBlockConfirmModal(false);
+                  if (onBlockUser) {
+                    onBlockUser(profile.id);
+                  }
+                  onClose();
+                }}
+                className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs transition shadow-lg shadow-red-600/30"
+              >
+                Yes, Block User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
     </>
   );

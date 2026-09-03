@@ -59,6 +59,26 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         {/* Content */}
         <div className="p-5 overflow-y-auto space-y-6 flex-1">
           
+          {/* Country / Region Filter */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Country / Region Filter (Global Reach)</label>
+            <select
+              value={filters.countryFilter || 'all'}
+              onChange={(e) => setFilters(prev => ({ ...prev, countryFilter: e.target.value }))}
+              className="w-full bg-[#222222] border border-neutral-800 text-white text-xs px-3.5 py-3 rounded-xl outline-none focus:border-[#FFC107]"
+            >
+              <option value="all">🌐 All Countries / Global Reach</option>
+              <option value="United States">United States</option>
+              <option value="United Kingdom">United Kingdom</option>
+              <option value="France">France</option>
+              <option value="Canada">Canada</option>
+              <option value="Australia">Australia</option>
+              <option value="Japan">Japan</option>
+              <option value="Germany">Germany</option>
+              <option value="Brazil">Brazil</option>
+            </select>
+          </div>
+
           {/* Suggested For You Toggle */}
           <div className="bg-[#222222] border border-neutral-800 rounded-xl p-4 flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -76,6 +96,26 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FFC107]"></div>
+            </label>
+          </div>
+
+          {/* Verified Elite Companions Only Toggle */}
+          <div className="bg-[#222222] border border-amber-500/30 rounded-xl p-4 flex items-center justify-between bg-gradient-to-r from-amber-500/10 to-neutral-900">
+            <div className="flex items-center space-x-3">
+              <span className="text-xl">👑</span>
+              <div>
+                <h4 className="font-bold text-sm text-amber-300">Verified Elite Companions Only</h4>
+                <p className="text-[11px] text-neutral-400">Show only professional companions with paid subscription & verified badge.</p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.verifiedEliteOnly || false}
+                onChange={e => setFilters(prev => ({ ...prev, verifiedEliteOnly: e.target.checked }))}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
             </label>
           </div>
 

@@ -71,6 +71,7 @@ export const MOCK_PROFILES: UserProfile[] = [
     latitude: 37.7760,
     longitude: -122.4180,
     isCompanionPro: true,
+    isFeePaid: true,
     companionServices: ['Travel Companion', 'Shopping Companion', 'Event Partner'],
     companionRate: '$45/hr or $299/mo',
     membershipTier: 'Elite Companion',

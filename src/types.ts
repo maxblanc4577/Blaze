@@ -65,6 +65,7 @@ export interface UserProfile {
   latitude?: number;
   longitude?: number;
   isCompanionPro?: boolean;
+  isFeePaid?: boolean;
   companionServices?: string[];
   companionRate?: string;
   membershipTier?: 'Free' | 'Pro' | 'Elite Companion';
@@ -176,6 +177,8 @@ export interface FilterState {
   newMembersOnly?: boolean;
   sortBy?: 'closest' | 'newest' | 'compatibility' | 'active_now';
   excludeAlreadyMessaged?: boolean;
+  countryFilter?: string;
+  verifiedEliteOnly?: boolean;
 }
 
 export interface Group {

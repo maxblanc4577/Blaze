@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, ChatConversation } from '../types';
-import { X, ShieldCheck, Lock, Key, Users, CheckCircle2, ShieldAlert, Megaphone, Trash2, Activity, LogOut, UserCheck, Search, BarChart3, TrendingUp, MessageSquare, Download, Wifi, WifiOff, DollarSign, Image as ImageIcon, AlertTriangle, Send, Crown, FileText, Settings, Shield } from 'lucide-react';
+import { X, ShieldCheck, Lock, Key, Users, CheckCircle2, ShieldAlert, Megaphone, Trash2, Activity, LogOut, UserCheck, Search, BarChart3, TrendingUp, MessageSquare, Download, Wifi, WifiOff, DollarSign, Image as ImageIcon, AlertTriangle, Send, Crown, FileText, Settings, Shield, CreditCard } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 
 interface AdminPortalModalProps {
@@ -23,6 +23,8 @@ interface AdminPortalModalProps {
     justification?: string;
   }>;
   onUpdateReportHistory: (updated: any[]) => void;
+  blockedKeywords?: string[];
+  onUpdateBlockedKeywords?: (keywords: string[]) => void;
 }
 
 export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
@@ -35,13 +37,16 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   showToast,
   reportHistory,
   onUpdateReportHistory,
+  blockedKeywords = [],
+  onUpdateBlockedKeywords,
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
-  const [activeAdminTab, setActiveAdminTab] = useState<'dashboard' | 'reports' | 'users' | 'refunds' | 'subscriptions' | 'moderation' | 'logs' | 'broadcast' | 'master_override'>('dashboard');
+  const [activeAdminTab, setActiveAdminTab] = useState<'dashboard' | 'reports' | 'users' | 'refunds' | 'subscriptions' | 'elite_payments' | 'moderation' | 'logs' | 'broadcast' | 'master_override' | 'blocked_keywords'>('dashboard');
+  const [newKeywordInput, setNewKeywordInput] = useState('');
   
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [successToast, setSuccessToast] = useState('');
@@ -459,6 +464,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                   { id: 'users', label: `User Management (${profiles.length})`, icon: Users },
                   { id: 'refunds', label: `Billing & Refunds (${disputes.filter(d => d.status === 'pending').length})`, icon: DollarSign },
                   { id: 'subscriptions', label: 'Subscriptions & Funds', icon: Crown },
+                  { id: 'elite_payments', label: `Elite Payments (${profiles.filter(p => p.isCompanionPro || p.membershipTier === 'Elite Companion').length})`, icon: CreditCard },
+                  { id: 'blocked_keywords', label: `Blocked Keywords (${blockedKeywords.length})`, icon: ShieldAlert },
                   { id: 'moderation', label: `Photo Approval (${pendingPhotos.filter(p => p.status === 'pending').length})`, icon: ImageIcon },
                   { id: 'logs', label: 'Activity Logs', icon: Activity },
                   { id: 'broadcast', label: 'System Broadcast', icon: Megaphone },
@@ -589,6 +596,169 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                             ))}
                           </tbody>
                         </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeAdminTab === 'elite_payments' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-black text-white">Elite Companions Payment Status & Manual Verification</h4>
+                        <p className="text-xs text-neutral-400">View payment status of all Elite Companions and manually toggle 'Fee Paid' for troubleshooting or manual verification.</p>
+                      </div>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full font-bold">
+                        👑 Elite Fee Ledger
+                      </span>
+                    </div>
+
+                    {/* Monthly Revenue Trends Chart */}
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="text-sm font-bold text-white">Elite Companion Monthly Revenue Trends</h5>
+                          <p className="text-[11px] text-neutral-400">Subscription fees collected ($19.99/mo per active verified companion)</p>
+                        </div>
+                        <span className="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-2.5 py-1 rounded-lg">
+                          +24.8% MoM Growth
+                        </span>
+                      </div>
+
+                      <div className="h-64 w-full pt-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={[
+                            { month: 'Apr', revenue: 4200 },
+                            { month: 'May', revenue: 6800 },
+                            { month: 'Jun', revenue: 9400 },
+                            { month: 'Jul', revenue: 13500 },
+                            { month: 'Aug', revenue: 18900 },
+                            { month: 'Sep', revenue: 24500 },
+                          ]}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                            <XAxis dataKey="month" stroke="#888" fontSize={11} />
+                            <YAxis stroke="#888" fontSize={11} />
+                            <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', borderColor: '#333', borderRadius: 8, color: '#fff', fontSize: 12 }} />
+                            <Bar dataKey="revenue" fill="#FFC107" radius={[6, 6, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {profiles.filter(p => p.isCompanionPro || p.membershipTier === 'Elite Companion').length === 0 ? (
+                        <div className="text-center py-12 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-400 text-xs">
+                          No Elite Companions registered yet.
+                        </div>
+                      ) : (
+                        profiles.filter(p => p.isCompanionPro || p.membershipTier === 'Elite Companion').map(p => {
+                          const feePaid = p.isFeePaid || false;
+                          return (
+                            <div key={p.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl flex items-center justify-between">
+                              <div className="flex items-center space-x-3.5">
+                                <img src={p.photos[0]} alt={p.name} className="w-12 h-12 rounded-full object-cover border border-neutral-700" referrerPolicy="no-referrer" />
+                                <div>
+                                  <div className="flex items-center space-x-2">
+                                    <p className="text-sm font-bold text-white">{p.name}, {p.age}</p>
+                                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">Elite Companion</span>
+                                  </div>
+                                  <p className="text-xs text-neutral-400">{p.locationName} • Rate: {p.companionRate || '$29.99/mo'}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-3">
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                  feePaid ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-red-500/20 text-red-300 border border-red-500/40'
+                                }`}>
+                                  {feePaid ? '✓ Fee Paid (Verified)' : '✕ Fee Unpaid (Hidden)'}
+                                </span>
+
+                                <button
+                                  onClick={() => {
+                                    const updated = profiles.map(item => item.id === p.id ? { ...item, isFeePaid: !feePaid } : item);
+                                    onUpdateProfiles(updated);
+                                    setSuccessToast(`Toggled payment status for ${p.name} to ${!feePaid ? 'Paid' : 'Unpaid'}.`);
+                                    setTimeout(() => setSuccessToast(''), 3000);
+                                  }}
+                                  className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow ${
+                                    feePaid ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300' : 'bg-emerald-500 hover:bg-emerald-400 text-black'
+                                  }`}
+                                >
+                                  {feePaid ? 'Revoke / Set Unpaid' : 'Mark Fee Paid'}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeAdminTab === 'blocked_keywords' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-black text-white">Blocked Keywords & Auto-Moderation</h4>
+                        <p className="text-xs text-neutral-400">Define forbidden terms that automatically hide and block incoming messages containing those words.</p>
+                      </div>
+                      <span className="text-[10px] bg-red-500/20 text-red-300 px-3 py-1 rounded-full font-bold">
+                        🛡️ Safety Filter
+                      </span>
+                    </div>
+
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newKeywordInput}
+                          onChange={e => setNewKeywordInput(e.target.value)}
+                          placeholder="Enter blocked keyword (e.g., spam, scam)..."
+                          className="flex-1 bg-black/40 border border-neutral-700 text-white text-xs px-3.5 py-2.5 rounded-xl outline-none focus:border-[#FFC107]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!newKeywordInput.trim()) return;
+                            if (blockedKeywords.map(k => k.toLowerCase()).includes(newKeywordInput.trim().toLowerCase())) {
+                              showToast('⚠️ Keyword already in blocked list.');
+                              return;
+                            }
+                            const updated = [...blockedKeywords, newKeywordInput.trim()];
+                            if (onUpdateBlockedKeywords) onUpdateBlockedKeywords(updated);
+                            setNewKeywordInput('');
+                            showToast(`🛡️ Blocked keyword "${newKeywordInput}" added successfully.`);
+                          }}
+                          className="px-5 py-2.5 bg-[#FFC107] text-black font-black text-xs rounded-xl hover:opacity-90 transition shadow"
+                        >
+                          Add Keyword
+                        </button>
+                      </div>
+
+                      <div className="pt-2">
+                        <p className="text-xs font-bold text-neutral-300 mb-2">Active Blocked Keywords ({blockedKeywords.length})</p>
+                        {blockedKeywords.length === 0 ? (
+                          <p className="text-xs text-neutral-500 italic py-4 text-center">No blocked keywords configured yet.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {blockedKeywords.map(kw => (
+                              <span key={kw} className="bg-red-500/15 border border-red-500/30 text-red-300 text-xs px-3 py-1.5 rounded-xl flex items-center gap-2 font-semibold">
+                                <span>{kw}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = blockedKeywords.filter(k => k !== kw);
+                                    if (onUpdateBlockedKeywords) onUpdateBlockedKeywords(updated);
+                                    showToast(`🗑️ Removed blocked keyword "${kw}".`);
+                                  }}
+                                  className="hover:text-white transition"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

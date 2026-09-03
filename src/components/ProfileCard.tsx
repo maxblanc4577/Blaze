@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, getFilterStyle, getStyleTagIcon } from '../types';
-import { Flame, Star, ShieldCheck, Sparkles, Lock, Flag, Eye, Trash2, MessageCircle } from 'lucide-react';
+import { Flame, Star, ShieldCheck, Sparkles, Lock, Flag, Eye, Trash2, MessageCircle, Crown } from 'lucide-react';
 import { motion } from 'motion/react';
 import { QuickPreviewModal } from './QuickPreviewModal';
 import { ReportModal } from './ReportModal';
@@ -257,37 +257,93 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
         {/* Bottom Info Overlay with Name, Age, and Distance */}
         <div className="relative z-10 mt-auto p-2.5 flex items-end justify-between">
           <div className="w-full">
-            <h3 className="font-bold text-white text-sm sm:text-base flex items-center gap-1.5 drop-shadow-md">
+            <h3 className="font-bold text-white text-sm sm:text-base flex items-center gap-1.5 drop-shadow-md flex-wrap">
               <span>{profile.name},</span>
               <span>{profile.age}</span>
-              {(profile.verified || profile.isVerified || (profile.photos && profile.photos.length >= 2) || (profile.membershipTier && profile.membershipTier !== 'Free')) && (
-                <div className="relative inline-block">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowVerifiedTooltip(!showVerifiedTooltip);
-                    }}
-                    className="focus:outline-none flex items-center justify-center p-0.5 rounded-full hover:bg-white/10 transition"
-                    title="Click for verification details"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-blue-400 fill-blue-400/20 cursor-pointer" />
-                  </button>
-
-                  {showVerifiedTooltip && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-neutral-900 border border-neutral-700 text-white text-[11px] rounded-xl p-2.5 shadow-2xl z-35 animate-in fade-in zoom-in-95 text-center">
-                      <p className="font-bold text-amber-400 mb-0.5 flex items-center justify-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5" /> Verified Profile
-                      </p>
-                      <p className="text-neutral-300">Identity confirmed, connected social accounts & high trust rating.</p>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-neutral-900" />
-                    </div>
-                  )}
-                </div>
+              {profile.isFeePaid && (profile.membershipTier === 'Elite Companion' || profile.isCompanionPro) && (
+                <span className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
+                  <Crown className="w-3 h-3" /> Verified Elite
+                </span>
               )}
+              {/* Visual Verified Blue Checkmark Badge */}
+              <div className="relative inline-block">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowVerifiedTooltip(!showVerifiedTooltip);
+                  }}
+                  className="focus:outline-none flex items-center justify-center p-0.5 rounded-full hover:bg-white/10 transition"
+                  title="Click to view Verification Levels"
+                >
+                  <ShieldCheck className="w-4 h-4 text-blue-400 fill-blue-400/20 cursor-pointer" />
+                </button>
+
+                {showVerifiedTooltip && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-neutral-900 border border-neutral-700 text-white text-[11px] rounded-2xl p-3.5 shadow-2xl z-35 animate-in fade-in zoom-in-95 text-left space-y-2">
+                    <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                      <p className="font-bold text-amber-400 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-blue-400" /> Verification Level
+                      </p>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">
+                        {profile.membershipTier === 'Elite Companion' ? 'Gold / Platinum' : profile.verified ? 'Silver Level' : 'Bronze Level'}
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 text-neutral-300">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-amber-300 font-semibold">🥉 Bronze:</span>
+                        <span>Email & Phone Confirmed</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-neutral-200 font-semibold">🥈 Silver:</span>
+                        <span>Government ID Submitted</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-yellow-400 font-semibold">🥇 Gold:</span>
+                        <span>Biometric Live Selfie Confirmed</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-amber-400 font-bold">💎 Platinum Elite:</span>
+                        <span>Full Background & Fee Verified</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-emerald-400 font-semibold pt-1 border-t border-neutral-800">✓ Safety & Age Verified ({profile.age}+)</p>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-neutral-900" />
+                  </div>
+                )}
+              </div>
+
+              {/* Document Verification Status Icon for Elite Companions */}
+              {(profile.membershipTier === 'Elite Companion' || profile.isCompanionPro) && (
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                  profile.verified || profile.isVerified ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                }`}>
+                  {profile.verified || profile.isVerified ? '✓ ID Verified' : '⏳ ID Pending Verification'}
+                </span>
+              )}
+
+              {/* Safety Status Badge */}
+              <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                🛡️ Safety Verified ({profile.age}+)
+              </span>
             </h3>
-            <p className="text-[11px] text-neutral-300 font-medium mt-0.5 flex items-center gap-1">
+            <p className="text-[11px] text-neutral-300 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
               <span>📍 {profile.distance === 0 ? 'Here' : `${profile.distance} mi`}</span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <span className={`w-2 h-2 rounded-full ${
+                  profile.status === 'online' ? 'bg-emerald-400' : profile.status === 'away' ? 'bg-amber-400' : 'bg-neutral-500'
+                }`} />
+                <span className="text-[10px] text-neutral-400">
+                  {profile.status === 'online' ? 'Online now' : profile.status === 'away' ? 'Away' : (profile.lastLogin ? (() => {
+                    const diffM = Math.floor((Date.now() - profile.lastLogin) / 60000);
+                    if (diffM < 60) return `Seen ${diffM}m ago`;
+                    const diffH = Math.floor(diffM / 60);
+                    if (diffH < 24) return `Seen ${diffH}h ago`;
+                    return `Seen ${Math.floor(diffH / 24)}d ago`;
+                  })() : 'Offline')}
+                </span>
+              </span>
             </p>
           </div>
 
