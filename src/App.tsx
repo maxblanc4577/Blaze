@@ -26,6 +26,7 @@ import { MapView } from './components/MapView';
 import { ContactsModal } from './components/ContactsModal';
 import { TribesView } from './components/TribesView';
 import { SettingsModal } from './components/SettingsModal';
+import { SafetyGuidelinesModal } from './components/SafetyGuidelinesModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { BoostOfferModal } from './components/BoostOfferModal';
 import { AdminPortalModal } from './components/AdminPortalModal';
@@ -192,6 +193,18 @@ export default function App() {
     localStorage.setItem('blaze_subscription', JSON.stringify(subscription));
   }, [subscription]);
 
+  // Periodic reminder toast every 5 minutes for Pending Activation Pro/Elite users
+  useEffect(() => {
+    const isPending = (currentUser.isCompanionPro || currentUser.membershipTier === 'Elite Companion' || currentUser.membershipTier === 'Pro') && (!currentUser.isFeePaid || !currentUser.isVerified || !currentUser.isPublished);
+    if (!isPending) return;
+
+    const interval = setInterval(() => {
+      showToast('⚠️ Reminder: Please complete your $19.99 subscription payment and ID verification to activate and publish your profile.');
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
   const hasActiveSubscription = subscription.type !== 'none' && subscription.expiresAt > Date.now();
 
   const currentArea = currentUser.locationName || 'Downtown';
@@ -293,6 +306,8 @@ export default function App() {
   }, [isLoggedIn]);
 
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [registerPhase, setRegisterPhase] = useState<1 | 2>(1);
+  const [registerFilterPreset, setRegisterFilterPreset] = useState<'Nearby Friends' | 'Night Owls' | 'Same Tribes'>('Nearby Friends');
   const [loginEmail, setLoginEmail] = useState('user@blaze.io');
   const [loginPassword, setLoginPassword] = useState('blaze2026');
   const [registerName, setRegisterName] = useState('Alex Morgan');
@@ -302,6 +317,8 @@ export default function App() {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [blockedKeywords, setBlockedKeywords] = useState<string[]>(['spam', 'scam', 'crypto', 'telegram', 'whatsapp']);
   const [registerAsElite, setRegisterAsElite] = useState(false);
+  const [registerProfileType, setRegisterProfileType] = useState<'regular' | 'professional' | 'elite'>('regular');
+  const [isFeePaid, setIsFeePaid] = useState(false);
   const [activeChat, setActiveChat] = useState<ChatConversation | null>(null);
   const [isContactsOpen, setIsContactsOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -339,6 +356,8 @@ export default function App() {
   };
   const [readReceiptsEnabled, setReadReceiptsEnabled] = useState<boolean>(true);
   const [ghostModeEnabled, setGhostModeEnabled] = useState<boolean>(false);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState<boolean>(false);
+  const [isSafetyGuidelinesOpen, setIsSafetyGuidelinesOpen] = useState<boolean>(false);
   const [currentLanguage, setCurrentLanguage] = useState<string>('en');
   const [travelModeEnabled, setTravelModeEnabled] = useState<boolean>(false);
   const [travelCity, setTravelCity] = useState<string>('London, UK');
@@ -551,7 +570,11 @@ export default function App() {
     .filter((p) => {
       if (p.isBlocked) return false;
       if ((p.isCompanionPro || p.membershipTier === 'Elite Companion') && !p.isFeePaid) return false;
-      if (mintboysMode && !p.isCompanionPro && !p.companionRate) return false;
+      if (mintboysMode) {
+        const isEliteOrPro = p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro';
+        const isVerified = p.isVerified || p.verified || p.isFeePaid;
+        if (!isEliteOrPro || !isVerified) return false;
+      }
       if (filters.onlineOnly && p.status !== 'online') return false;
       if (filters.withPhotoOnly && (!p.photos || p.photos.length === 0)) return false;
       if (filters.onlyVisitedMe && !allViewedIds.includes(p.id)) return false;
@@ -589,8 +612,40 @@ export default function App() {
     })
     .sort((a, b) => {
       if (filters.suggestedForYou) {
-        const scoreA = (a.tribes?.length || 0) + (a.interestTags?.length || 0);
-        const scoreB = (b.tribes?.length || 0) + (b.interestTags?.length || 0);
+        const getMatchScore = (p: UserProfile) => {
+          let score = 0;
+          const sharedInterests = p.interestTags?.filter(tag => currentUser.interestTags?.includes(tag)).length || 0;
+          score += sharedInterests * 3;
+          const matchingTribes = p.tribes?.filter(t => currentUser.tribes?.includes(t) || currentUser.tribe === t).length || 0;
+          score += matchingTribes * 4;
+          const midAge = (filters.ageRange[0] + filters.ageRange[1]) / 2;
+          const ageDiff = Math.abs(p.age - midAge);
+          score += Math.max(0, 10 - ageDiff);
+          if (p.isVerified || p.isFeePaid) score += 3;
+          if (p.status === 'online') score += 2;
+          return score;
+        };
+        const scoreA = getMatchScore(a);
+        const scoreB = getMatchScore(b);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+      }
+      if (filters.sortBy === 'smart_sort') {
+        const getSmartScore = (p: UserProfile) => {
+          let score = 0;
+          const userInterests = currentUser.interestTags || [];
+          const sharedInterests = p.interestTags?.filter(tag => userInterests.includes(tag)).length || 0;
+          score += sharedInterests * 5;
+
+          const userTribes = [...(currentUser.tribes || []), ...(currentUser.tribe ? [currentUser.tribe] : [])];
+          const sharedTribes = p.tribes?.filter(t => userTribes.includes(t)).length || 0;
+          score += sharedTribes * 6;
+
+          if (p.status === 'online') score += 2;
+          if (p.isVerified || p.isFeePaid) score += 3;
+          return score;
+        };
+        const scoreA = getSmartScore(a);
+        const scoreB = getSmartScore(b);
         if (scoreB !== scoreA) return scoreB - scoreA;
       }
       if (filters.sortBy === 'newest') {
@@ -688,6 +743,7 @@ export default function App() {
       type,
       mediaUrl,
       isRead: false,
+      status: 'pending',
     };
 
     setConversations((prev) =>
@@ -712,6 +768,25 @@ export default function App() {
         messages: [...prev.messages, newMsg],
       } : null);
     }
+
+    // Transition pending to sent after 500ms
+    setTimeout(() => {
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === conversationId) {
+            return {
+              ...c,
+              messages: c.messages.map((m) => m.id === msgId ? { ...m, status: 'sent' } : m),
+            };
+          }
+          return c;
+        })
+      );
+      setActiveChat((prev) => prev && prev.id === conversationId ? {
+        ...prev,
+        messages: prev.messages.map((m) => m.id === msgId ? { ...m, status: 'sent' } : m),
+      } : null);
+    }, 500);
 
     // Simulate read receipt after 1.5 seconds
     setTimeout(() => {
@@ -777,6 +852,27 @@ export default function App() {
       setActiveChat(null);
     }
     showToast(`🗑️ Deleted ${conversationIds.length} conversation(s).`);
+  };
+
+  const handleBulkSendQuickReply = (conversationIds: string[], messageText: string) => {
+    setConversations(prev => prev.map(c => {
+      if (conversationIds.includes(c.id)) {
+        const newMessage = {
+          id: `msg_${Date.now()}_${Math.random()}`,
+          senderId: currentUser.id,
+          text: messageText,
+          timestamp: Date.now(),
+        };
+        return {
+          ...c,
+          messages: [...(c.messages || []), newMessage],
+          lastMessage: messageText,
+          updatedAt: Date.now(),
+        };
+      }
+      return c;
+    }));
+    showToast(`⚡ Quick reply sent to ${conversationIds.length} conversation(s)!`);
   };
 
   const appContent = (
@@ -921,6 +1017,18 @@ export default function App() {
                   <span>👀 Viewed Me ({currentAreaViewedIds.length})</span>
                 </button>
                 <div className="w-[1px] h-5 bg-neutral-800 mx-1" />
+                <button
+                  type="button"
+                  onClick={() => setFilters({ ...filters, sortBy: 'smart_sort' })}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    filters.sortBy === 'smart_sort'
+                      ? 'bg-[#FFC107] text-[#121212] shadow'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                  title="Smart Sort: Prioritize profiles matching your interests & tribes"
+                >
+                  <span>🧠 Smart Sort</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setFilters({ ...filters, sortBy: 'closest' })}
@@ -1436,6 +1544,72 @@ export default function App() {
           </div>
         )}
 
+        {/* Floating Quick Actions Menu for Grid View */}
+        {activeTab === 'grid' && (
+          <div className="fixed bottom-20 left-6 z-40 flex flex-col items-start">
+            {isQuickActionsOpen && (
+              <div className="mb-3 w-56 bg-[#1A1A1A] border border-neutral-700 rounded-2xl p-3 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-3 space-y-2 text-left">
+                <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                  <h4 className="font-black text-xs text-amber-400 flex items-center gap-1.5">
+                    <span>⚡</span> Quick Actions
+                  </h4>
+                  <button
+                    onClick={() => setIsQuickActionsOpen(false)}
+                    className="text-neutral-400 hover:text-white text-xs font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsQuickActionsOpen(false);
+                      setProfiles(prev => [...prev].sort(() => Math.random() - 0.5));
+                      showToast('🔄 Grid refreshed with latest profiles!');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 text-white text-xs font-bold flex items-center gap-2 transition"
+                  >
+                    <span>🔄</span> Refresh Grid
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsQuickActionsOpen(false);
+                      const next = !ghostModeEnabled;
+                      setGhostModeEnabled(next);
+                      showToast(next ? '👻 Ghost Mode enabled! Distance and status hidden.' : '👁️ Ghost Mode disabled.');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 text-white text-xs font-bold flex items-center gap-2 transition"
+                  >
+                    <span>{ghostModeEnabled ? '👁️' : '👻'}</span> {ghostModeEnabled ? 'Disable Ghost Mode' : 'Enable Ghost Mode'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsQuickActionsOpen(false);
+                      const isNearby = filters.maxDistance <= 10;
+                      setFilters(prev => ({ ...prev, maxDistance: isNearby ? 50 : 5 }));
+                      showToast(isNearby ? '🌍 Distance filter reset to 50 miles.' : '📍 Toggled Nearby Only (≤ 5 miles).');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 text-white text-xs font-bold flex items-center gap-2 transition"
+                  >
+                    <span>📍</span> {filters.maxDistance <= 10 ? 'Show All Distances' : 'Toggle Nearby Only'}
+                  </button>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)}
+              className="bg-[#FFC107] hover:bg-amber-400 text-[#121212] px-4 py-3 rounded-full font-black text-xs shadow-2xl hover:scale-105 transition flex items-center gap-2 border border-amber-300"
+              title="Quick Actions Menu"
+            >
+              <span className="text-sm">⚡</span>
+              <span>Quick Actions</span>
+            </button>
+          </div>
+        )}
+
         {/* Back to Top Floating Button */}
         {showBackToTop && activeTab === 'grid' && (
           <button
@@ -1485,6 +1659,7 @@ export default function App() {
             onToggleArchive={handleToggleArchive}
             onBulkArchive={handleBulkArchive}
             onBulkDelete={handleBulkDelete}
+            onBulkSendQuickReply={handleBulkSendQuickReply}
           />
         )}
 
@@ -1503,32 +1678,33 @@ export default function App() {
 
       {/* Logged Off / Login & Register Screen Overlay */}
       {!isLoggedIn && (
-        <div className="fixed inset-0 z-50 bg-[#121212] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-[#121212] flex items-center justify-center p-4 overflow-y-auto">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               sessionStorage.setItem('blaze_session_token', 'token_' + Date.now());
               sessionStorage.setItem('blaze_login_time', Date.now().toString());
               if (authMode === 'register') {
+                const isProOrElite = registerProfileType === 'professional' || registerProfileType === 'elite';
                 const updated: UserProfile = {
                   ...currentUser,
                   name: registerName,
                   email: registerEmail || 'user@blaze.io',
-                  membershipTier: registerAsElite ? 'Elite Companion' : currentUser.membershipTier,
-                  isCompanionPro: registerAsElite ? true : currentUser.isCompanionPro,
-                  isFeePaid: registerAsElite ? true : currentUser.isFeePaid,
-                  verified: registerAsElite ? true : currentUser.verified,
-                  isVerified: registerAsElite ? true : currentUser.isVerified,
+                  membershipTier: registerProfileType === 'elite' ? 'Elite Companion' : registerProfileType === 'professional' ? 'Pro' : currentUser.membershipTier,
+                  isCompanionPro: isProOrElite,
+                  isFeePaid: false, // Payment made after registration before publication & activation
+                  verified: false,
+                  isVerified: false,
                 };
                 setCurrentUser(updated);
                 localStorage.setItem('blaze_current_user', JSON.stringify(updated));
-                showToast(registerAsElite ? '👑 Mintboys Elite Companion registered & activated successfully!' : '🎉 Account registered and logged in successfully!');
+                showToast(registerProfileType === 'elite' ? '👑 Elite Companion registered! Please complete your subscription payment & ID verification to publish your profile.' : registerProfileType === 'professional' ? '⭐ Professional Companion registered! Please complete your subscription payment & ID verification to publish your profile.' : '🎉 Account registered and logged in successfully!');
               } else {
                 showToast('👋 Welcome back! Logged in successfully.');
               }
               setIsLoggedIn(true);
             }}
-            className="bg-[#1A1A1A] border border-neutral-800 rounded-3xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl animate-in fade-in"
+            className="bg-[#1A1A1A] border border-neutral-800 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center space-y-5 shadow-2xl animate-in fade-in my-auto max-h-[92vh] overflow-y-auto"
           >
             <div className="w-16 h-16 rounded-2xl bg-[#FFC107] flex items-center justify-center font-black text-[#121212] text-2xl mx-auto shadow-lg shadow-[#FFC107]/20">
               B
@@ -1538,7 +1714,7 @@ export default function App() {
             <div className="flex bg-[#252525] p-1 rounded-2xl border border-neutral-800">
               <button
                 type="button"
-                onClick={() => setAuthMode('login')}
+                onClick={() => { setAuthMode('login'); setRegisterPhase(1); }}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
                   authMode === 'login' ? 'bg-[#FFC107] text-[#121212] shadow' : 'text-neutral-400 hover:text-white'
                 }`}
@@ -1547,7 +1723,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={() => setAuthMode('register')}
+                onClick={() => { setAuthMode('register'); setRegisterPhase(1); }}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
                   authMode === 'register' ? 'bg-[#FFC107] text-[#121212] shadow' : 'text-neutral-400 hover:text-white'
                 }`}
@@ -1569,78 +1745,224 @@ export default function App() {
 
             <div className="space-y-4 text-left">
               {authMode === 'register' && (
+                <div className="flex items-center justify-between bg-[#252525] px-3 py-2 rounded-xl border border-neutral-800 text-xs">
+                  <span className="text-neutral-400 font-bold">Registration Phase:</span>
+                  <span className="text-[#FFC107] font-black">
+                    {registerPhase === 1 ? '1 of 2 (Basic Info)' : '2 of 2 (Saved Filters)'}
+                  </span>
+                </div>
+              )}
+
+              {authMode === 'register' && registerPhase === 2 ? (
+                <div className="space-y-4 py-2 animate-in fade-in">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                      <span>🔖 Initial Saved Filter Preset</span>
+                    </h4>
+                    <p className="text-xs text-neutral-400">
+                      Choose a default filter set for your discovery feed upon joining:
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {[
+                      { id: 'Nearby Friends', title: '📍 Nearby Friends', desc: '15mi max • Online Only • Looking for Friends' },
+                      { id: 'Night Owls', title: '🌙 Night Owls', desc: 'Active Today • Online Status Now' },
+                      { id: 'Same Tribes', title: '🤝 Same Tribes', desc: 'Matching Geek, Jock, & Otter Tribes' },
+                    ].map(preset => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setRegisterFilterPreset(preset.id as any)}
+                        className={`w-full text-left p-3.5 rounded-2xl border transition flex items-center justify-between ${
+                          registerFilterPreset === preset.id
+                            ? 'bg-[#FFC107]/10 border-[#FFC107] text-white'
+                            : 'bg-[#252525] border-neutral-800 text-neutral-300 hover:border-neutral-700'
+                        }`}
+                      >
+                        <div>
+                          <p className="text-xs font-black">{preset.title}</p>
+                          <p className="text-[10px] text-neutral-400 mt-0.5">{preset.desc}</p>
+                        </div>
+                        {registerFilterPreset === preset.id && (
+                          <span className="w-5 h-5 rounded-full bg-[#FFC107] text-black font-black text-xs flex items-center justify-center">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="bg-[#252525] border border-neutral-800 rounded-xl p-3 text-[11px] text-neutral-300">
+                    💡 You can modify or create custom saved filter presets anytime from the Filter modal.
+                  </div>
+                </div>
+              ) : (
                 <>
+                  {authMode === 'register' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-400 mb-1">Full Name</label>
+                        <input
+                          type="text"
+                          value={registerName}
+                          onChange={(e) => setRegisterName(e.target.value)}
+                          className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FFC107]"
+                          placeholder="Enter your full name"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-400 mb-1.5">Select Profile Type & Tier</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setRegisterProfileType('regular'); setRegisterAsElite(false); setIsFeePaid(true); }}
+                            className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                              registerProfileType === 'regular' ? 'bg-[#FFC107]/10 border-[#FFC107] text-[#FFC107]' : 'bg-[#252525] border-neutral-800 text-neutral-300 hover:border-neutral-700'
+                            }`}
+                          >
+                            <span className="text-sm font-black">👤 Regular</span>
+                            <span className="text-[10px] text-neutral-400 mt-1">Free ($0)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => { setRegisterProfileType('professional'); setRegisterAsElite(false); setIsFeePaid(false); }}
+                            className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                              registerProfileType === 'professional' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'bg-[#252525] border-neutral-800 text-neutral-300 hover:border-neutral-700'
+                            }`}
+                          >
+                            <span className="text-sm font-black">⭐ Pro</span>
+                            <span className="text-[10px] text-cyan-400 mt-1">$19.99/mo + ID Verify</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => { setRegisterProfileType('elite'); setRegisterAsElite(true); setIsFeePaid(false); }}
+                            className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                              registerProfileType === 'elite' ? 'bg-amber-500/10 border-amber-500 text-amber-300' : 'bg-[#252525] border-neutral-800 text-neutral-300 hover:border-neutral-700'
+                            }`}
+                          >
+                            <span className="text-sm font-black">👑 Elite</span>
+                            <span className="text-[10px] text-amber-400 mt-1">$19.99/mo + ID Verify</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {registerProfileType !== 'regular' && (
+                        <div className="bg-[#252525] border border-amber-500/30 rounded-xl p-3.5 space-y-1.5">
+                          <div className="flex items-center space-x-2.5">
+                            <span className="text-xl">ℹ️</span>
+                            <div>
+                              <p className="text-xs font-bold text-amber-300">
+                                {registerProfileType === 'elite' ? 'Mintboys Elite Membership ($19.99/mo)' : 'Professional Membership ($19.99/mo)'}
+                              </p>
+                              <p className="text-[10px] text-neutral-400">Register now. You can make your $19.99/mo subscription payment and complete ID verification *after registration* from your profile before your profile can be published and active on the platform.</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div>
-                    <label className="block text-xs font-bold text-neutral-400 mb-1">Full Name</label>
+                    <label className="block text-xs font-bold text-neutral-400 mb-1">
+                      {authMode === 'login' ? 'Email / Username' : 'Email Address'}
+                    </label>
                     <input
-                      type="text"
-                      value={registerName}
-                      onChange={(e) => setRegisterName(e.target.value)}
+                      type={authMode === 'login' ? 'text' : 'email'}
+                      value={authMode === 'login' ? loginEmail : registerEmail}
+                      onChange={(e) => authMode === 'login' ? setLoginEmail(e.target.value) : setRegisterEmail(e.target.value)}
                       className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FFC107]"
-                      placeholder="Enter your full name"
+                      placeholder={authMode === 'login' ? 'Enter email or username' : 'name@example.com'}
                       required
                     />
                   </div>
-
-                  <div className="bg-[#252525] border border-amber-500/30 rounded-xl p-3 flex items-center justify-between">
-                    <div className="flex items-center space-x-2.5">
-                      <span className="text-xl">👑</span>
-                      <div>
-                        <p className="text-xs font-bold text-amber-300">Register as Mintboys Elite Companion</p>
-                        <p className="text-[10px] text-neutral-400">Join as professional companion with verified badge & priority discovery.</p>
-                      </div>
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-400 mb-1">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={authMode === 'login' ? loginPassword : registerPassword}
+                        onChange={(e) => authMode === 'login' ? setLoginPassword(e.target.value) : setRegisterPassword(e.target.value)}
+                        className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 pr-12 text-sm text-white focus:outline-none focus:border-[#FFC107]"
+                        placeholder="Enter password"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-1"
+                        title={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={registerAsElite}
-                      onChange={e => setRegisterAsElite(e.target.checked)}
-                      className="w-4 h-4 accent-[#FFC107] cursor-pointer"
-                    />
+                    {authMode === 'register' && registerPassword.length > 0 && (() => {
+                      const pass = registerPassword;
+                      let strength = 0;
+                      if (pass.length >= 8) strength++;
+                      if (/[A-Z]/.test(pass)) strength++;
+                      if (/[0-9]/.test(pass)) strength++;
+                      if (/[^A-Za-z0-9]/.test(pass)) strength++;
+                      
+                      const label = strength <= 1 ? 'Weak' : strength === 2 || strength === 3 ? 'Medium' : 'Strong';
+                      const color = strength <= 1 ? 'bg-red-500' : strength === 2 || strength === 3 ? 'bg-amber-500' : 'bg-emerald-500';
+                      const textColor = strength <= 1 ? 'text-red-400' : strength === 2 || strength === 3 ? 'text-amber-400' : 'text-emerald-400';
+
+                      return (
+                        <div className="mt-2 space-y-1">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="text-neutral-400">Password Strength:</span>
+                            <span className={`font-bold ${textColor}`}>{label}</span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1 h-1.5 w-full">
+                            <div className={`rounded-full transition-all ${strength >= 1 ? color : 'bg-neutral-800'}`} />
+                            <div className={`rounded-full transition-all ${strength >= 2 ? color : 'bg-neutral-800'}`} />
+                            <div className={`rounded-full transition-all ${strength >= 3 ? color : 'bg-neutral-800'}`} />
+                            <div className={`rounded-full transition-all ${strength >= 4 ? color : 'bg-neutral-800'}`} />
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </>
               )}
-              <div>
-                <label className="block text-xs font-bold text-neutral-400 mb-1">
-                  {authMode === 'login' ? 'Email / Username' : 'Email Address'}
-                </label>
-                <input
-                  type={authMode === 'login' ? 'text' : 'email'}
-                  value={authMode === 'login' ? loginEmail : registerEmail}
-                  onChange={(e) => authMode === 'login' ? setLoginEmail(e.target.value) : setRegisterEmail(e.target.value)}
-                  className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FFC107]"
-                  placeholder={authMode === 'login' ? 'Enter email or username' : 'name@example.com'}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-neutral-400 mb-1">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={authMode === 'login' ? loginPassword : registerPassword}
-                    onChange={(e) => authMode === 'login' ? setLoginPassword(e.target.value) : setRegisterPassword(e.target.value)}
-                    className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 pr-12 text-sm text-white focus:outline-none focus:border-[#FFC107]"
-                    placeholder="Enter password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-1"
-                    title={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-3.5 bg-[#FFC107] text-[#121212] font-black text-sm rounded-xl hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20"
-            >
-              {authMode === 'login' ? 'Log In to Blaze' : 'Register & Join Blaze'}
-            </button>
+            <div className="flex items-center gap-3">
+              {authMode === 'register' && registerPhase === 2 && (
+                <button
+                  type="button"
+                  onClick={() => setRegisterPhase(1)}
+                  className="flex-1 py-3.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold text-sm rounded-xl transition"
+                >
+                  ← Back
+                </button>
+              )}
+
+              {authMode === 'register' && registerPhase === 1 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!registerName.trim() || !registerEmail.trim() || !registerPassword.trim()) {
+                      showToast('⚠️ Please fill in all required registration fields.');
+                      return;
+                    }
+                    setRegisterPhase(2);
+                  }}
+                  className="w-full py-3.5 bg-[#FFC107] text-[#121212] font-black text-sm rounded-xl hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20"
+                >
+                  Next: Saved Filters & Preferences →
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="flex-1 py-3.5 bg-[#FFC107] text-[#121212] font-black text-sm rounded-xl hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20"
+                >
+                  {authMode === 'login' ? 'Log In to Blaze' : 'Register & Join Blaze'}
+                </button>
+              )}
+            </div>
           </form>
         </div>
       )}
@@ -1808,6 +2130,18 @@ export default function App() {
         onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
         gridColumns={gridColumns}
         onGridColumnsChange={setGridColumns}
+        currentUser={currentUser}
+        onUpdateUser={(updated) => setCurrentUser(updated)}
+        onOpenSafetyGuidelines={() => {
+          setIsSettingsOpen(false);
+          setIsSafetyGuidelinesOpen(true);
+        }}
+      />
+
+      {/* Safety & Community Guidelines Modal */}
+      <SafetyGuidelinesModal
+        isOpen={isSafetyGuidelinesOpen}
+        onClose={() => setIsSafetyGuidelinesOpen(false)}
       />
 
       {/* Right-Side Profile Panel */}

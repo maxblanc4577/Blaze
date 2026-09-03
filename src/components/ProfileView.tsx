@@ -7,6 +7,7 @@ import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tool
 import { ExportProfileModal } from './ExportProfileModal';
 import { ImageCropModal } from './ImageCropModal';
 import { VerificationSubmissionModal } from './VerificationSubmissionModal';
+import { VerificationUploadModal } from './VerificationUploadModal';
 import { GoogleMapsCityPickerModal } from './GoogleMapsCityPickerModal';
 import { processAndResizeImage } from '../utils/imageProcessor';
 
@@ -45,6 +46,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
   
   // Verification modal / state
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [verificationPoseUrl, setVerificationPoseUrl] = useState('');
 
   // Locked album input states
@@ -605,6 +607,188 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
           </button>
         </div>
       </div>
+
+      {/* Non-Dismissible Account Pending Activation Banner & Setup Progress Stepper */}
+      {((currentUser.isCompanionPro || currentUser.membershipTier === 'Elite Companion' || currentUser.membershipTier === 'Pro') && (!currentUser.isFeePaid || !currentUser.isVerified || !currentUser.isPublished)) && (
+        <div className="bg-[#1a1405] border-2 border-amber-500/50 rounded-3xl p-6 space-y-6 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+          
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-amber-500/20 pb-4">
+            <div className="flex items-center space-x-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-2xl shadow-inner">
+                ⚠️
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Non-Dismissible Notice</span>
+                  <span className="text-xs text-amber-300 font-mono">Status: Pending Activation</span>
+                </div>
+                <h4 className="text-base font-black text-white mt-1">Account Pending Activation & Publication</h4>
+                <p className="text-xs text-neutral-300 mt-0.5">
+                  Your profile is currently unlisted and hidden from discoverability. Complete the mandatory steps below to activate and publish your profile.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              {!currentUser.isFeePaid && (
+                <button
+                  type="button"
+                  onClick={onOpenCompanionModal}
+                  className="px-4 py-2.5 bg-emerald-500 text-black font-black text-xs rounded-xl hover:bg-emerald-400 transition shadow-lg shadow-emerald-500/20 whitespace-nowrap"
+                >
+                  💳 Pay $19.99/mo Fee
+                </button>
+              )}
+              {!currentUser.isVerified && (
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(true)}
+                  className="px-4 py-2.5 bg-cyan-500 text-black font-black text-xs rounded-xl hover:bg-cyan-400 transition shadow-lg shadow-cyan-500/20 whitespace-nowrap"
+                >
+                  🛡️ Submit ID Verification
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Setup Progress Stepper */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h5 className="text-xs font-bold uppercase tracking-wider text-amber-400">Mandatory Setup Progress Stepper</h5>
+              <span className="text-xs font-bold text-neutral-300">
+                {([true, currentUser.isFeePaid, currentUser.isVerified || currentUser.verificationPending].filter(Boolean).length)} of 3 Steps Completed
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Step 1 */}
+              <div className={`p-4 rounded-2xl border flex items-center space-x-3.5 transition ${
+                true ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-neutral-900 border-neutral-800 text-neutral-400'
+              }`}>
+                <div className="w-9 h-9 rounded-xl bg-emerald-500 text-black font-black text-sm flex items-center justify-center shrink-0 shadow">
+                  ✓
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-neutral-400">Step 1</p>
+                  <p className="text-xs font-bold text-white">Account Registered</p>
+                  <p className="text-[10px] text-emerald-400 mt-0.5">Completed successfully</p>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className={`p-4 rounded-2xl border flex items-center space-x-3.5 transition ${
+                currentUser.isFeePaid ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-neutral-900 border-amber-500/30 text-amber-300'
+              }`}>
+                <div className={`w-9 h-9 rounded-xl font-black text-sm flex items-center justify-center shrink-0 shadow ${
+                  currentUser.isFeePaid ? 'bg-emerald-500 text-black' : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                }`}>
+                  {currentUser.isFeePaid ? '✓' : '2'}
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-neutral-400">Step 2</p>
+                  <p className="text-xs font-bold text-white">Payment Completed</p>
+                  <p className="text-[10px] mt-0.5 font-bold {currentUser.isFeePaid ? 'text-emerald-400' : 'text-amber-400'}">
+                    {currentUser.isFeePaid ? 'Fee Paid ($19.99/mo)' : 'Pending $19.99 payment'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className={`p-4 rounded-2xl border flex items-center space-x-3.5 transition ${
+                currentUser.isVerified ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : currentUser.verificationPending ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-300' : 'bg-neutral-900 border-neutral-800 text-neutral-400'
+              }`}>
+                <div className={`w-9 h-9 rounded-xl font-black text-sm flex items-center justify-center shrink-0 shadow ${
+                  currentUser.isVerified ? 'bg-emerald-500 text-black' : currentUser.verificationPending ? 'bg-cyan-500 text-black' : 'bg-neutral-800 text-neutral-400'
+                }`}>
+                  {currentUser.isVerified ? '✓' : '3'}
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-neutral-400">Step 3</p>
+                  <p className="text-xs font-bold text-white">ID Verification</p>
+                  <p className="text-[10px] mt-0.5 font-bold">
+                    {currentUser.isVerified ? 'Verified ✓' : currentUser.verificationPending ? 'Pending Admin Review' : 'Documents required'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Referral Rewards Section for Pro and Elite users */}
+      {(currentUser.isCompanionPro || currentUser.membershipTier === 'Elite Companion' || currentUser.membershipTier === 'Pro') && (
+        <div className="bg-[#252525] border border-cyan-500/30 rounded-2xl p-6 space-y-4 shadow-xl bg-gradient-to-r from-cyan-500/10 via-[#252525] to-emerald-500/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-bold text-lg">
+                🎁
+              </div>
+              <div>
+                <h4 className="font-bold text-white text-sm flex items-center gap-2">
+                  <span>Referral Rewards & 10% Off</span>
+                  <span className="text-[10px] bg-cyan-500 text-black px-2 py-0.5 rounded-full font-black uppercase">Earn Discounts</span>
+                </h4>
+                <p className="text-xs text-neutral-300 mt-0.5">
+                  Invite friends to Blaze. Earn 10% off your next month's subscription for every successful sign-up!
+                </p>
+              </div>
+            </div>
+            <div className="text-right hidden sm:block">
+              <p className="text-[10px] uppercase font-bold text-neutral-400">Successful Referrals</p>
+              <p className="text-base font-black text-cyan-400">{currentUser.referralCount || 0}</p>
+            </div>
+          </div>
+
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="w-full sm:flex-1 space-y-1">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Your Unique Referral Link</label>
+                <div className="bg-[#121212] border border-neutral-700 rounded-lg px-3 py-2 text-xs font-mono text-cyan-300 truncate select-all">
+                  https://blaze.io/invite?ref=BLAZE_{currentUser.id.toUpperCase()}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = `https://blaze.io/invite?ref=BLAZE_${currentUser.id.toUpperCase()}`;
+                    navigator.clipboard.writeText(link);
+                    setSuccessMsg('📋 Referral link copied to clipboard!');
+                    setTimeout(() => setSuccessMsg(''), 3000);
+                  }}
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold text-xs rounded-xl transition shadow"
+                >
+                  📋 Copy Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentCount = currentUser.referralCount || 0;
+                    const updated = {
+                      ...currentUser,
+                      referralCount: currentCount + 1,
+                      referralDiscountEarned: `${(currentCount + 1) * 10}% Off Next Month`
+                    };
+                    onUpdateUser(updated);
+                    setFormData(updated);
+                    setSuccessMsg(`🎉 Simulated successful sign-up! Earned referral bonus (${(currentCount + 1) * 10}% Off).`);
+                    setTimeout(() => setSuccessMsg(''), 4000);
+                  }}
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs rounded-xl transition shadow-lg shadow-cyan-500/20"
+                >
+                  ✨ Simulate Referral Sign-Up
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-neutral-800 text-xs">
+              <span className="text-neutral-400">Active Subscription Reward:</span>
+              <span className="font-bold text-emerald-400">{currentUser.referralDiscountEarned || 'No discounts active yet'}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Form or Display View */}
       {isEditing ? (
@@ -1822,10 +2006,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
         currentLocation={formData.locationName}
       />
 
-      {/* Verification Submission Modal */}
-      <VerificationSubmissionModal
-        isOpen={showVerificationModal}
-        onClose={() => setShowVerificationModal(false)}
+      {/* Verification Upload Modal */}
+      <VerificationUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
         currentUser={currentUser}
         onUpdateUser={onUpdateUser}
         showToast={(msg) => {

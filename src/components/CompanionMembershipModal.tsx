@@ -35,9 +35,11 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
   const [cardExpiry, setCardExpiry] = useState('08/28');
   const [billingAddress, setBillingAddress] = useState('742 Evergreen Terrace, Springfield');
   const [autoRenew, setAutoRenew] = useState(true);
+  const [phone, setPhone] = useState(currentUser.phone || '');
+  const [whatsapp, setWhatsapp] = useState(currentUser.whatsapp || '');
 
   const planTitle = selectedPlan === 'monthly' ? 'Professional Companion Monthly' : selectedPlan === 'annual' ? 'Professional Companion Annual' : 'Professional Companion Setup';
-  const planAmount = selectedPlan === 'monthly' ? '$19.99/mo' : selectedPlan === 'annual' ? '$10.99/mo' : '$49.99';
+  const planAmount = selectedPlan === 'monthly' ? '$19.99/mo' : selectedPlan === 'annual' ? '$10.99/mo' : '$19.99/mo';
 
   const handleProceed = () => {
     if (selectedProfileType === 'regular') {
@@ -52,8 +54,10 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
   const handlePaymentSuccess = () => {
     const rate = planAmount;
     onUpdateAccountType('Elite Companion', true, rate, true);
+    currentUser.phone = phone;
+    currentUser.whatsapp = whatsapp;
     setSuccessState(true);
-    showToast('👑 MintBoy Elite Companion Profile & Monthly Fee Paid successfully via Stripe!');
+    showToast('👑 MintBoy Elite Companion Profile & $19.99/mo Fee Paid successfully!');
     setTimeout(() => {
       setSuccessState(false);
       onClose();
@@ -325,8 +329,29 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
                         }`}
                       >
                         <span className="text-[10px] uppercase block opacity-80">Setup Fee</span>
-                        <span className="text-sm font-black">$49.99</span>
+                        <span className="text-sm font-black">$19.99</span>
                       </button>
+                    </div>
+
+                    {/* Contact Fields for Elite/Pro */}
+                    <div className="pt-2 border-t border-neutral-800 space-y-2">
+                      <label className="text-xs font-bold text-white block">Phone Number & WhatsApp (Elite/Pro Benefit)</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="Phone e.g. +1 555-0199"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="w-full bg-[#1A1A1A] border border-neutral-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FFC107]"
+                        />
+                        <input
+                          type="text"
+                          placeholder="WhatsApp e.g. +15550199"
+                          value={whatsapp}
+                          onChange={(e) => setWhatsapp(e.target.value)}
+                          className="w-full bg-[#1A1A1A] border border-neutral-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FFC107]"
+                        />
+                      </div>
                     </div>
 
                     {/* ID Document Upload Interface for Admin Verification */}

@@ -728,7 +728,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     }`}
                   >
                     <span>{timeStr}</span>
-                    {isMe && readReceiptsEnabled && (
+                    {msg.status === 'pending' ? (
+                      <span className="flex items-center gap-1 text-[10px] text-amber-600 font-bold animate-pulse">
+                        <span>🕒</span> Sending...
+                      </span>
+                    ) : isMe && readReceiptsEnabled && (
                       <button
                         type="button"
                         onClick={() => {

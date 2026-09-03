@@ -45,7 +45,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
-  const [activeAdminTab, setActiveAdminTab] = useState<'dashboard' | 'reports' | 'users' | 'refunds' | 'subscriptions' | 'elite_payments' | 'moderation' | 'logs' | 'broadcast' | 'master_override' | 'blocked_keywords'>('dashboard');
+  const [activeAdminTab, setActiveAdminTab] = useState<'dashboard' | 'reports' | 'users' | 'refunds' | 'subscriptions' | 'elite_payments' | 'approvals' | 'pending_verification' | 'moderation' | 'logs' | 'broadcast' | 'master_override' | 'blocked_keywords'>('dashboard');
   const [newKeywordInput, setNewKeywordInput] = useState('');
   
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -56,6 +56,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [bulkAction, setBulkAction] = useState<string>('');
   const [reportResponseTexts, setReportResponseTexts] = useState<Record<string, string>>({});
+  const [rejectingUserId, setRejectingUserId] = useState<string | null>(null);
+  const [rejectReasonInput, setRejectReasonInput] = useState<string>('');
 
   // Mandatory Confirmation Dialog State for Report Action
   const [confirmingReport, setConfirmingReport] = useState<{
@@ -97,6 +99,17 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   const [pendingPhotos, setPendingPhotos] = useState([
     { id: 'photo_1', userId: 'user_1', userName: 'Tyler Brooks', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400', type: 'profile_picture', status: 'pending' },
     { id: 'photo_2', userId: 'user_2', userName: 'Devon Cole', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400', type: 'profile_picture', status: 'pending' },
+  ]);
+
+  const [publicationAuditLogs, setPublicationAuditLogs] = useState<Array<{
+    id: string;
+    profileName: string;
+    adminEmail: string;
+    action: string;
+    timestamp: string;
+  }>>([
+    { id: 'log_1', profileName: 'Aria Sterling', adminEmail: 'admin@blaze.io', action: 'Published & Made Active', timestamp: '2026-09-02 14:32' },
+    { id: 'log_2', profileName: 'Chloe Bennett', adminEmail: 'admin@blaze.io', action: 'Unpublished (Hidden)', timestamp: '2026-09-01 19:15' }
   ]);
 
   const handleIssueRefund = (dispId: string, amount: string) => {
@@ -465,6 +478,8 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                   { id: 'refunds', label: `Billing & Refunds (${disputes.filter(d => d.status === 'pending').length})`, icon: DollarSign },
                   { id: 'subscriptions', label: 'Subscriptions & Funds', icon: Crown },
                   { id: 'elite_payments', label: `Elite Payments (${profiles.filter(p => p.isCompanionPro || p.membershipTier === 'Elite Companion').length})`, icon: CreditCard },
+                  { id: 'approvals', label: `Pro & Elite Approvals (${profiles.filter(p => p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro').length})`, icon: UserCheck },
+                  { id: 'pending_verification', label: `Pending Verification (${profiles.filter(p => (p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro') && p.isFeePaid && !p.isVerified).length})`, icon: ShieldCheck },
                   { id: 'blocked_keywords', label: `Blocked Keywords (${blockedKeywords.length})`, icon: ShieldAlert },
                   { id: 'moderation', label: `Photo Approval (${pendingPhotos.filter(p => p.status === 'pending').length})`, icon: ImageIcon },
                   { id: 'logs', label: 'Activity Logs', icon: Activity },
@@ -690,6 +705,296 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
                             </div>
                           );
                         })
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeAdminTab === 'approvals' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-black text-white">Pro & Elite Companion Approvals & Publications</h4>
+                        <p className="text-xs text-neutral-400">Review subscription payments, identity documents, and toggle the `isPublished` status to make companion accounts discoverable on the platform.</p>
+                      </div>
+                      <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-3 py-1 rounded-full font-bold">
+                        🛡️ Account Publication Dashboard
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {profiles.filter(p => p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro').length === 0 ? (
+                        <div className="text-center py-12 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-400 text-xs">
+                          No Professional or Elite companion accounts registered yet.
+                        </div>
+                      ) : (
+                        profiles.filter(p => p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro').map(p => {
+                          const feePaid = p.isFeePaid || false;
+                          const isVerified = p.isVerified || false;
+                          const isPublished = p.isPublished !== false;
+                          return (
+                            <div key={p.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                              <div className="flex items-center space-x-3.5">
+                                <img src={p.photos[0]} alt={p.name} className="w-14 h-14 rounded-2xl object-cover border border-neutral-700 shadow" referrerPolicy="no-referrer" />
+                                <div className="space-y-1">
+                                  <div className="flex items-center space-x-2">
+                                    <p className="text-sm font-bold text-white">{p.name}, {p.age}</p>
+                                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full font-bold">
+                                      {p.membershipTier || 'Professional'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-neutral-400">{p.locationName} • {p.email || 'user@blaze.io'}</p>
+                                  <div className="flex items-center gap-2 pt-1">
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                      feePaid ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                                    }`}>
+                                      {feePaid ? '✓ Fee Paid ($19.99/mo)' : '✕ Fee Unpaid'}
+                                    </span>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                      isVerified ? 'bg-cyan-500/20 text-cyan-300' : 'bg-neutral-800 text-neutral-400'
+                                    }`}>
+                                      {isVerified ? '🛡️ ID Verified' : '⏳ ID Pending Review'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2.5 self-end md:self-center">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = profiles.map(item => item.id === p.id ? { ...item, isFeePaid: !feePaid } : item);
+                                    onUpdateProfiles(updated);
+                                    setSuccessToast(`Toggled payment status for ${p.name}.`);
+                                    setTimeout(() => setSuccessToast(''), 3000);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                                    feePaid ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' : 'bg-emerald-500 text-black hover:bg-emerald-400'
+                                  }`}
+                                >
+                                  {feePaid ? 'Revoke Fee' : 'Mark Fee Paid'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = profiles.map(item => item.id === p.id ? { ...item, isVerified: !isVerified } : item);
+                                    onUpdateProfiles(updated);
+                                    setSuccessToast(`Toggled verification status for ${p.name}.`);
+                                    setTimeout(() => setSuccessToast(''), 3000);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                                    isVerified ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' : 'bg-cyan-500 text-black hover:bg-cyan-400'
+                                  }`}
+                                >
+                                  {isVerified ? 'Revoke ID Check' : 'Approve ID Check'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newStatus = !isPublished;
+                                    const updated = profiles.map(item => item.id === p.id ? { ...item, isPublished: newStatus } : item);
+                                    onUpdateProfiles(updated);
+                                    setPublicationAuditLogs(prev => [
+                                      {
+                                        id: `log_${Date.now()}`,
+                                        profileName: p.name,
+                                        adminEmail: username || 'admin@blaze.io',
+                                        action: newStatus ? 'Published & Made Active' : 'Unpublished (Hidden)',
+                                        timestamp: new Date().toLocaleString()
+                                      },
+                                      ...prev
+                                    ]);
+                                    setSuccessToast(`Toggled publication status for ${p.name} to ${newStatus ? 'Published & Active' : 'Unpublished (Hidden)'}.`);
+                                    setTimeout(() => setSuccessToast(''), 3000);
+                                  }}
+                                  className={`px-4 py-2 rounded-xl text-xs font-black transition shadow ${
+                                    isPublished ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30' : 'bg-emerald-500 text-black hover:bg-emerald-400'
+                                  }`}
+                                >
+                                  {isPublished ? 'Published (Click to Unpublish)' : 'Publish & Make Active'}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* Publication Audit Log Section */}
+                    <div className="mt-8 space-y-3 pt-6 border-t border-neutral-800">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-300">Publication Audit Trail & Accountability Log</h5>
+                        <span className="text-[10px] text-neutral-400">{publicationAuditLogs.length} Recorded Actions</span>
+                      </div>
+                      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-neutral-950 text-neutral-400 uppercase text-[10px] border-b border-neutral-800">
+                            <tr>
+                              <th className="px-4 py-3">Profile Name</th>
+                              <th className="px-4 py-3">Action</th>
+                              <th className="px-4 py-3">Admin Account</th>
+                              <th className="px-4 py-3">Timestamp</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-800 text-neutral-300">
+                            {publicationAuditLogs.map(log => (
+                              <tr key={log.id} className="hover:bg-neutral-800/50">
+                                <td className="px-4 py-3 font-bold text-white">{log.profileName}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    log.action.includes('Published') ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+                                  }`}>
+                                    {log.action}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 font-mono text-neutral-400">{log.adminEmail}</td>
+                                <td className="px-4 py-3 text-neutral-400">{log.timestamp}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeAdminTab === 'pending_verification' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-black text-white">Pending Verification Profiles</h4>
+                        <p className="text-xs text-neutral-400">Professional & Elite profiles that have paid their subscription fee ($19.99/mo) and are awaiting manual document approval.</p>
+                      </div>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full font-bold">
+                        ⏳ {profiles.filter(p => (p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro') && p.isFeePaid && !p.isVerified).length} Pending Review
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {profiles.filter(p => (p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro') && p.isFeePaid && !p.isVerified).length === 0 ? (
+                        <div className="text-center py-12 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-400 text-xs">
+                          No profiles currently awaiting verification approval.
+                        </div>
+                      ) : (
+                        profiles.filter(p => (p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro') && p.isFeePaid && !p.isVerified).map(p => (
+                          <div key={p.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div className="flex items-center space-x-3.5">
+                              <img src={p.photos[0]} alt={p.name} className="w-14 h-14 rounded-2xl object-cover border border-neutral-700 shadow" referrerPolicy="no-referrer" />
+                              <div className="space-y-1">
+                                <div className="flex items-center space-x-2">
+                                  <p className="text-sm font-bold text-white">{p.name}, {p.age}</p>
+                                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full font-bold">
+                                    {p.membershipTier || 'Professional'}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-neutral-400">{p.locationName} • {p.email || 'user@blaze.io'}</p>
+                                <div className="flex items-center gap-2 pt-1">
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                                    ✓ Fee Paid ($19.99/mo)
+                                  </span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
+                                    🛡️ ID Scan Submitted
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-end gap-2 self-end md:self-center">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = profiles.map(item => item.id === p.id ? { ...item, isVerified: true, isPublished: true } : item);
+                                    onUpdateProfiles(updated);
+                                    setPublicationAuditLogs(prev => [
+                                      {
+                                        id: `log_${Date.now()}`,
+                                        profileName: p.name,
+                                        adminEmail: username || 'admin@blaze.io',
+                                        action: 'Approved ID & Published & Active',
+                                        timestamp: new Date().toLocaleString()
+                                      },
+                                      ...prev
+                                    ]);
+                                    setSuccessToast(`Approved and published ${p.name}!`);
+                                    setTimeout(() => setSuccessToast(''), 3000);
+                                  }}
+                                  className="px-4 py-2.5 rounded-xl bg-emerald-500 text-black font-black text-xs hover:bg-emerald-400 transition shadow-lg shadow-emerald-500/20"
+                                >
+                                  ✓ Approve & Publish
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRejectingUserId(rejectingUserId === p.id ? null : p.id);
+                                    setRejectReasonInput('');
+                                  }}
+                                  className="px-4 py-2.5 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 font-black text-xs hover:bg-red-500/30 transition"
+                                >
+                                  ✕ Reject
+                                </button>
+                              </div>
+
+                              {rejectingUserId === p.id && (
+                                <div className="bg-neutral-950 p-3 rounded-xl border border-red-500/40 space-y-2 mt-2 w-full max-w-xs animate-in fade-in duration-200">
+                                  <p className="text-[10px] font-bold text-red-300 uppercase">Mandatory Rejection Reason</p>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Blurry photo, expired ID..."
+                                    value={rejectReasonInput}
+                                    onChange={(e) => setRejectReasonInput(e.target.value)}
+                                    className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-red-500"
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (!rejectReasonInput.trim()) {
+                                          setSuccessToast('⚠️ Rejection reason is mandatory.');
+                                          return;
+                                        }
+                                        const updated = profiles.map(item => item.id === p.id ? { 
+                                          ...item, 
+                                          verificationPending: false, 
+                                          isVerified: false, 
+                                          isPublished: false, 
+                                          verificationRejectionReason: rejectReasonInput 
+                                        } : item);
+                                        onUpdateProfiles(updated);
+                                        setPublicationAuditLogs(prev => [
+                                          {
+                                            id: `log_${Date.now()}`,
+                                            profileName: p.name,
+                                            adminEmail: username || 'admin@blaze.io',
+                                            action: `Rejected ID Verification: "${rejectReasonInput}"`,
+                                            timestamp: new Date().toLocaleString()
+                                          },
+                                          ...prev
+                                        ]);
+                                        setRejectingUserId(null);
+                                        setRejectReasonInput('');
+                                        setSuccessToast(`Rejected verification for ${p.name}. Notification sent.`);
+                                        setTimeout(() => setSuccessToast(''), 4000);
+                                      }}
+                                      className="flex-1 py-1.5 rounded-lg bg-red-500 text-black font-black text-xs hover:bg-red-400 transition"
+                                    >
+                                      Confirm Rejection
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setRejectingUserId(null)}
+                                      className="px-3 py-1.5 rounded-lg bg-neutral-800 text-neutral-300 text-xs font-bold hover:bg-neutral-700 transition"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))
                       )}
                     </div>
                   </div>

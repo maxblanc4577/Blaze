@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Eye, Shield, Bell, Moon, Sun, Globe, Plane, Sparkles, Crown, Users, Flag, MessageSquare, CreditCard, Download, Receipt, PlusCircle, CheckCircle2 } from 'lucide-react';
+import { X, Eye, Shield, ShieldCheck, Bell, Moon, Sun, Globe, Plane, Sparkles, Crown, Users, Flag, MessageSquare, CreditCard, Download, Receipt, PlusCircle, CheckCircle2 } from 'lucide-react';
+import { UserProfile } from '../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -23,6 +24,9 @@ interface SettingsModalProps {
   onOpenSubscription: () => void;
   gridColumns: number;
   onGridColumnsChange: (cols: number) => void;
+  currentUser?: UserProfile;
+  onUpdateUser?: (updated: UserProfile) => void;
+  onOpenSafetyGuidelines?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -47,15 +51,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenSubscription,
   gridColumns,
   onGridColumnsChange,
+  currentUser,
+  onUpdateUser,
+  onOpenSafetyGuidelines,
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'merchant' | 'safety' | 'account_safety' | 'private_albums' | 'activity' | 'customization'>('general');
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => {
     return localStorage.getItem('blaze_sounds_enabled') !== 'false';
   });
+  const [autoArchiveEnabled, setAutoArchiveEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('blaze_auto_archive') === 'true';
+  });
 
   const toggleSounds = (val: boolean) => {
     setSoundsEnabled(val);
     localStorage.setItem('blaze_sounds_enabled', String(val));
+  };
+
+  const toggleAutoArchive = (val: boolean) => {
+    setAutoArchiveEnabled(val);
+    localStorage.setItem('blaze_auto_archive', String(val));
   };
   const [blockedUsersList, setBlockedUsersList] = useState([
     { id: 'user_blk_1', name: 'Blocked User X', age: 28, distance: 4.2, photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200', reason: 'Harassment', date: 'Aug 15, 2026' },
@@ -322,6 +337,32 @@ For support, contact support@blazeapp.io
                 </button>
               </div>
 
+              {/* Auto-archive chats toggle */}
+              <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Auto-archive chats after 7 days</h4>
+                    <p className="text-xs text-neutral-400">Automatically archive chats with no activity for 7 days to keep inbox clean.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleAutoArchive(!autoArchiveEnabled)}
+                  className={`w-12 h-6 rounded-full transition-colors relative p-1 ${
+                    autoArchiveEnabled ? 'bg-amber-500' : 'bg-neutral-700'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                      autoArchiveEnabled ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
               {/* Ghost Mode */}
               <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
                 <div className="flex items-center space-x-3">
@@ -421,9 +462,21 @@ For support, contact support@blazeapp.io
                       {subscription.type === 'none' ? 'N/A' : new Date(subscription.expiresAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="bg-neutral-900/80 p-3 rounded-xl border border-neutral-800">
-                    <p className="text-[10px] uppercase font-bold text-neutral-400">Billing Cycle</p>
-                    <p className="text-xs font-bold text-white mt-0.5">Auto-Renewal Active</p>
+                  <div className="bg-neutral-900/80 p-3 rounded-xl border border-neutral-800 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold text-neutral-400">Auto-Renew</p>
+                      <p className="text-xs font-bold text-emerald-400 mt-0.5">Enabled (Pro/Elite)</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = (window as any).__blazeAutoRenew !== false;
+                        (window as any).__blazeAutoRenew = !current;
+                      }}
+                      className="w-10 h-5 rounded-full bg-amber-500 transition-colors relative p-0.5"
+                    >
+                      <div className="w-4 h-4 rounded-full bg-black translate-x-5 transition-transform" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -546,11 +599,130 @@ For support, contact support@blazeapp.io
                   ))}
                 </div>
               </div>
+
+              {/* Transaction History Section for Pro/Elite $19.99 subscription payments */}
+              <div className="bg-[#252525] border border-neutral-800 p-4 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                    <Receipt className="w-4 h-4 text-cyan-400" />
+                    <span>Transaction History ({currentUser?.transactionHistory?.length || 0})</span>
+                  </h4>
+                  <span className="text-[10px] text-neutral-400 font-medium">Pro & Elite Subscriptions ($19.99/mo)</span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {(!currentUser?.transactionHistory || currentUser.transactionHistory.length === 0) ? (
+                    <div className="text-center py-6 bg-neutral-900 rounded-xl text-neutral-400 text-xs">
+                      No subscription payment transactions recorded yet. Complete the $19.99/mo payment to view records.
+                    </div>
+                  ) : (
+                    currentUser.transactionHistory.map(tx => (
+                      <div key={tx.id} className="bg-neutral-900 p-3.5 rounded-xl border border-neutral-800 flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <p className="text-xs font-bold text-white">$19.99/mo Subscription Payment</p>
+                            <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
+                              {tx.status}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-neutral-400">
+                            Date: <span className="text-white">{tx.date}</span> • Transaction ID: <span className="font-mono text-cyan-400">{tx.id}</span>
+                          </p>
+                        </div>
+                        <span className="text-xs font-extrabold text-amber-400 font-mono">{tx.amount}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Billing Pause Option for Pro/Elite users */}
+              {(currentUser?.isCompanionPro || currentUser?.membershipTier === 'Elite Companion' || currentUser?.membershipTier === 'Pro') && (
+                <div className="bg-[#252525] border border-amber-500/30 p-4 rounded-2xl space-y-3 bg-gradient-to-r from-amber-500/10 to-[#252525]">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                      <Plane className="w-4 h-4 text-amber-400" />
+                      <span>Subscription Billing Pause</span>
+                    </h4>
+                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold border border-amber-500/30">
+                      Up to 30 Days
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-neutral-300">
+                    Temporarily suspend your automatic subscription billing for up to 30 days without losing your verified badge or elite companion status.
+                  </p>
+
+                  {currentUser.billingPausedUntil && currentUser.billingPausedUntil > Date.now() ? (
+                    <div className="space-y-2">
+                      <div className="bg-neutral-900 p-3 rounded-xl border border-amber-500/40 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-amber-300">Billing Currently Paused</p>
+                          <p className="text-[10px] text-neutral-400">
+                            Resumes on: <span className="text-white">{new Date(currentUser.billingPausedUntil).toLocaleDateString()}</span> (Verification Preserved)
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onUpdateUser) {
+                              onUpdateUser({ ...currentUser, billingPausedUntil: undefined });
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-amber-500 text-black font-black text-xs rounded-xl hover:bg-amber-400 transition"
+                        >
+                          Resume Billing
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onUpdateUser) {
+                          const pauseUntil = Date.now() + 30 * 24 * 60 * 60 * 1000;
+                          onUpdateUser({ ...currentUser, billingPausedUntil: pauseUntil });
+                        }
+                      }}
+                      className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition shadow-lg shadow-amber-500/20"
+                    >
+                      ⏸️ Pause Billing for 30 Days
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === 'safety' && (
             <div className="space-y-4">
+              {/* Real Life Meeting Safety & Community Guidelines Link Card */}
+              <div className="bg-[#252525] border border-emerald-500/30 p-4 rounded-2xl space-y-3 bg-gradient-to-r from-emerald-500/10 to-[#252525]">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Safety & Community Guidelines</span>
+                  </h4>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold border border-emerald-500/30">
+                    Essential Tips
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-300">
+                  Read our community standards, anti-nude policy, and expert safety tips for meeting people in real life (public venues, personal boundaries, and scam prevention).
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onOpenSafetyGuidelines) {
+                      onOpenSafetyGuidelines();
+                    }
+                  }}
+                  className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                >
+                  <span>🛡️ Open Safety & Community Guidelines Center</span>
+                </button>
+              </div>
+
               {/* Blocked Users Section */}
               <div className="bg-[#252525] border border-neutral-800 p-4 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">

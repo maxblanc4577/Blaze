@@ -111,6 +111,15 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
 
                 return (
                   <>
+                    {/* Pulse Scan Radiating Ring Animation */}
+                    <AdvancedMarker position={defaultCenter} zIndex={1}>
+                      <div className="relative pointer-events-none -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+                        <div className="absolute w-48 h-48 rounded-full border-2 border-amber-400/80 bg-amber-500/10 animate-ping pointer-events-none" />
+                        <div className="absolute w-24 h-24 rounded-full border border-amber-300/60 bg-amber-400/20 animate-pulse pointer-events-none" />
+                        <div className="w-4 h-4 rounded-full bg-amber-400 shadow-lg shadow-amber-400/50 z-10" />
+                      </div>
+                    </AdvancedMarker>
+
                     {/* Density Heatmap Overlay Rings */}
                     {showHeatmap && clusters.map((cluster, hIdx) => (
                       <AdvancedMarker

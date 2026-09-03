@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, getFilterStyle, getStyleTagIcon } from '../types';
-import { Flame, Star, ShieldCheck, Sparkles, Lock, Flag, Eye, Trash2, MessageCircle, Crown } from 'lucide-react';
+import { Flame, Star, ShieldCheck, Sparkles, Lock, Flag, Eye, Trash2, MessageCircle, Crown, MoreVertical, ShieldAlert, Phone, MessageSquare } from 'lucide-react';
 import { motion } from 'motion/react';
 import { QuickPreviewModal } from './QuickPreviewModal';
 import { ReportModal } from './ReportModal';
@@ -12,6 +12,7 @@ interface ProfileCardProps {
   onTap: (e: React.MouseEvent, profile: UserProfile) => void;
   onPass?: (profileId: string) => void;
   onDelete?: (profileId: string) => void;
+  onBlockUser?: (profileId: string) => void;
   onToggleFavorite?: (profileId: string) => void;
   onOpenChat?: (profile: UserProfile) => void;
   currentUserInterests?: string[];
@@ -22,7 +23,7 @@ interface ProfileCardProps {
   onReportSubmitted?: (profile: UserProfile, reason: string, details: string) => void;
 }
 
-export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onToggleFavorite, onOpenChat, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false, showToast, onReportSubmitted }) => {
+export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onBlockUser, onToggleFavorite, onOpenChat, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false, showToast, onReportSubmitted }) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeX, setSwipeX] = useState(0);
@@ -30,6 +31,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
   const [showPreview, setShowPreview] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showVerifiedTooltip, setShowVerifiedTooltip] = useState(false);
+
+  const [showCardMenu, setShowCardMenu] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   const photos = profile.photos && profile.photos.length > 0 ? profile.photos : ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60'];
@@ -180,51 +183,29 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
           {/* Gradient overlay for text readability */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
-          {/* Photo Pagination Indicator Bars */}
-          {photos.length > 1 && (
-            <div className="absolute top-2 left-3 right-3 z-20 flex gap-1 items-center pointer-events-none">
-              {photos.map((_, idx) => (
-                <div
-                  key={idx}
-                  className={`h-1 flex-1 rounded-full transition-all shadow ${
-                    idx === currentPhotoIndex ? 'bg-white opacity-100' : 'bg-white/40 opacity-60'
-                  }`}
-                />
-              ))}
-            </div>
-          )}
 
-          {/* Clickable Left/Right areas for Carousel navigation */}
-          {photos.length > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={handlePrevPhoto}
-                className="absolute left-0 top-0 bottom-0 w-1/3 z-20 opacity-0 hover:opacity-100 flex items-center justify-start pl-2 transition cursor-pointer"
-                aria-label="Previous photo"
-              >
-                <div className="w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center text-xs font-bold shadow">‹</div>
-              </button>
-              <button
-                type="button"
-                onClick={handleNextPhoto}
-                className="absolute right-0 top-0 bottom-0 w-1/3 z-20 opacity-0 hover:opacity-100 flex items-center justify-end pr-2 transition cursor-pointer"
-                aria-label="Next photo"
-              >
-                <div className="w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center text-xs font-bold shadow">›</div>
-              </button>
-            </>
-          )}
+
+
         </div>
 
         {/* Top badges: Distance & Quick Preview */}
         <div className="relative z-10 p-2 flex items-center justify-between">
           <div className="flex items-center space-x-1.5">
-            <div className="flex items-center space-x-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
-              <span className="text-xs font-bold text-white tracking-wide">
-                {profile.distance === 0 ? 'Here' : `${profile.distance} mi`}
-              </span>
-            </div>
+            {/* Distance Radius Indicator Ring */}
+            {(() => {
+              const d = profile.distance || 5;
+              const ringColor = d <= 10 ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300' : d <= 25 ? 'border-amber-400 bg-amber-500/20 text-amber-300' : 'border-rose-400 bg-rose-500/20 text-rose-300';
+              return (
+                <div className={`flex items-center space-x-1.5 backdrop-blur-md px-2.5 py-1 rounded-full border ${ringColor} shadow`}>
+                  <span className="w-2 h-2 rounded-full animate-pulse bg-current" />
+                  <span className="text-xs font-bold tracking-wide">
+                    {profile.distance === 0 ? 'Here' : `${profile.distance} mi`}
+                  </span>
+                </div>
+              );
+            })()}
+
+
           </div>
 
           <div className="flex items-center space-x-1.5">
@@ -251,6 +232,42 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             >
               <Eye className="w-3.5 h-3.5" />
             </button>
+
+            {/* Hidden Dropdown Menu in Top-Right Corner for Quick Block */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCardMenu(!showCardMenu);
+                }}
+                className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-white hover:bg-neutral-800 transition shadow"
+                title="Quick Options"
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
+
+              {showCardMenu && (
+                <div className="absolute right-0 top-full mt-1.5 w-36 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl z-30 py-1 text-xs text-left">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowCardMenu(false);
+                      if (onBlockUser) {
+                        onBlockUser(profile.id);
+                      } else if (onPass) {
+                        onPass(profile.id);
+                      }
+                      if (showToast) showToast(`🚫 Blocked and removed ${profile.name} from discovery.`);
+                    }}
+                    className="w-full text-left px-3 py-2 text-red-400 hover:bg-neutral-800 flex items-center gap-1.5 font-bold"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5" /> Block User
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -322,10 +339,12 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
                 </span>
               )}
 
-              {/* Safety Status Badge */}
-              <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                🛡️ Safety Verified ({profile.age}+)
-              </span>
+              {/* Safety Status Badge (Elite/Pro Only) */}
+              {(profile.isCompanionPro || profile.membershipTier === 'Elite Companion' || profile.membershipTier === 'Pro') && (
+                <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  🛡️ Safety Verified ({profile.age}+)
+                </span>
+              )}
             </h3>
             <p className="text-[11px] text-neutral-300 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
               <span>📍 {profile.distance === 0 ? 'Here' : `${profile.distance} mi`}</span>
@@ -345,6 +364,33 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
                 </span>
               </span>
             </p>
+
+            {(profile.phone || profile.whatsapp) && (
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                {profile.phone && (
+                  <a
+                    href={`tel:${profile.phone}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-emerald-500/30 transition"
+                    title={`Call ${profile.name}`}
+                  >
+                    <Phone className="w-3 h-3 text-emerald-400" /> Call
+                  </a>
+                )}
+                {profile.whatsapp && (
+                  <a
+                    href={`https://wa.me/${profile.whatsapp.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-emerald-600/20 border border-emerald-600/40 text-emerald-300 px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-emerald-600/30 transition"
+                    title="WhatsApp Chat"
+                  >
+                    <MessageSquare className="w-3 h-3 text-emerald-400" /> WhatsApp
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Quick Tap Button */}

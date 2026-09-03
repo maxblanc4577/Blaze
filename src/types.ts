@@ -38,6 +38,8 @@ export interface UserProfile {
     snapchat?: string;
     spotify?: string;
   };
+  phone?: string;
+  whatsapp?: string;
   profileTheme?: string; // e.g. 'amber', 'emerald', 'cyan', 'violet', 'rose'
   verified?: boolean; // Added verified status property
   isVerified?: boolean;
@@ -66,6 +68,7 @@ export interface UserProfile {
   longitude?: number;
   isCompanionPro?: boolean;
   isFeePaid?: boolean;
+  isPublished?: boolean;
   companionServices?: string[];
   companionRate?: string;
   membershipTier?: 'Free' | 'Pro' | 'Elite Companion';
@@ -97,6 +100,11 @@ export interface UserProfile {
   introVideoUrl?: string;
   voiceIntroUrl?: string;
   stories?: { id: string; url?: string; text?: string; timestamp: number }[]; // 24-hour ephemeral stories
+  transactionHistory?: Array<{ id: string; date: string; amount: string; status: string; }>;
+  verificationRejectionReason?: string;
+  billingPausedUntil?: number; // timestamp until when billing is paused
+  referralCount?: number;
+  referralDiscountEarned?: string; // e.g. '10% Off Next Month'
 }
 
 export interface PhotoFilterOption {
@@ -143,6 +151,7 @@ export interface Message {
   mediaUrl?: string;
   isRead?: boolean;
   readAt?: number;
+  status?: 'pending' | 'sent';
   reactions?: { emoji: string; userId: string; userName?: string }[];
 }
 

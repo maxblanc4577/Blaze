@@ -8,6 +8,7 @@ interface ChatListViewProps {
   onToggleArchive: (conversationId: string) => void;
   onBulkArchive: (conversationIds: string[]) => void;
   onBulkDelete: (conversationIds: string[]) => void;
+  onBulkSendQuickReply?: (conversationIds: string[], messageText: string) => void;
 }
 
 export const ChatListView: React.FC<ChatListViewProps> = ({
@@ -16,9 +17,19 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
   onToggleArchive,
   onBulkArchive,
   onBulkDelete,
+  onBulkSendQuickReply,
 }) => {
   const [subTab, setSubTab] = useState<'inbox' | 'archived'>('inbox');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showQuickReplyModal, setShowQuickReplyModal] = useState(false);
+  const [quickReplyText, setQuickReplyText] = useState('Hey, sorry for the delay!');
+
+  const templates = [
+    'Hey, sorry for the delay!',
+    'Thanks for reaching out! Let\'s chat soon.',
+    'Checking in! How are you doing?',
+    'Let\'s meet up soon!'
+  ];
 
   const inboxConversations = conversations.filter(c => !c.isArchived);
   const archivedConversations = conversations.filter(c => c.isArchived);
@@ -90,8 +101,15 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
           </button>
 
           {selectedIds.length > 0 && (
-            <div className="flex items-center gap-2 animate-in fade-in">
+            <div className="flex items-center gap-2 animate-in fade-in flex-wrap justify-end">
               <span className="text-amber-400 font-bold">{selectedIds.length} selected</span>
+              <button
+                type="button"
+                onClick={() => setShowQuickReplyModal(true)}
+                className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-black font-extrabold rounded-lg flex items-center gap-1 transition shadow"
+              >
+                <span>⚡ Quick Reply</span>
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -101,7 +119,7 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
                 className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-300 font-semibold rounded-lg flex items-center gap-1 transition"
               >
                 <Archive className="w-3.5 h-3.5" />
-                <span>{subTab === 'inbox' ? 'Archive Selected' : 'Unarchive Selected'}</span>
+                <span>{subTab === 'inbox' ? 'Archive' : 'Unarchive'}</span>
               </button>
               <button
                 type="button"
@@ -114,10 +132,81 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
                 className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold rounded-lg flex items-center gap-1 transition border border-red-500/30"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete Selected</span>
+                <span>Delete</span>
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Quick Reply Modal */}
+      {showQuickReplyModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1A1A1A] border border-neutral-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="text-white font-bold text-base flex items-center gap-2">
+                <span>⚡</span>
+                <span>Send Quick Reply ({selectedIds.length} chats)</span>
+              </h3>
+              <button
+                onClick={() => setShowQuickReplyModal(false)}
+                className="text-neutral-400 hover:text-white p-1 rounded-full"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-neutral-400">Choose a template or type custom message:</label>
+              <div className="space-y-1.5">
+                {templates.map((tpl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setQuickReplyText(tpl)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition border ${
+                      quickReplyText === tpl
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                        : 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:bg-neutral-800'
+                    }`}
+                  >
+                    "{tpl}"
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                value={quickReplyText}
+                onChange={(e) => setQuickReplyText(e.target.value)}
+                placeholder="Type your message..."
+                rows={3}
+                className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-500 mt-2"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowQuickReplyModal(false)}
+                className="flex-1 py-2.5 rounded-xl bg-neutral-800 text-neutral-300 font-bold text-xs hover:bg-neutral-700 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onBulkSendQuickReply && quickReplyText.trim()) {
+                    onBulkSendQuickReply(selectedIds, quickReplyText.trim());
+                    setSelectedIds([]);
+                    setShowQuickReplyModal(false);
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black font-black text-xs hover:bg-amber-400 transition shadow-lg shadow-amber-500/20"
+              >
+                Send to {selectedIds.length} Chats
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, getFilterStyle, PHOTO_FILTERS } from '../types';
-import { ShieldAlert, Sparkles, Heart, Share2, Check, ShieldCheck, Flag, AlertTriangle, Music, Play, Pause, Smile, Mic, Image as ImageIcon, Users, Shield, Trash2 } from 'lucide-react';
+import { ShieldAlert, Sparkles, Heart, Share2, Check, ShieldCheck, Flag, AlertTriangle, Music, Play, Pause, Smile, Mic, Image as ImageIcon, Users, Shield, Trash2, MessageCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { SafetyCheckInModal } from './SafetyCheckInModal';
 
@@ -55,6 +55,8 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const [isBioExpanded, setIsBioExpanded] = useState(false);
   const [photoVerificationStatus, setPhotoVerificationStatus] = useState<'none' | 'pending' | 'verified'>('none');
   const [showBlockConfirmModal, setShowBlockConfirmModal] = useState(false);
+  const [blockReason, setBlockReason] = useState('Spam');
+  const [showFullStatsModal, setShowFullStatsModal] = useState(false);
   const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'friends'>(profile.friendStatus || 'none');
   const [privateNote, setPrivateNote] = useState<string>(() => {
     return profile ? localStorage.getItem(`blaze_private_note_${profile.id}`) || '' : '';
@@ -228,7 +230,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shadow-sm" title="Last Active Availability">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Active {profile.lastActive || '5m ago'}
+                Active {profile.lastActiveMinutes ? `${profile.lastActiveMinutes} minutes ago` : (profile.lastActive || '5 minutes ago')}
               </span>
               <p className="text-[11px] text-neutral-400">Last visited: <span className="text-stone-300 font-medium">{lastVisitedTime}</span></p>
             </div>
@@ -256,6 +258,63 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Quick Action Row */}
+        <div className="flex items-center gap-2 mb-4 bg-neutral-800/80 p-2 rounded-xl border border-neutral-700/60 shadow">
+          <button
+            type="button"
+            onClick={() => {
+              if (showToast) showToast(`📌 Pinned ${profile.name} to top of matches.`);
+            }}
+            className="flex-1 bg-neutral-900 hover:bg-neutral-800 text-amber-400 font-bold text-[11px] py-2 rounded-lg flex items-center justify-center gap-1 transition border border-neutral-700"
+          >
+            <span>📌</span> Pin
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowReportModal(true)}
+            className="flex-1 bg-neutral-900 hover:bg-neutral-800 text-rose-400 font-bold text-[11px] py-2 rounded-lg flex items-center justify-center gap-1 transition border border-neutral-700"
+          >
+            <span>🚩</span> Report
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowFullStatsModal(true)}
+            className="flex-1 bg-neutral-900 hover:bg-neutral-800 text-cyan-400 font-bold text-[11px] py-2 rounded-lg flex items-center justify-center gap-1 transition border border-neutral-700"
+          >
+            <span>📊</span> Stats
+          </button>
+          <button
+            type="button"
+            onClick={() => onStartChat(profile)}
+            className="flex-1 bg-[#FFC107] hover:bg-[#ffcd38] text-black font-extrabold text-[11px] py-2 rounded-lg flex items-center justify-center gap-1 transition shadow"
+          >
+            <MessageCircle className="w-3.5 h-3.5" /> Message
+          </button>
+        </div>
+
+        {(profile.phone || profile.whatsapp) && (
+          <div className="flex items-center gap-2 mb-4">
+            {profile.phone && (
+              <a
+                href={`tel:${profile.phone}`}
+                className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 transition"
+              >
+                <span>📞</span> Call {profile.phone}
+              </a>
+            )}
+            {profile.whatsapp && (
+              <a
+                href={`https://wa.me/${profile.whatsapp.replace(/[^0-9]/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-600/40 text-emerald-300 font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 transition"
+              >
+                <span>💬</span> WhatsApp
+              </a>
+            )}
+          </div>
+        )}
 
         {/* 24-Hour Ephemeral Stories Strip */}
         {stories.length > 0 && (
@@ -1193,8 +1252,22 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
               </div>
               <div>
                 <h3 className="text-lg font-black text-white">Block {profile.name}?</h3>
-                <p className="text-xs text-neutral-400">Require confirmation to prevent accidental blocks.</p>
+                <p className="text-xs text-neutral-400">Select reason & confirm block action.</p>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-400 mb-1">Reason for Blocking</label>
+              <select
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-red-500"
+              >
+                <option value="Spam">Spam or Commercial Solicitation</option>
+                <option value="Inappropriate Behavior">Inappropriate Behavior / Messages</option>
+                <option value="Fake Profile">Fake Profile / Catfishing</option>
+                <option value="Harassment">Harassment or Bullying</option>
+              </select>
             </div>
 
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-3 text-xs text-neutral-300 space-y-1.5">
@@ -1214,6 +1287,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
                 type="button"
                 onClick={() => {
                   setShowBlockConfirmModal(false);
+                  if (showToast) showToast(`🚫 Blocked ${profile.name} (Reason: ${blockReason}).`);
                   if (onBlockUser) {
                     onBlockUser(profile.id);
                   }
@@ -1221,9 +1295,70 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
                 }}
                 className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs transition shadow-lg shadow-red-600/30"
               >
-                Yes, Block User
+                Confirm Block
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Full Stats Modal */}
+      {showFullStatsModal && (
+        <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#1C1C1C] border border-neutral-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <span className="text-xl">📊</span>
+                <div>
+                  <h3 className="text-base font-black text-white">{profile.name}'s Activity & Stats</h3>
+                  <p className="text-[10px] text-neutral-400">Popularity trends & interaction history</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFullStatsModal(false)}
+                className="text-neutral-400 hover:text-white p-1 rounded-lg bg-neutral-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs text-neutral-300">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-white">Community Trust Score</span>
+                  <span className="text-emerald-400 font-extrabold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">4.9 / 5.0 ★</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-white">Response Rate</span>
+                  <span className="text-amber-400 font-extrabold">98.4% (Usually replies in 10m)</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-white">Profile Views This Week</span>
+                  <span className="text-cyan-400 font-extrabold">1,420 views</span>
+                </div>
+              </div>
+
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-2">
+                <p className="font-bold text-white text-[11px] mb-2">📈 Popularity Trend (Last 7 Days)</p>
+                <div className="h-28 flex items-end justify-between gap-2 pt-4 px-2 bg-neutral-950/60 rounded-xl">
+                  {[45, 60, 55, 80, 95, 88, 100].map((val, i) => (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="w-full bg-amber-500/80 rounded-t" style={{ height: `${val}%` }} />
+                      <span className="text-[9px] text-neutral-500">Day {i+1}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowFullStatsModal(false)}
+              className="w-full py-3 bg-[#FFC107] text-black font-extrabold rounded-xl text-xs hover:opacity-90 transition"
+            >
+              Close Stats
+            </button>
           </div>
         </div>
       )}

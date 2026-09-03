@@ -59,6 +59,63 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         {/* Content */}
         <div className="p-5 overflow-y-auto space-y-6 flex-1">
           
+          {/* Saved Filters Section */}
+          <div className="bg-[#222222] border border-neutral-800 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <span>🔖 Saved Filter Presets</span>
+              </h3>
+              <span className="text-[10px] text-neutral-400">Quick Toggle</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters(prev => ({
+                    ...prev,
+                    maxDistance: 15,
+                    onlineOnly: true,
+                    lookingFor: ['Friends']
+                  }));
+                }}
+                className="p-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-center transition group"
+              >
+                <p className="text-xs font-bold text-white group-hover:text-amber-400">📍 Nearby Friends</p>
+                <p className="text-[9px] text-neutral-400 mt-0.5">15mi • Online • Friends</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters(prev => ({
+                    ...prev,
+                    activeToday: true,
+                    statusFilter: 'online'
+                  }));
+                }}
+                className="p-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-center transition group"
+              >
+                <p className="text-xs font-bold text-white group-hover:text-amber-400">🌙 Night Owls</p>
+                <p className="text-[9px] text-neutral-400 mt-0.5">Online Now • Active</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters(prev => ({
+                    ...prev,
+                    selectedTribes: ['Geek', 'Jock', 'Otter']
+                  }));
+                }}
+                className="p-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-center transition group"
+              >
+                <p className="text-xs font-bold text-white group-hover:text-amber-400">🤝 Same Tribes</p>
+                <p className="text-[9px] text-neutral-400 mt-0.5">Matching Tribes</p>
+              </button>
+            </div>
+          </div>
+
           {/* Country / Region Filter */}
           <div className="space-y-2">
             <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Country / Region Filter (Global Reach)</label>
@@ -242,6 +299,36 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     }`}
                   >
                     {status}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Sort By Section */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Sort By</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'smart_sort', label: '🧠 Smart Sort', desc: 'Prioritizes shared interests & tribes' },
+                { id: 'closest', label: '📍 Closest', desc: 'Nearest distance first' },
+                { id: 'active_now', label: '🟢 Active Now', desc: 'Online status first' },
+                { id: 'newest', label: '✨ Newest', desc: 'Recently joined profiles' },
+              ].map(opt => {
+                const selected = (filters.sortBy || 'closest') === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setFilters(prev => ({ ...prev, sortBy: opt.id as any }))}
+                    className={`p-3 rounded-xl text-left transition border ${
+                      selected
+                        ? 'bg-[#FFC107] text-[#121212] border-[#FFC107] font-bold shadow'
+                        : 'bg-[#252525] text-neutral-300 border-neutral-800 hover:border-neutral-700'
+                    }`}
+                  >
+                    <p className="text-xs font-bold">{opt.label}</p>
+                    <p className={`text-[10px] mt-0.5 ${selected ? 'text-neutral-800' : 'text-neutral-400'}`}>{opt.desc}</p>
                   </button>
                 );
               })}
