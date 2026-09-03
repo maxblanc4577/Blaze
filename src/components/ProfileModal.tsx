@@ -69,11 +69,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           <img
             src={profile.photos[currentPhotoIdx] || profile.photos[0]}
             alt={profile.name}
-            style={{ filter: getFilterStyle(profile.photoFilter) }}
+            style={{ filter: getFilterStyle(profile.photoFilters?.[currentPhotoIdx] || profile.photoFilter) }}
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-transparent to-black/60 sm:hidden" />
+
+          {/* Photo Caption Overlay if present */}
+          {profile.photoCaptions?.[currentPhotoIdx] && (
+            <div className="absolute bottom-16 left-4 right-4 z-10 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-xs text-white text-center">
+              💬 "{profile.photoCaptions[currentPhotoIdx]}"
+            </div>
+          )}
 
           {/* Close button for mobile */}
           <button
@@ -127,7 +134,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </div>
               <p className="text-xs text-neutral-300 flex items-center gap-1 mt-1">
                 <MapPin className="w-3.5 h-3.5 text-[#FFC107]" />
-                <span>{profile.distance === 0 ? 'Less than a mile away' : `${profile.distance} miles away`} ({profile.locationName})</span>
+                <span>{profile.distance === 0 ? 'Less than a mile away' : `${profile.distance} miles away`} ({profile.country || 'United States'})</span>
               </p>
             </div>
 
@@ -165,7 +172,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
                 <p className="text-xs text-neutral-300 flex items-center gap-1 mt-1">
                   <MapPin className="w-3.5 h-3.5 text-[#FFC107]" />
-                  <span>{profile.distance === 0 ? 'Less than a mile away' : `${profile.distance} miles away`} ({profile.locationName})</span>
+                  <span>{profile.distance === 0 ? 'Less than a mile away' : `${profile.distance} miles away`} ({profile.country || 'United States'})</span>
                 </p>
               </div>
 

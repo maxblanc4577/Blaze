@@ -57,6 +57,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
   const [interestSearch, setInterestSearch] = useState('');
   const [locationSearch, setLocationSearch] = useState('');
   const [showGoogleMapsModal, setShowGoogleMapsModal] = useState(false);
+  const [lightboxPhotoIndex, setLightboxPhotoIndex] = useState<number | null>(null);
 
   const presetAvatars = [
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=800&q=80',
@@ -975,19 +976,42 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
 
             {formData.photos.length > 0 && (
               <div className="grid grid-cols-4 gap-2 pt-2">
-                {formData.photos.map((photoUrl, pIdx) => (
-                  <div key={pIdx} className="relative aspect-square rounded-xl overflow-hidden border border-neutral-700 group bg-neutral-900">
-                    <img src={photoUrl} alt={`Public ${pIdx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    <button
-                      type="button"
-                      onClick={() => removePublicPhoto(pIdx)}
-                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-red-400 transition"
-                      title="Remove Photo"
+                {formData.photos.map((photoUrl, pIdx) => {
+                  const caption = formData.photoCaptions?.[pIdx] || '';
+                  const filterId = formData.photoFilters?.[pIdx] || formData.photoFilter || 'none';
+                  return (
+                    <div
+                      key={pIdx}
+                      onClick={() => setLightboxPhotoIndex(pIdx)}
+                      className="relative aspect-square rounded-xl overflow-hidden border border-neutral-700 group bg-neutral-900 cursor-pointer"
+                      title="Click to open gallery, add captions & apply color filters"
                     >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                ))}
+                      <img
+                        src={photoUrl}
+                        alt={`Public ${pIdx}`}
+                        style={{ filter: getFilterStyle(filterId) }}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      {caption && (
+                        <div className="absolute bottom-0 inset-x-0 bg-black/70 backdrop-blur-sm p-1 text-[9px] text-white truncate text-center">
+                          💬 {caption}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePublicPhoto(pIdx);
+                        }}
+                        className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-red-600 rounded-full text-red-400 hover:text-white opacity-0 group-hover:opacity-100 transition"
+                        title="Remove Photo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -2036,6 +2060,136 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             setTimeout(() => setSuccessMsg(''), 3000);
           }}
         />
+      )}
+
+      {/* Full-Screen Gallery Lightbox Modal with Caption Editor & Photo Enhancement Toolbar */}
+      {lightboxPhotoIndex !== null && formData.photos[lightboxPhotoIndex] && (
+        <div
+          onClick={() => setLightboxPhotoIndex(null)}
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxPhotoIndex(null)}
+            className="absolute top-6 right-6 p-3 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white shadow-2xl transition z-20"
+          >
+            ✕
+          </button>
+
+          <div className="relative max-w-3xl w-full flex flex-col items-center space-y-4" onClick={e => e.stopPropagation()}>
+            {/* Main Photo with Applied Filter */}
+            <div className="relative max-h-[55vh] max-w-full overflow-hidden rounded-2xl shadow-2xl border border-neutral-700 bg-black flex items-center justify-center">
+              <img
+                src={formData.photos[lightboxPhotoIndex]}
+                alt={`Photo ${lightboxPhotoIndex + 1}`}
+                style={{ filter: getFilterStyle(formData.photoFilters?.[lightboxPhotoIndex] || formData.photoFilter || 'none') }}
+                className="max-h-[55vh] max-w-full object-contain"
+                referrerPolicy="no-referrer"
+              />
+
+              {/* Prev/Next Navigation */}
+              {formData.photos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setLightboxPhotoIndex(prev => (prev! - 1 + formData.photos.length) % formData.photos.length)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/70 hover:bg-black text-white border border-white/20 transition text-lg font-bold"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLightboxPhotoIndex(prev => (prev! + 1) % formData.photos.length)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/70 hover:bg-black text-white border border-white/20 transition text-lg font-bold"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Photo Enhancement Toolbar (Color Filters) */}
+            <div className="bg-[#1C1C1C] border border-neutral-800 rounded-2xl p-3.5 w-full max-w-xl space-y-2 shadow-xl">
+              <h3 style={{ fontSize: '10px' }} className="font-bold text-neutral-300 uppercase tracking-wider text-center flex items-center justify-center gap-1.5">
+                ✨ Photo Enhancement Toolbar (Color Filters)
+              </h3>
+              <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
+                {PHOTO_FILTERS.map(filter => {
+                  const currentFilter = formData.photoFilters?.[lightboxPhotoIndex] || formData.photoFilter || 'none';
+                  const isSelected = currentFilter === filter.id;
+                  return (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          photoFilters: {
+                            ...(prev.photoFilters || {}),
+                            [lightboxPhotoIndex]: filter.id
+                          }
+                        }));
+                      }}
+                      className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition border truncate ${
+                        isSelected
+                          ? 'bg-[#FFC107] text-black border-[#FFC107] shadow'
+                          : 'bg-neutral-800 text-neutral-300 border-neutral-700 hover:bg-neutral-700'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Caption Editor */}
+            <div className="bg-[#1C1C1C] border border-neutral-800 rounded-2xl p-3.5 w-full max-w-xl space-y-2 shadow-xl">
+              <p style={{ fontSize: '10px' }} className="font-bold text-neutral-300 uppercase tracking-wider block">
+                💬 Text Caption for Photo {lightboxPhotoIndex + 1} of {formData.photos.length}
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Add or edit caption for this photo (e.g. Sunset at the beach)..."
+                  value={formData.photoCaptions?.[lightboxPhotoIndex] || ''}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      photoCaptions: {
+                        ...(prev.photoCaptions || {}),
+                        [lightboxPhotoIndex]: val
+                      }
+                    }));
+                  }}
+                  className="flex-1 bg-neutral-900 border border-neutral-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-[#FFC107]"
+                />
+              </div>
+              <p className="text-[10px] text-neutral-400">
+                Captions <span style={{ fontSize: '9px' }} className="text-amber-400 font-semibold">are instantly saved</span> for this profile view.
+              </p>
+            </div>
+
+            {/* Thumbnail Strip */}
+            {formData.photos.length > 1 && (
+              <div className="flex items-center space-x-2 pt-1">
+                {formData.photos.map((pUrl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setLightboxPhotoIndex(idx)}
+                    className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition ${
+                      idx === lightboxPhotoIndex ? 'border-[#FFC107] scale-105' : 'border-transparent opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={pUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
     </div>

@@ -15,6 +15,9 @@ interface RightProfilePanelProps {
   onInviteToGroup?: (profile: UserProfile, groupName: string) => void;
   showToast?: (msg: string) => void;
   onReportSubmitted?: (profile: UserProfile, reason: string, details: string) => void;
+  hasWinked?: boolean;
+  hasMessaged?: boolean;
+  conversationMessages?: Array<{ id: string; sender: 'me' | 'them'; text: string; timestamp?: number }>;
 }
 
 export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
@@ -28,6 +31,9 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   onInviteToGroup,
   showToast,
   onReportSubmitted,
+  hasWinked = false,
+  hasMessaged = false,
+  conversationMessages = [],
 }) => {
   const [copied, setCopied] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -36,6 +42,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [isPlayingSong, setIsPlayingSong] = useState(false);
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [activeProfileTab, setActiveProfileTab] = useState<'overview' | 'history'>('overview');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const [quickReactionSent, setQuickReactionSent] = useState<string | null>(null);
@@ -316,7 +323,90 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </div>
         )}
 
-        {/* 24-Hour Ephemeral Stories Strip */}
+        {/* Tab Selector: Overview vs Interaction History */}
+        <div className="flex border-b border-neutral-800 mb-4">
+          <button
+            type="button"
+            onClick={() => setActiveProfileTab('overview')}
+            className={`flex-1 pb-2.5 text-xs font-bold border-b-2 transition ${
+              activeProfileTab === 'overview' ? 'border-amber-400 text-amber-400' : 'border-transparent text-neutral-400 hover:text-white'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveProfileTab('history')}
+            className={`flex-1 pb-2.5 text-xs font-bold border-b-2 transition flex items-center justify-center gap-1.5 ${
+              activeProfileTab === 'history' ? 'border-amber-400 text-amber-400' : 'border-transparent text-neutral-400 hover:text-white'
+            }`}
+          >
+            <span>⏳ Interaction History</span>
+          </button>
+        </div>
+
+        {activeProfileTab === 'history' && (
+          <div className="space-y-3 py-2">
+            <div className="bg-neutral-800/80 border border-neutral-700/80 p-3.5 rounded-xl space-y-1">
+              <h4 className="text-xs font-bold text-white">Timestamped Interaction Log</h4>
+              <p className="text-[11px] text-neutral-400">Complete chronological record of all winks, taps, and messages sent between you and {profile.name}.</p>
+            </div>
+
+            <div className="space-y-2.5">
+              <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                  👁️
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-white">Profile Viewed & Discovered</p>
+                  <p className="text-[11px] text-neutral-300">You discovered and viewed {profile.name}'s profile.</p>
+                  <p className="text-[10px] text-neutral-500 mt-1">Today at 12:30 PM</p>
+                </div>
+              </div>
+
+              {(hasWinked || profile.isTapped || profile.isWinked) && (
+                <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                    🔥
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-white">Wink / Tap Sent</p>
+                    <p className="text-[11px] text-neutral-300">Mutual connection established via wink/tap.</p>
+                    <p className="text-[10px] text-neutral-500 mt-1">Today at 1:05 PM</p>
+                  </div>
+                </div>
+              )}
+
+              {conversationMessages && conversationMessages.length > 0 ? (
+                conversationMessages.map((msg, idx) => (
+                  <div key={msg.id || idx} className="bg-neutral-900 border border-neutral-800 p-3 rounded-xl flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                      msg.sender === 'me' ? 'bg-blue-500/20 text-blue-300' : 'bg-purple-500/20 text-purple-300'
+                    }`}>
+                      {msg.sender === 'me' ? '💬' : '📩'}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-white">
+                        {msg.sender === 'me' ? 'You sent a message' : `${profile.name} replied`}
+                      </p>
+                      <p className="text-[11px] text-neutral-300 italic">"{msg.text}"</p>
+                      <p className="text-[10px] text-neutral-500 mt-1">
+                        {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently'}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl text-center">
+                  <p className="text-xs text-neutral-400">No chat messages exchanged yet in this conversation.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeProfileTab === 'overview' && (
+          <div>
         {stories.length > 0 && (
           <div className="bg-neutral-800/80 border border-neutral-700/60 rounded-xl p-3 mb-3">
             <div className="flex items-center justify-between mb-2">
@@ -508,22 +598,33 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </div>
         )}
 
-        {/* Recent Activity Log Snippet */}
-        <div className="bg-neutral-800/80 border border-neutral-700/80 rounded-xl p-3 mb-3 flex items-center justify-between text-xs shadow">
+        {/* Recent Activity Log & Interaction Indicator */}
+        <div className="bg-gradient-to-r from-amber-500/15 via-neutral-800 to-neutral-800 border border-amber-500/30 rounded-xl p-3 mb-3 flex items-center justify-between text-xs shadow">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm flex-shrink-0">
               ⚡
             </div>
             <div>
-              <p className="font-bold text-white">Recent Activity & Interaction Log</p>
-              <p className="text-[11px] text-neutral-400">
-                {profile.recentActivity || `You visited their profile yesterday & winked 2 days ago`}
+              <p className="font-bold text-white flex items-center gap-1.5">
+                <span>Interaction Status</span>
+                {(hasWinked || hasMessaged || profile.isTapped || profile.isWinked) && (
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
+                    Interacted ✓
+                  </span>
+                )}
+              </p>
+              <p className="text-[11px] text-neutral-300 mt-0.5">
+                {hasMessaged ? '💬 Previous chat messages exchanged' : ''}
+                {hasMessaged && (hasWinked || profile.isTapped || profile.isWinked) ? ' • ' : ''}
+                {(hasWinked || profile.isTapped || profile.isWinked) ? '🔥 Wink / Tap sent' : ''}
+                {(!hasMessaged && !hasWinked && !profile.isTapped && !profile.isWinked) ? (profile.recentActivity || 'No prior winks or messages recorded yet.') : ''}
               </p>
             </div>
           </div>
-          <span className="text-[10px] bg-neutral-900 text-amber-300 px-2 py-1 rounded-lg border border-neutral-700 font-semibold flex-shrink-0">
-            Context Log
-          </span>
+          <div className="flex items-center gap-1">
+            {hasMessaged && <span className="text-xs" title="Messaged">💬</span>}
+            {(hasWinked || profile.isTapped || profile.isWinked) && <span className="text-xs" title="Winked/Tapped">🔥</span>}
+          </div>
         </div>
 
         {/* Photo Gallery with Filter Selector & Swipe Navigation */}
@@ -568,6 +669,11 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
                   {profile.photos.length > 1 && (
                     <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold text-white shadow flex items-center gap-1 z-10 transition-transform duration-300 group-hover:scale-105">
                       <span>{idx + 1}</span> / <span>{profile.photos.length}</span>
+                    </div>
+                  )}
+                  {profile.photoCaptions?.[idx] && (
+                    <div className="absolute bottom-3 left-3 right-16 bg-black/75 backdrop-blur-md px-3 py-1 rounded-xl text-xs text-white truncate z-10">
+                      💬 "{profile.photoCaptions[idx]}"
                     </div>
                   )}
                   <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] text-amber-300 font-bold uppercase tracking-wider flex items-center gap-1 shadow opacity-80 group-hover:opacity-100 transition-opacity duration-300">
@@ -876,8 +982,8 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
         <div className="bg-neutral-800/60 border border-neutral-700/60 rounded-xl p-3 mb-4 space-y-1.5 transition">
           <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsBioExpanded(!isBioExpanded)}>
             <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">About / Biography</h4>
-            <span className="text-[11px] text-amber-400 font-semibold hover:underline">
-              {isBioExpanded ? 'Show Less ▴' : 'Expand Full Bio ▾'}
+            <span className="text-[11px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-lg border border-amber-500/30 font-semibold hover:underline">
+              {isBioExpanded ? 'Show Less ▴' : 'Read More ▾'}
             </span>
           </div>
           <p className={`text-stone-300 text-xs leading-relaxed transition-all ${isBioExpanded ? '' : 'line-clamp-2'}`}>
@@ -939,6 +1045,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
         </div>
 
 
+      </div>)}
       </div>
 
       <div className="pt-4 border-t border-neutral-800 space-y-2">

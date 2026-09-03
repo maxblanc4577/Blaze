@@ -79,7 +79,10 @@ export default function App() {
     }
   };
 
-  const [profiles, setProfiles] = useState<UserProfile[]>(MOCK_PROFILES);
+  const [profiles, setProfiles] = useState<UserProfile[]>(() => {
+    const countries = ['United States', 'United Kingdom', 'France', 'Canada', 'Australia', 'Japan', 'Germany', 'Brazil'];
+    return MOCK_PROFILES.map((p, i) => ({ ...p, country: p.country || countries[i % countries.length] }));
+  });
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem('blaze_current_user');
@@ -356,6 +359,13 @@ export default function App() {
   };
   const [readReceiptsEnabled, setReadReceiptsEnabled] = useState<boolean>(true);
   const [ghostModeEnabled, setGhostModeEnabled] = useState<boolean>(false);
+  const [autoAdvancePhotosEnabled, setAutoAdvancePhotosEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('blaze_auto_advance_photos') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('blaze_auto_advance_photos', String(autoAdvancePhotosEnabled));
+  }, [autoAdvancePhotosEnabled]);
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState<boolean>(false);
   const [isSafetyGuidelinesOpen, setIsSafetyGuidelinesOpen] = useState<boolean>(false);
   const [currentLanguage, setCurrentLanguage] = useState<string>('en');
@@ -581,6 +591,14 @@ export default function App() {
       if (filters.activeToday && p.status !== 'online' && p.status !== 'away') return false;
       if (filters.recentlyActive && p.status !== 'online') return false;
       if (filters.newMembersOnly && !p.isNewUser) return false;
+      if (filters.lastActiveFilter && filters.lastActiveFilter !== 'all') {
+        const now = Date.now();
+        const lastLogin = p.lastLogin || (now - 1000 * 60 * 30);
+        const diffMins = (now - lastLogin) / (1000 * 60);
+        if (filters.lastActiveFilter === '15m' && diffMins > 15 && p.status !== 'online') return false;
+        if (filters.lastActiveFilter === '1h' && diffMins > 60 && p.status !== 'online') return false;
+        if (filters.lastActiveFilter === '24h' && diffMins > 1440 && p.status !== 'online' && p.status !== 'away') return false;
+      }
       if (filters.excludeAlreadyMessaged) {
         const messagedIds = conversations.map(c => c.profile.id);
         if (messagedIds.includes(p.id)) return false;
@@ -653,6 +671,20 @@ export default function App() {
         const isBNew = b.isNewUser ? 1 : 0;
         if (isBNew !== isANew) return isBNew - isANew;
         return (b.lastPhotoUpdated || 0) - (a.lastPhotoUpdated || 0);
+      }
+      if (filters.sortBy === 'compatibility') {
+        const getCompatibilityScore = (p: UserProfile) => {
+          let score = 0;
+          const sharedInterests = p.interestTags?.filter(tag => currentUser.interestTags?.includes(tag)).length || 0;
+          score += sharedInterests * 4;
+          const matchingTribes = p.tribes?.filter(t => currentUser.tribes?.includes(t) || currentUser.tribe === t).length || 0;
+          score += matchingTribes * 5;
+          if (p.status === 'online') score += 3;
+          return score;
+        };
+        const scoreA = getCompatibilityScore(a);
+        const scoreB = getCompatibilityScore(b);
+        if (scoreB !== scoreA) return scoreB - scoreA;
       }
       if (filters.sortBy === 'active_now') {
         const rank = (s?: string) => s === 'online' ? 0 : s === 'away' ? 1 : 2;
@@ -1007,6 +1039,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setGridSubTab('recently_viewed')}
+                  style={{ lineHeight: '18px', fontSize: '12px', height: '23px', width: '114px' }}
                   className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
                     gridSubTab === 'recently_viewed'
                       ? 'bg-amber-500 text-[#121212] shadow'
@@ -1080,15 +1113,14 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setMintboysMode(!mintboysMode)}
-                  className={`px-3.5 py-2 rounded-lg text-xs font-black transition flex items-center gap-1.5 ${
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
                     mintboysMode
-                      ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-black shadow-lg ring-2 ring-amber-400 scale-105'
-                      : 'text-amber-300 hover:text-white bg-amber-500/15 border border-amber-500/30'
+                      ? 'bg-amber-500 text-black shadow-lg ring-2 ring-amber-400'
+                      : 'text-neutral-300 hover:text-white bg-neutral-800/60'
                   }`}
                   title="Toggle MintBoys Elite Companions mode"
                 >
-                  <span>👑 MintBoys Elite</span>
-                  {mintboysMode && <span className="w-1.5 h-1.5 rounded-full bg-black animate-ping"></span>}
+                  <span>👔 MintBoys Elite</span>
                 </button>
 
               </div>
@@ -1186,6 +1218,37 @@ export default function App() {
                     </button>
                   </div>
 
+                  {/* Quick Sort Segment Control */}
+                  <div className="mb-4 flex items-center justify-between bg-neutral-900 border border-neutral-800 p-2 rounded-2xl shadow-sm">
+                    <span className="text-xs font-bold text-neutral-400 pl-2">Sort by:</span>
+                    <div className="flex items-center space-x-1.5 bg-neutral-950 p-1 rounded-xl border border-neutral-800">
+                      <button
+                        onClick={() => setFilters({ ...filters, sortBy: 'closest' })}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                          (!filters.sortBy || filters.sortBy === 'closest') ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        📍 Distance
+                      </button>
+                      <button
+                        onClick={() => setFilters({ ...filters, sortBy: 'newest' })}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                          filters.sortBy === 'newest' ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        ✨ Newest
+                      </button>
+                      <button
+                        onClick={() => setFilters({ ...filters, sortBy: 'compatibility' })}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                          filters.sortBy === 'compatibility' ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        🔥 Compatibility
+                      </button>
+                    </div>
+                  </div>
+
                   <div
                     className={`grid gap-3`}
                     style={{
@@ -1217,6 +1280,7 @@ export default function App() {
                         hasActiveSubscription={hasActiveSubscription}
                         showToast={showToast}
                         onReportSubmitted={handleReportSubmitted}
+                        hasActiveConversation={conversations.some(c => c.profile.id === profile.id && c.messages && c.messages.length > 0)}
                       />
                     ))}
                   </div>
@@ -2140,6 +2204,12 @@ export default function App() {
           setIsSettingsOpen(false);
           setIsSafetyGuidelinesOpen(true);
         }}
+        autoAdvancePhotosEnabled={autoAdvancePhotosEnabled}
+        onToggleAutoAdvancePhotos={(val) => {
+          setAutoAdvancePhotosEnabled(val);
+          showToast(val ? '⚡ Auto-advance photos enabled (every 3s).' : '⏸️ Auto-advance photos disabled.');
+        }}
+        reportHistory={reportHistory}
       />
 
       {/* Safety & Community Guidelines Modal */}
@@ -2173,6 +2243,9 @@ export default function App() {
             }}
             showToast={showToast}
             onReportSubmitted={handleReportSubmitted}
+            hasWinked={!!selectedProfile.isTapped || !!selectedProfile.isWinked}
+            hasMessaged={conversations.some(c => c.profile.id === selectedProfile.id && c.messages && c.messages.length > 0)}
+            conversationMessages={conversations.find(c => c.profile.id === selectedProfile.id)?.messages || []}
           />
         )}
       </AnimatePresence>

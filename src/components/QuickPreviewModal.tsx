@@ -30,7 +30,7 @@ export const QuickPreviewModal: React.FC<QuickPreviewModalProps> = ({ profile, o
               <span>{profile.name}, {profile.age}</span>
               {profile.isVerified && <ShieldCheck className="w-4 h-4 text-cyan-400" />}
             </h3>
-            <p className="text-xs text-neutral-300">{profile.locationName} • {profile.distance === 0 ? 'Here' : `${profile.distance} mi`}</p>
+            <p className="text-xs text-neutral-300">{profile.country || 'United States'} • {profile.distance === 0 ? 'Here' : `${profile.distance} mi`}</p>
           </div>
         </div>
 

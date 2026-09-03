@@ -32,6 +32,7 @@ export const CURRENT_USER: UserProfile = {
     ]
   },
   locationName: 'Downtown',
+  country: 'United States',
   latitude: 37.7749,
   longitude: -122.4194,
 };

@@ -59,6 +59,7 @@ export interface UserProfile {
   }>;
   grantedAccessUserIds?: string[];
   locationName: string;
+  country?: string;
   isFavorite?: boolean;
   isTapped?: boolean;
   isBlocked?: boolean;
@@ -84,6 +85,8 @@ export interface UserProfile {
   isMatchedUp?: boolean;
   lastPhotoUpdated?: number;
   photoFilter?: string;
+  photoCaptions?: Record<number, string>; // mapping photo index to caption
+  photoFilters?: Record<number, string>; // mapping photo index to filter id
   lastLogin?: number;
   sparkBalance?: number;
   currentMood?: string; // e.g. '🔥', '😎', '☕', '🚀', '😴', '🎉'
@@ -188,6 +191,7 @@ export interface FilterState {
   excludeAlreadyMessaged?: boolean;
   countryFilter?: string;
   verifiedEliteOnly?: boolean;
+  lastActiveFilter?: 'all' | '15m' | '1h' | '24h';
 }
 
 export interface Group {

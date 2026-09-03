@@ -259,6 +259,32 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             </div>
           </div>
 
+          {/* Last Active Time Filter */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Last Active Time Filter</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: 'Any Time', value: 'all' },
+                { label: 'Last 15 Mins', value: '15m' },
+                { label: 'Last 1 Hour', value: '1h' },
+                { label: 'Last 24 Hours', value: '24h' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setFilters(prev => ({ ...prev, lastActiveFilter: opt.value as any }))}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition border ${
+                    (filters.lastActiveFilter || 'all') === opt.value
+                      ? 'bg-amber-500 text-black border-amber-400 shadow-md'
+                      : 'bg-[#222222] text-neutral-300 border-neutral-800 hover:border-neutral-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Interaction History Category */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Interaction History</h3>

@@ -111,12 +111,21 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
 
                 return (
                   <>
-                    {/* Pulse Scan Radiating Ring Animation */}
-                    <AdvancedMarker position={defaultCenter} zIndex={1}>
-                      <div className="relative pointer-events-none -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-                        <div className="absolute w-48 h-48 rounded-full border-2 border-amber-400/80 bg-amber-500/10 animate-ping pointer-events-none" />
-                        <div className="absolute w-24 h-24 rounded-full border border-amber-300/60 bg-amber-400/20 animate-pulse pointer-events-none" />
-                        <div className="w-4 h-4 rounded-full bg-amber-400 shadow-lg shadow-amber-400/50 z-10" />
+                    {/* User's Custom Location Marker */}
+                    <AdvancedMarker position={defaultCenter} zIndex={5}>
+                      <div className="relative -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+                        <div className="absolute w-40 h-40 rounded-full border-2 border-amber-400 bg-amber-500/20 animate-ping pointer-events-none" />
+                        <div className="absolute w-20 h-20 rounded-full border border-amber-300 bg-amber-400/30 animate-pulse pointer-events-none" />
+                        <div className="w-12 h-12 rounded-full border-2 border-amber-400 shadow-2xl bg-stone-900 overflow-hidden relative z-10 flex items-center justify-center">
+                          <img
+                            src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80"
+                            alt="You"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <span className="absolute -bottom-3 bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg border border-white z-20 whitespace-nowrap">
+                          📍 You
+                        </span>
                       </div>
                     </AdvancedMarker>
 
@@ -166,7 +175,10 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
                       onClick={() => setSelectedProfile(profile)}
                     >
                       <div className="relative group cursor-pointer transition-transform hover:scale-110">
-                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-500 shadow-md bg-white">
+                        {profile.status === 'online' && (
+                          <div className="absolute -inset-2 rounded-full border-2 border-emerald-400 animate-ping opacity-75 pointer-events-none" />
+                        )}
+                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-500 shadow-md bg-white relative z-10">
                           <img
                             src={profile.photos[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'}
                             alt={profile.name}
@@ -174,7 +186,7 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
                             referrerPolicy="no-referrer"
                           />
                         </div>
-                        <span className="absolute -bottom-1 right-0 w-3 h-3 rounded-full border-2 border-white bg-emerald-500"></span>
+                        <span className={`absolute -bottom-1 right-0 w-3 h-3 rounded-full border-2 border-white z-20 ${profile.status === 'online' ? 'bg-emerald-500' : 'bg-yellow-500'}`}></span>
                       </div>
                     </AdvancedMarker>
                   );
@@ -245,8 +257,16 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
             <span className="absolute top-3 text-[9px] text-stone-400/80 font-bold">50 mi</span>
           </div>
 
-          <div className="absolute w-[50px] h-[50px] rounded-full bg-orange-500/20 flex items-center justify-center shadow-lg">
-            <div className="w-3.5 h-3.5 rounded-full bg-orange-500 animate-pulse shadow-orange-500/50 shadow-md"></div>
+          <div className="absolute w-14 h-14 rounded-full border-2 border-amber-400 shadow-2xl bg-stone-900 overflow-hidden flex items-center justify-center z-20">
+            <div className="absolute inset-0 rounded-full border-2 border-amber-400 animate-ping opacity-60 pointer-events-none" />
+            <img
+              src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80"
+              alt="You"
+              className="w-full h-full object-cover"
+            />
+            <span className="absolute -bottom-4 bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full shadow border border-white whitespace-nowrap">
+              📍 You
+            </span>
           </div>
 
           {/* Search Radius Circle Overlay based on searchRadius */}
@@ -261,6 +281,7 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
             const radius = 90 + (idx % 3) * 55;
             const x = Math.cos(angle) * radius;
             const y = Math.sin(angle) * radius;
+            const isActive = profile.status === 'online';
 
             return (
               <div
@@ -269,7 +290,10 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
                 className="absolute cursor-pointer group transition-transform hover:scale-125 z-10"
                 style={{ transform: `translate(${x}px, ${y}px)` }}
               >
-                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-500 shadow-xl bg-stone-800 relative">
+                {isActive && (
+                  <div className="absolute -inset-2 rounded-full border-2 border-emerald-400 animate-ping opacity-75 pointer-events-none" />
+                )}
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-500 shadow-xl bg-stone-800 relative z-10">
                   <img
                     src={profile.photos[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'}
                     alt={profile.name}
@@ -277,6 +301,7 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
                     referrerPolicy="no-referrer"
                   />
                 </div>
+                <span className={`absolute -bottom-1 right-0 w-3 h-3 rounded-full border-2 border-white z-20 ${isActive ? 'bg-emerald-500' : 'bg-yellow-500'}`}></span>
                 <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap bg-stone-900/90 text-white px-2 py-0.5 rounded-full text-[10px] font-medium border border-stone-800 shadow">
                   {profile.name} ({profile.distance}m)
                 </div>

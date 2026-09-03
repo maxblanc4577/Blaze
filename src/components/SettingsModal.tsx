@@ -27,6 +27,18 @@ interface SettingsModalProps {
   currentUser?: UserProfile;
   onUpdateUser?: (updated: UserProfile) => void;
   onOpenSafetyGuidelines?: () => void;
+  autoAdvancePhotosEnabled: boolean;
+  onToggleAutoAdvancePhotos: (val: boolean) => void;
+  reportHistory?: Array<{
+    id: string;
+    profileId: string;
+    profileName: string;
+    reason: string;
+    details: string;
+    timestamp: number;
+    dateStr: string;
+    status?: string;
+  }>;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -54,6 +66,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   currentUser,
   onUpdateUser,
   onOpenSafetyGuidelines,
+  autoAdvancePhotosEnabled,
+  onToggleAutoAdvancePhotos,
+  reportHistory = [],
 }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'merchant' | 'safety' | 'account_safety' | 'private_albums' | 'activity' | 'customization'>('general');
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => {
@@ -363,7 +378,31 @@ For support, contact support@blazeapp.io
                 </button>
               </div>
 
-              {/* Ghost Mode */}
+              {/* Auto-advance photos */}
+              <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Auto-advance photos</h4>
+                    <p className="text-xs text-neutral-400">Automatically cycle through profile photos every 3 seconds while viewing.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onToggleAutoAdvancePhotos(!autoAdvancePhotosEnabled)}
+                  className={`w-12 h-6 rounded-full transition-colors relative p-1 ${
+                    autoAdvancePhotosEnabled ? 'bg-amber-500' : 'bg-neutral-700'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                      autoAdvancePhotosEnabled ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
               <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
@@ -750,27 +789,44 @@ For support, contact support@blazeapp.io
                 )}
               </div>
 
-              {/* Reported Profiles Section */}
+              {/* Administrative History & Report Queue Section */}
               <div className="bg-[#252525] border border-neutral-800 p-4 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
                     <Flag className="w-4 h-4 text-amber-400" />
-                    <span>Report History ({reportedList.length})</span>
+                    <span>Administrative History & Report Queue ({reportHistory.length})</span>
                   </h4>
+                  <span className="text-[10px] text-neutral-400">Chronological Logs</span>
                 </div>
-                <div className="space-y-2">
-                  {reportedList.map((rep) => (
-                    <div key={rep.id} className="bg-neutral-900 p-3 rounded-xl border border-neutral-800 flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold text-white">{rep.name}</p>
-                        <p className="text-[10px] text-neutral-400">Reason: {rep.reason} • {rep.date}</p>
-                      </div>
-                      <span className="text-[10px] px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
-                        Under Review
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                {reportHistory.length === 0 ? (
+                  <p className="text-xs text-neutral-400 py-2">No safety reports submitted yet.</p>
+                ) : (
+                  <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                    {reportHistory.map((rep) => {
+                      const status = rep.status || 'Pending';
+                      const statusColor = 
+                        status === 'Resolved' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+                        status === 'Dismissed' ? 'bg-neutral-800 text-neutral-400 border-neutral-700' :
+                        'bg-amber-500/20 text-amber-300 border-amber-500/30';
+                      return (
+                        <div key={rep.id} className="bg-neutral-900 p-3.5 rounded-xl border border-neutral-800 flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-white">{rep.profileName}</p>
+                              <span className="text-[10px] text-neutral-500 font-mono">ID: {rep.profileId}</span>
+                            </div>
+                            <p className="text-[11px] text-neutral-300 font-medium">Reason: {rep.reason}</p>
+                            {rep.details && <p className="text-[10px] text-neutral-400 italic">Details: "{rep.details}"</p>}
+                            <p className="text-[10px] text-neutral-500">Submitted on {rep.dateStr} (Report ID: {rep.id})</p>
+                          </div>
+                          <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold border whitespace-nowrap ${statusColor}`}>
+                            {status === 'Pending' ? '⏳ Pending' : status === 'Resolved' ? '✓ Resolved' : '✕ Dismissed'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
