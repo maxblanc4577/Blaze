@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, getFilterStyle, getStyleTagIcon } from '../types';
-import { Flame, Star, ShieldCheck, Sparkles, Lock, Flag, Eye, Trash2, MessageCircle, Crown, MoreVertical, ShieldAlert, Phone, MessageSquare } from 'lucide-react';
+import { Flame, Star, ShieldCheck, Sparkles, Lock, Trash2, Crown, ShieldAlert, Phone, MessageSquare } from 'lucide-react';
 import { motion } from 'motion/react';
 import { QuickPreviewModal } from './QuickPreviewModal';
 import { ReportModal } from './ReportModal';
@@ -229,84 +229,17 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             </div>
           ) : <div />}
 
-          <div className="flex items-center space-x-1.5 pointer-events-auto">
-            {/* Direct Chat Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenChat) onOpenChat(profile);
-              }}
-              className="w-7 h-7 rounded-full bg-blue-500/80 hover:bg-blue-500 backdrop-blur-md flex items-center justify-center border border-blue-400/30 text-white transition shadow"
-              title="Open Chat & View History"
-            >
-              <MessageCircle className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Quick Preview Eye Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowPreview(true);
-              }}
-              className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-white hover:bg-neutral-800 transition shadow"
-              title="Quick Bio Preview"
-            >
-              <Eye className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Flag / Report Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowReportModal(true);
-              }}
-              className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-neutral-300 hover:text-red-400 hover:bg-neutral-800 transition shadow"
-              title="Report Profile"
-            >
-              <Flag className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Hidden Dropdown Menu in Top-Right Corner for Quick Block */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowCardMenu(!showCardMenu);
-                }}
-                className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/10 text-white hover:bg-neutral-800 transition shadow"
-                title="Quick Options"
-              >
-                <MoreVertical className="w-3.5 h-3.5" />
-              </button>
-
-              {showCardMenu && (
-                <div className="absolute right-0 top-full mt-1.5 w-36 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl z-30 py-1 text-xs text-left">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowCardMenu(false);
-                      setShowBlockModal(true);
-                    }}
-                    className="w-full text-left px-3 py-2 text-red-400 hover:bg-neutral-800 flex items-center gap-1.5 font-bold"
-                  >
-                    <ShieldAlert className="w-3.5 h-3.5" /> Block User
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          <div />
         </div>
 
         {/* Bottom Info Overlay with Name, Age, and Distance */}
         <div className="relative z-10 mt-auto p-2.5 flex items-end justify-between">
-          <div className="w-full">
-            <h3 className="font-bold text-white text-sm sm:text-base flex items-center gap-1.5 drop-shadow-md flex-wrap">
+          <div className="w-full flex items-center gap-2 flex-wrap">
+            <h3 style={{ fontSize: '8px', lineHeight: '10px' }} className="font-bold text-white text-sm sm:text-base inline-flex items-center gap-1.5 drop-shadow-md">
               <span>{profile.name},</span>
               <span>{profile.age}</span>
               {profile.isFeePaid && (profile.membershipTier === 'Elite Companion' || profile.isCompanionPro) && (
-                <span className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
+                <span className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-md">
                   <Crown className="w-3 h-3" /> Verified Elite
                 </span>
               )}
@@ -318,7 +251,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
                     e.stopPropagation();
                     setShowVerifiedTooltip(!showVerifiedTooltip);
                   }}
-                  className="focus:outline-none flex items-center justify-center p-0.5 rounded-full hover:bg-white/10 transition"
+                  className="focus:outline-none inline-flex items-center justify-center p-0.5 rounded-full hover:bg-white/10 transition"
                   title="Click to view Verification Levels"
                 >
                   <ShieldCheck className="w-4 h-4 text-blue-400 fill-blue-400/20 cursor-pointer" />
@@ -358,34 +291,19 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
                 )}
               </div>
 
-              {/* Document Verification Status Icon for Elite Companions */}
-              {(profile.membershipTier === 'Elite Companion' || profile.isCompanionPro) && (
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                  profile.verified || profile.isVerified ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                }`}>
-                  {profile.verified || profile.isVerified ? '✓ ID Verified' : '⏳ ID Pending Verification'}
-                </span>
-              )}
 
-              {/* Safety Status Badge (Elite/Pro Only) */}
-              {(profile.isCompanionPro || profile.membershipTier === 'Elite Companion' || profile.membershipTier === 'Pro') && (
-                <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  🛡️ Safety Verified ({profile.age}+)
-                </span>
-              )}
             </h3>
 
-            {/* Distance under the name and age */}
-            <p className={`text-xs font-semibold mt-0.5 flex items-center gap-1 ${
+            {/* Distance and Last Active Status on One Line */}
+            <p style={{ fontSize: '6px', lineHeight: '10px' }} className={`font-semibold inline-flex items-center gap-1.5 ${
               (profile.distance || 0) < 1 ? 'text-emerald-400' : (profile.distance || 0) <= 5 ? 'text-yellow-400' : 'text-neutral-300'
             }`}>
-              <span>📍 {profile.distance === 0 ? 'Here' : `${profile.distance} mi away`}</span>
-            </p>
-
-            {/* Last Active Time Indicator */}
-            <p className="text-[11px] text-neutral-400 flex items-center gap-1.5 mt-0.5">
-              <span className={`w-2 h-2 rounded-full ${profile.status === 'online' ? 'bg-emerald-500 animate-pulse' : profile.status === 'away' ? 'bg-yellow-500' : 'bg-neutral-500'}`} />
-              <span>{profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : profile.status === 'online' ? 'Active now' : 'Active 1h ago')}</span>
+              <span>• 📍 {profile.distance === 0 ? 'Here' : `${profile.distance} mi away`}</span>
+              <span className="text-neutral-500">•</span>
+              <span className="inline-flex items-center gap-1 text-neutral-400">
+                <span className={`w-1.5 h-1.5 rounded-full ${profile.status === 'online' ? 'bg-emerald-500 animate-pulse' : profile.status === 'away' ? 'bg-yellow-500' : 'bg-neutral-500'}`} />
+                <span style={{ fontSize: '6px', lineHeight: '10.5px' }}>{profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : profile.status === 'online' ? 'Active now' : 'Active 1h ago')}</span>
+              </span>
             </p>
 
 
@@ -527,11 +445,15 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             </div>
           )}
 
-          <div className="text-center mt-3">
+          <div className="text-center mt-3 space-y-1">
             <h3 style={{ fontSize: '9px', lineHeight: '12px' }} className="font-bold text-white uppercase tracking-wider truncate px-4">
               {profile.name}, {profile.age} • Photo {currentPhotoIndex + 1} of {photos.length}
-              {profile.photoCaptions?.[currentPhotoIndex] && ` • "${profile.photoCaptions[currentPhotoIndex]}"`}
             </h3>
+            {profile.photoCaptions?.[currentPhotoIndex] && (
+              <p style={{ fontSize: '5px', lineHeight: '6.5px' }} className="text-neutral-300 italic truncate px-4">
+                "{profile.photoCaptions[currentPhotoIndex]}"
+              </p>
+            )}
           </div>
         </div>
       )}
