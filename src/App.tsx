@@ -1080,14 +1080,15 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setMintboysMode(!mintboysMode)}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-black transition flex items-center gap-1.5 ${
                     mintboysMode
-                      ? 'bg-amber-500 text-black shadow-lg ring-2 ring-amber-400'
-                      : 'text-neutral-300 hover:text-white bg-neutral-800/60'
+                      ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-black shadow-lg ring-2 ring-amber-400 scale-105'
+                      : 'text-amber-300 hover:text-white bg-amber-500/15 border border-amber-500/30'
                   }`}
                   title="Toggle MintBoys Elite Companions mode"
                 >
-                  <span>👔 MintBoys Elite</span>
+                  <span>👑 MintBoys Elite</span>
+                  {mintboysMode && <span className="w-1.5 h-1.5 rounded-full bg-black animate-ping"></span>}
                 </button>
 
               </div>
@@ -1544,81 +1545,84 @@ export default function App() {
           </div>
         )}
 
-        {/* Floating Quick Actions Menu for Grid View */}
+        {/* Combined Floating Quick Actions & Back to Top Toolbar */}
         {activeTab === 'grid' && (
-          <div className="fixed bottom-20 left-6 z-40 flex flex-col items-start">
-            {isQuickActionsOpen && (
-              <div className="mb-3 w-56 bg-[#1A1A1A] border border-neutral-700 rounded-2xl p-3 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-3 space-y-2 text-left">
-                <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
-                  <h4 className="font-black text-xs text-amber-400 flex items-center gap-1.5">
-                    <span>⚡</span> Quick Actions
-                  </h4>
-                  <button
-                    onClick={() => setIsQuickActionsOpen(false)}
-                    className="text-neutral-400 hover:text-white text-xs font-bold"
-                  >
-                    ✕
-                  </button>
+          <div className="fixed bottom-20 right-6 z-40 flex items-center gap-2 bg-[#1A1A1A]/95 backdrop-blur-md border border-neutral-700/80 rounded-2xl p-2 shadow-2xl">
+            {/* Quick Actions Dropdown & Button */}
+            <div className="relative">
+              {isQuickActionsOpen && (
+                <div className="absolute bottom-full right-0 mb-3 w-56 bg-[#1A1A1A] border border-neutral-700 rounded-2xl p-3 shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-3 space-y-2 text-left">
+                  <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+                    <h4 className="font-black text-xs text-amber-400 flex items-center gap-1.5">
+                      <span>⚡</span> Quick Actions
+                    </h4>
+                    <button
+                      onClick={() => setIsQuickActionsOpen(false)}
+                      className="text-neutral-400 hover:text-white text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsQuickActionsOpen(false);
+                        setProfiles(prev => [...prev].sort(() => Math.random() - 0.5));
+                        showToast('🔄 Grid refreshed with latest profiles!');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 text-white text-xs font-bold flex items-center gap-2 transition"
+                    >
+                      <span>🔄</span> Refresh Grid
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsQuickActionsOpen(false);
+                        const next = !ghostModeEnabled;
+                        setGhostModeEnabled(next);
+                        showToast(next ? '👻 Ghost Mode enabled! Distance and status hidden.' : '👁️ Ghost Mode disabled.');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 text-white text-xs font-bold flex items-center gap-2 transition"
+                    >
+                      <span>{ghostModeEnabled ? '👁️' : '👻'}</span> {ghostModeEnabled ? 'Disable Ghost Mode' : 'Enable Ghost Mode'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsQuickActionsOpen(false);
+                        const isNearby = filters.maxDistance <= 10;
+                        setFilters(prev => ({ ...prev, maxDistance: isNearby ? 50 : 5 }));
+                        showToast(isNearby ? '🌍 Distance filter reset to 50 miles.' : '📍 Toggled Nearby Only (≤ 5 miles).');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 text-white text-xs font-bold flex items-center gap-2 transition"
+                    >
+                      <span>📍</span> {filters.maxDistance <= 10 ? 'Show All Distances' : 'Toggle Nearby Only'}
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsQuickActionsOpen(false);
-                      setProfiles(prev => [...prev].sort(() => Math.random() - 0.5));
-                      showToast('🔄 Grid refreshed with latest profiles!');
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 text-white text-xs font-bold flex items-center gap-2 transition"
-                  >
-                    <span>🔄</span> Refresh Grid
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsQuickActionsOpen(false);
-                      const next = !ghostModeEnabled;
-                      setGhostModeEnabled(next);
-                      showToast(next ? '👻 Ghost Mode enabled! Distance and status hidden.' : '👁️ Ghost Mode disabled.');
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 text-white text-xs font-bold flex items-center gap-2 transition"
-                  >
-                    <span>{ghostModeEnabled ? '👁️' : '👻'}</span> {ghostModeEnabled ? 'Disable Ghost Mode' : 'Enable Ghost Mode'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsQuickActionsOpen(false);
-                      const isNearby = filters.maxDistance <= 10;
-                      setFilters(prev => ({ ...prev, maxDistance: isNearby ? 50 : 5 }));
-                      showToast(isNearby ? '🌍 Distance filter reset to 50 miles.' : '📍 Toggled Nearby Only (≤ 5 miles).');
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 text-white text-xs font-bold flex items-center gap-2 transition"
-                  >
-                    <span>📍</span> {filters.maxDistance <= 10 ? 'Show All Distances' : 'Toggle Nearby Only'}
-                  </button>
-                </div>
-              </div>
-            )}
-            <button
-              onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)}
-              className="bg-[#FFC107] hover:bg-amber-400 text-[#121212] px-4 py-3 rounded-full font-black text-xs shadow-2xl hover:scale-105 transition flex items-center gap-2 border border-amber-300"
-              title="Quick Actions Menu"
-            >
-              <span className="text-sm">⚡</span>
-              <span>Quick Actions</span>
-            </button>
-          </div>
-        )}
+              )}
+              <button
+                onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)}
+                className="bg-[#FFC107] hover:bg-amber-400 text-[#121212] px-3.5 py-2.5 rounded-xl font-black text-xs shadow-lg hover:scale-105 transition flex items-center gap-1.5 border border-amber-300"
+                title="Quick Actions Menu"
+              >
+                <span className="text-sm">⚡</span>
+                <span>Quick Actions</span>
+              </button>
+            </div>
 
-        {/* Back to Top Floating Button */}
-        {showBackToTop && activeTab === 'grid' && (
-          <button
-            onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="fixed bottom-20 right-6 z-40 bg-[#FFC107] text-[#121212] w-12 h-12 rounded-full font-bold shadow-2xl hover:scale-110 transition flex items-center justify-center text-xl"
-            title="Back to Top"
-          >
-            ↑
-          </button>
+            {/* Back to Top Button inside Combined Toolbar */}
+            {showBackToTop && (
+              <button
+                onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="bg-neutral-800 hover:bg-neutral-700 text-[#FFC107] w-10 h-10 rounded-xl font-bold shadow-lg hover:scale-105 transition flex items-center justify-center text-lg border border-neutral-700"
+                title="Back to Top"
+              >
+                ↑
+              </button>
+            )}
+          </div>
         )}
 
         {activeTab === 'map' && (
