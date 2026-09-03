@@ -77,7 +77,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
           {/* Photo Caption Overlay if present */}
           {profile.photoCaptions?.[currentPhotoIdx] && (
-            <div className="absolute bottom-16 left-4 right-4 z-10 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-xs text-white text-center">
+            <div style={{ fontSize: '12px', lineHeight: '15px' }} className="absolute bottom-16 left-4 right-4 z-10 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-white text-center">
               💬 "{profile.photoCaptions[currentPhotoIdx]}"
             </div>
           )}

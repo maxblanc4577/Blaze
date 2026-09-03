@@ -527,18 +527,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             </div>
           )}
 
-          <div className="text-center mt-3 space-y-1">
-            <h3 style={{ fontSize: '10px' }} className="font-bold text-white uppercase tracking-wider">
+          <div className="text-center mt-3">
+            <h3 style={{ fontSize: '9px', lineHeight: '12px' }} className="font-bold text-white uppercase tracking-wider truncate px-4">
               {profile.name}, {profile.age} • Photo {currentPhotoIndex + 1} of {photos.length}
+              {profile.photoCaptions?.[currentPhotoIndex] && ` • "${profile.photoCaptions[currentPhotoIndex]}"`}
             </h3>
-            {profile.photoCaptions?.[currentPhotoIndex] && (
-              <p style={{ fontSize: '10px' }} className="text-neutral-300 italic">
-                💬 "{profile.photoCaptions[currentPhotoIndex]}"
-              </p>
-            )}
-            <p className="text-[10px] text-neutral-400">
-              Gallery view <span style={{ fontSize: '9px' }} className="text-amber-400 font-semibold">with caption enabled</span>.
-            </p>
           </div>
         </div>
       )}

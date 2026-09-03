@@ -1039,7 +1039,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setGridSubTab('recently_viewed')}
-                  style={{ lineHeight: '18px', fontSize: '12px', height: '23px', width: '114px' }}
+                  style={{ fontSize: '10px', lineHeight: '15px', height: '23px', width: '114px' }}
                   className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
                     gridSubTab === 'recently_viewed'
                       ? 'bg-amber-500 text-[#121212] shadow'

@@ -672,7 +672,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
                     </div>
                   )}
                   {profile.photoCaptions?.[idx] && (
-                    <div className="absolute bottom-3 left-3 right-16 bg-black/75 backdrop-blur-md px-3 py-1 rounded-xl text-xs text-white truncate z-10">
+                    <div style={{ fontSize: '12px', lineHeight: '15px' }} className="absolute bottom-3 left-3 right-16 bg-black/75 backdrop-blur-md px-3 py-1 rounded-xl text-white truncate z-10">
                       💬 "{profile.photoCaptions[idx]}"
                     </div>
                   )}
