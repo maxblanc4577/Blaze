@@ -403,7 +403,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             <input
               type="range"
               min="1"
-              max="50"
+              max="20"
               value={filters.maxDistance}
               onChange={e => setFilters(prev => ({ ...prev, maxDistance: Number(e.target.value) }))}
               className="w-full accent-[#FFC107] bg-neutral-800 h-2 rounded-lg cursor-pointer"

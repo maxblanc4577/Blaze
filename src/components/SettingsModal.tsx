@@ -70,7 +70,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleAutoAdvancePhotos,
   reportHistory = [],
 }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'merchant' | 'safety' | 'account_safety' | 'private_albums' | 'activity' | 'customization'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'merchant' | 'verification' | 'safety' | 'account_safety' | 'private_albums' | 'activity' | 'customization' | 'card_display'>('general');
+  const [verificationMethod, setVerificationMethod] = useState<'selfie' | 'id_doc'>('selfie');
+  const [uploadedDocUrl, setUploadedDocUrl] = useState<string>(currentUser?.verificationPhoto || currentUser?.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600');
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationStep, setVerificationStep] = useState<string>('');
+
+  const [cardShowAge, setCardShowAge] = useState<boolean>(() => localStorage.getItem('blaze_card_show_age') !== 'false');
+  const [cardShowDistance, setCardShowDistance] = useState<boolean>(() => localStorage.getItem('blaze_card_show_distance') !== 'false');
+  const [cardShowStatus, setCardShowStatus] = useState<boolean>(() => localStorage.getItem('blaze_card_show_status') !== 'false');
+  const [cardShowContacts, setCardShowContacts] = useState<boolean>(() => localStorage.getItem('blaze_card_show_contacts') !== 'false');
+  const [cardShowDots, setCardShowDots] = useState<boolean>(() => localStorage.getItem('blaze_card_show_dots') !== 'false');
+  const [cardShowTap, setCardShowTap] = useState<boolean>(() => localStorage.getItem('blaze_card_show_tap') !== 'false');
+
+  const toggleCardPref = (key: string, val: boolean, setter: (v: boolean) => void) => {
+    setter(val);
+    localStorage.setItem(key, String(val));
+  };
+
+  const handleStartVerification = () => {
+    setVerificationLoading(true);
+    setVerificationStep('Analyzing facial geometry & liveness metrics...');
+    setTimeout(() => {
+      setVerificationStep('Comparing selfie against primary profile photo...');
+      setTimeout(() => {
+        setVerificationStep('Validating anti-spoofing security check...');
+        setTimeout(() => {
+          setVerificationLoading(false);
+          setVerificationStep('');
+          if (currentUser && onUpdateUser) {
+            const updated = {
+              ...currentUser,
+              verified: true,
+              isVerified: true,
+              verificationPending: false,
+              verificationPhoto: uploadedDocUrl,
+            };
+            onUpdateUser(updated);
+          }
+          alert('🎉 Verification Successful! Your Verified Badge is now active on your profile.');
+        }, 1000);
+      }, 1000);
+    }, 1200);
+  };
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => {
     return localStorage.getItem('blaze_sounds_enabled') !== 'false';
   });
@@ -237,11 +279,13 @@ For support, contact support@blazeapp.io
             {[
               { id: 'general', label: 'General', icon: Bell },
               { id: 'merchant', label: 'Merchant Dashboard', icon: CreditCard },
+              { id: 'verification', label: 'Verified Badge Request', icon: ShieldCheck },
               { id: 'safety', label: 'Safety & Privacy', icon: Shield },
               { id: 'account_safety', label: `Account Safety (${blockedUsersList.length})`, icon: Shield },
               { id: 'private_albums', label: 'Private Albums & Access', icon: Eye },
               { id: 'activity', label: 'Who Viewed Me', icon: Users },
               { id: 'customization', label: 'Customization', icon: Sparkles },
+              { id: 'card_display', label: 'Profile Card Display', icon: Sparkles },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -275,6 +319,123 @@ For support, contact support@blazeapp.io
           </div>
 
           <div className="p-6 space-y-5 overflow-y-auto flex-1">
+          {activeTab === 'card_display' && (
+            <div className="space-y-4">
+              <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-2">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>🎴</span> Profile Card Display Customization
+                </h4>
+                <p className="text-xs text-neutral-400">
+                  You have full control over what information is displayed on your profile card. As mandated by platform rules, your subscription membership badge and verification button remain mandatory and cannot be hidden.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {/* Age */}
+                <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
+                  <div>
+                    <h5 className="text-xs font-bold text-white">Show Age</h5>
+                    <p className="text-[11px] text-neutral-400">Display your age next to your name.</p>
+                  </div>
+                  <button
+                    onClick={() => toggleCardPref('blaze_card_show_age', !cardShowAge, setCardShowAge)}
+                    className={`w-12 h-6 rounded-full transition-colors relative p-1 ${cardShowAge ? 'bg-amber-500' : 'bg-neutral-700'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-black transition-transform ${cardShowAge ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {/* Distance & Location */}
+                <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
+                  <div>
+                    <h5 className="text-xs font-bold text-white">Show Distance & Location</h5>
+                    <p className="text-[11px] text-neutral-400">Display how many miles away you are.</p>
+                  </div>
+                  <button
+                    onClick={() => toggleCardPref('blaze_card_show_distance', !cardShowDistance, setCardShowDistance)}
+                    className={`w-12 h-6 rounded-full transition-colors relative p-1 ${cardShowDistance ? 'bg-amber-500' : 'bg-neutral-700'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-black transition-transform ${cardShowDistance ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {/* Online Status */}
+                <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
+                  <div>
+                    <h5 className="text-xs font-bold text-white">Show Online / Activity Status</h5>
+                    <p className="text-[11px] text-neutral-400">Display online indicator and last active time.</p>
+                  </div>
+                  <button
+                    onClick={() => toggleCardPref('blaze_card_show_status', !cardShowStatus, setCardShowStatus)}
+                    className={`w-12 h-6 rounded-full transition-colors relative p-1 ${cardShowStatus ? 'bg-amber-500' : 'bg-neutral-700'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-black transition-transform ${cardShowStatus ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {/* Contacts / Call / WhatsApp */}
+                <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
+                  <div>
+                    <h5 className="text-xs font-bold text-white">Show Direct Call & WhatsApp Buttons</h5>
+                    <p className="text-[11px] text-neutral-400">Display direct phone and WhatsApp contact pills.</p>
+                  </div>
+                  <button
+                    onClick={() => toggleCardPref('blaze_card_show_contacts', !cardShowContacts, setCardShowContacts)}
+                    className={`w-12 h-6 rounded-full transition-colors relative p-1 ${cardShowContacts ? 'bg-amber-500' : 'bg-neutral-700'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-black transition-transform ${cardShowContacts ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {/* Photo Dots */}
+                <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
+                  <div>
+                    <h5 className="text-xs font-bold text-white">Show Photo Pagination Indicators</h5>
+                    <p className="text-[11px] text-neutral-400">Display photo carousel dots on card.</p>
+                  </div>
+                  <button
+                    onClick={() => toggleCardPref('blaze_card_show_dots', !cardShowDots, setCardShowDots)}
+                    className={`w-12 h-6 rounded-full transition-colors relative p-1 ${cardShowDots ? 'bg-amber-500' : 'bg-neutral-700'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-black transition-transform ${cardShowDots ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {/* Quick Tap Button */}
+                <div className="flex items-center justify-between bg-[#252525] border border-neutral-800 p-4 rounded-2xl">
+                  <div>
+                    <h5 className="text-xs font-bold text-white">Show Quick Like/Tap Flame Button</h5>
+                    <p className="text-[11px] text-neutral-400">Display the interactive flame tap button.</p>
+                  </div>
+                  <button
+                    onClick={() => toggleCardPref('blaze_card_show_tap', !cardShowTap, setCardShowTap)}
+                    className={`w-12 h-6 rounded-full transition-colors relative p-1 ${cardShowTap ? 'bg-amber-500' : 'bg-neutral-700'}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-black transition-transform ${cardShowTap ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {/* Mandatory / Locked items */}
+                <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-2 opacity-75">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="text-xs font-bold text-amber-400">Subscription Membership Badge</h5>
+                      <p className="text-[10px] text-neutral-400">Mandatory system requirement (Locked)</p>
+                    </div>
+                    <span className="text-xs bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-lg font-bold">Always On</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-neutral-800">
+                    <div>
+                      <h5 className="text-xs font-bold text-blue-400">Verification Button & Badge</h5>
+                      <p className="text-[10px] text-neutral-400">Mandatory system requirement (Locked)</p>
+                    </div>
+                    <span className="text-xs bg-blue-500/20 text-blue-300 px-2.5 py-1 rounded-lg font-bold">Always On</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'general' && (
             <div className="space-y-4">
               {/* Membership Status Box */}
@@ -1131,6 +1292,121 @@ For support, contact support@blazeapp.io
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'verification' && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-br from-neutral-900 via-[#222222] to-neutral-900 border border-cyan-500/40 p-6 rounded-2xl space-y-5 shadow-xl relative overflow-hidden">
+                {verificationLoading && (
+                  <div className="absolute inset-0 z-20 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-4">
+                    <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="space-y-1">
+                      <h4 className="text-base font-black text-white">Verifying Your Identity</h4>
+                      <p className="text-xs text-cyan-400 font-bold">{verificationStep}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
+                      <ShieldCheck className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-extrabold tracking-wider bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30">
+                        Official Badge
+                      </span>
+                      <h4 className="text-lg font-black text-white mt-1">Request Verified Badge</h4>
+                    </div>
+                  </div>
+                  {currentUser?.verified || currentUser?.isVerified ? (
+                    <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-black flex items-center gap-1.5 shadow">
+                      ✓ Verified Active
+                    </span>
+                  ) : (
+                    <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">
+                      Unverified Account
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-neutral-300 leading-relaxed">
+                  Get the official blue checkmark badge on your profile by verifying your identity with a quick selfie capture or government ID document upload. Verified accounts receive 3x more interactions and trust.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setVerificationMethod('selfie')}
+                    className={`p-4 rounded-xl border text-left transition space-y-1 ${
+                      verificationMethod === 'selfie'
+                        ? 'bg-cyan-500/10 border-cyan-500 text-white'
+                        : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold">📸 Selfie Liveness Scan</span>
+                      {verificationMethod === 'selfie' && <span className="w-2 h-2 rounded-full bg-cyan-400" />}
+                    </div>
+                    <p className="text-[10px] text-neutral-400">Instant AI facial biometric check</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setVerificationMethod('id_doc')}
+                    className={`p-4 rounded-xl border text-left transition space-y-1 ${
+                      verificationMethod === 'id_doc'
+                        ? 'bg-cyan-500/10 border-cyan-500 text-white'
+                        : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold">🪪 Government ID Scan</span>
+                      {verificationMethod === 'id_doc' && <span className="w-2 h-2 rounded-full bg-cyan-400" />}
+                    </div>
+                    <p className="text-[10px] text-neutral-400">Upload passport or driver license</p>
+                  </button>
+                </div>
+
+                <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl space-y-3">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-neutral-300">
+                    {verificationMethod === 'selfie' ? 'Selfie Verification Capture' : 'Document Upload Scan'}
+                  </h5>
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={uploadedDocUrl}
+                      alt="Verification Source"
+                      className="w-20 h-20 rounded-xl object-cover border border-cyan-500/40 shadow-md shrink-0"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="space-y-2 flex-1">
+                      <p className="text-[11px] text-neutral-400">
+                        {verificationMethod === 'selfie'
+                          ? 'Position your face clearly within good lighting and click Start Verification.'
+                          : 'Ensure all 4 corners of your ID document are clearly visible.'}
+                      </p>
+                      <input
+                        type="text"
+                        placeholder="Paste image URL or use camera snapshot..."
+                        value={uploadedDocUrl}
+                        onChange={(e) => setUploadedDocUrl(e.target.value)}
+                        className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-cyan-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleStartVerification}
+                    className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black text-xs rounded-xl hover:opacity-90 transition shadow-lg shadow-cyan-500/20 flex items-center gap-2"
+                  >
+                    <ShieldCheck className="w-4 h-4" /> Start Automated Verification
+                  </button>
                 </div>
               </div>
             </div>

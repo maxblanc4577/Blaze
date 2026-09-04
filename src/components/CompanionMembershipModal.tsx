@@ -22,10 +22,10 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
 
   const isCurrentlyPro = currentUser.membershipTier === 'Elite Companion' || currentUser.isCompanionPro;
 
-  const [selectedProfileType, setSelectedProfileType] = useState<'regular' | 'professional'>(
-    isCurrentlyPro ? 'professional' : 'regular'
+  const [selectedTier, setSelectedTier] = useState<'regular' | 'mintboys_elite' | 'pro_elite'>(
+    isCurrentlyPro ? (currentUser.membershipTier === 'Pro' ? 'pro_elite' : 'mintboys_elite') : 'regular'
   );
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual' | 'one_time'>('monthly');
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('monthly');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [successState, setSuccessState] = useState(false);
   const [idDocUploaded, setIdDocUploaded] = useState(false);
@@ -38,26 +38,28 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
   const [phone, setPhone] = useState(currentUser.phone || '');
   const [whatsapp, setWhatsapp] = useState(currentUser.whatsapp || '');
 
-  const planTitle = selectedPlan === 'monthly' ? 'Professional Companion Monthly' : selectedPlan === 'annual' ? 'Professional Companion Annual' : 'Professional Companion Setup';
-  const planAmount = selectedPlan === 'monthly' ? '$19.99/mo' : selectedPlan === 'annual' ? '$10.99/mo' : '$19.99/mo';
+  const tierName = selectedTier === 'pro_elite' ? 'Pro Elite' : selectedTier === 'mintboys_elite' ? 'Mintboys Elite' : 'Regular';
+  const planAmount = selectedTier === 'pro_elite' ? '$29.99/mo' : selectedTier === 'mintboys_elite' ? '$19.99/mo' : '$0';
+  const planTitle = `${tierName} Automatic Subscription (${selectedPlan})`;
 
   const handleProceed = () => {
-    if (selectedProfileType === 'regular') {
+    if (selectedTier === 'regular') {
       onUpdateAccountType('Free', false);
       showToast('👤 Switched to Regular User Profile successfully.');
       onClose();
     } else {
+      showToast(`📝 Registration saved for ${tierName}. Proceeding to secure payment & automatic billing setup.`);
       setShowPaymentModal(true);
     }
   };
 
   const handlePaymentSuccess = () => {
-    const rate = planAmount;
-    onUpdateAccountType('Elite Companion', true, rate, true);
+    const assignedTier = selectedTier === 'pro_elite' ? 'Pro' : 'Elite Companion';
+    onUpdateAccountType(assignedTier, true, planAmount, true);
     currentUser.phone = phone;
     currentUser.whatsapp = whatsapp;
     setSuccessState(true);
-    showToast('👑 MintBoy Elite Companion Profile & $19.99/mo Fee Paid successfully!');
+    showToast(`👑 ${tierName} Registration & Automatic Billing (${planAmount}) activated successfully!`);
     setTimeout(() => {
       setSuccessState(false);
       onClose();
@@ -226,14 +228,14 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
               </div>
             ) : (
               <>
-                {/* Profile Type Selector Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                {/* Tier Selector Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                   {/* Regular User Option */}
                   <button
                     type="button"
-                    onClick={() => setSelectedProfileType('regular')}
-                    className={`p-5 rounded-2xl border text-left transition flex flex-col justify-between ${
-                      selectedProfileType === 'regular'
+                    onClick={() => setSelectedTier('regular')}
+                    className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between ${
+                      selectedTier === 'regular'
                         ? 'bg-neutral-800/80 border-[#FFC107] ring-1 ring-[#FFC107]'
                         : 'bg-[#222222] border-neutral-800 hover:border-neutral-700'
                     }`}
@@ -241,66 +243,137 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="p-2 bg-neutral-700/50 rounded-xl text-neutral-200">
-                          <User className="w-5 h-5" />
+                          <User className="w-4 h-4" />
                         </span>
-                        <span className="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full">
-                          Free ($0/mo)
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+                          Free
                         </span>
                       </div>
-                      <h3 className="font-bold text-base text-white">Regular User Profile</h3>
-                      <p className="text-xs text-neutral-400 mt-1">
-                        Standard community membership for discovering friends, chatting, and browsing profiles.
+                      <h3 className="font-bold text-sm text-white">Regular</h3>
+                      <p className="text-[11px] text-neutral-400 mt-1">
+                        Standard community profile.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-neutral-700/50 flex items-center justify-between text-xs font-semibold text-emerald-400">
-                      <span>No monthly fees</span>
-                      {selectedProfileType === 'regular' && <Check className="w-4 h-4 text-[#FFC107]" />}
+                    <div className="mt-3 pt-2 border-t border-neutral-700/50 flex items-center justify-between text-[11px] font-semibold text-emerald-400">
+                      <span>$0/mo</span>
+                      {selectedTier === 'regular' && <Check className="w-3.5 h-3.5 text-[#FFC107]" />}
                     </div>
                   </button>
 
-                  {/* Professional / Companion Option */}
+                  {/* Mintboys Elite Option */}
                   <button
                     type="button"
-                    onClick={() => setSelectedProfileType('professional')}
-                    className={`p-5 rounded-2xl border text-left transition flex flex-col justify-between relative overflow-hidden ${
-                      selectedProfileType === 'professional'
+                    onClick={() => setSelectedTier('mintboys_elite')}
+                    className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between relative overflow-hidden ${
+                      selectedTier === 'mintboys_elite'
                         ? 'bg-amber-500/10 border-[#FFC107] ring-1 ring-[#FFC107]'
                         : 'bg-[#222222] border-neutral-800 hover:border-neutral-700'
                     }`}
                   >
-                    <span className="absolute top-3 right-3 bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
-                      Pro / Companion
+                    <span className="absolute top-2 right-2 bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded uppercase">
+                      Elite
                     </span>
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="p-2 bg-amber-500/20 rounded-xl text-[#FFC107]">
-                          <Briefcase className="w-5 h-5" />
+                          <Crown className="w-4 h-4" />
                         </span>
-                        <span className="text-xs bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full">
-                          Fee: $19.99/mo
+                        <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full">
+                          $19.99/mo
                         </span>
                       </div>
-                      <h3 className="font-bold text-base text-white">Professional Companion</h3>
-                      <p className="text-xs text-neutral-300 mt-1">
-                        Offer travel companion, shopping buddy, and event escort services with verified pro badge.
+                      <h3 className="font-bold text-sm text-white">Mintboys Elite</h3>
+                      <p className="text-[11px] text-neutral-300 mt-1">
+                        Priority radar, verified badge, & auto billing.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-amber-500/30 flex items-center justify-between text-xs font-semibold text-[#FFC107]">
-                      <span>Priority Discovery</span>
-                      {selectedProfileType === 'professional' && <Check className="w-4 h-4 text-[#FFC107]" />}
+                    <div className="mt-3 pt-2 border-t border-amber-500/30 flex items-center justify-between text-[11px] font-semibold text-[#FFC107]">
+                      <span>Auto Billing</span>
+                      {selectedTier === 'mintboys_elite' && <Check className="w-3.5 h-3.5 text-[#FFC107]" />}
+                    </div>
+                  </button>
+
+                  {/* Pro Elite Option */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTier('pro_elite')}
+                    className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between relative overflow-hidden ${
+                      selectedTier === 'pro_elite'
+                        ? 'bg-cyan-500/10 border-cyan-400 ring-1 ring-cyan-400'
+                        : 'bg-[#222222] border-neutral-800 hover:border-neutral-700'
+                    }`}
+                  >
+                    <span className="absolute top-2 right-2 bg-cyan-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded uppercase">
+                      VIP
+                    </span>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="p-2 bg-cyan-500/20 rounded-xl text-cyan-300">
+                          <Sparkles className="w-4 h-4" />
+                        </span>
+                        <span className="text-[10px] bg-cyan-500/20 text-cyan-300 font-bold px-2 py-0.5 rounded-full">
+                          $29.99/mo
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-sm text-white">Pro Elite</h3>
+                      <p className="text-[11px] text-neutral-300 mt-1">
+                        All VIP perks, spotlight radar & auto renewal.
+                      </p>
+                    </div>
+                    <div className="mt-3 pt-2 border-t border-cyan-500/30 flex items-center justify-between text-[11px] font-semibold text-cyan-300">
+                      <span>Auto Billing</span>
+                      {selectedTier === 'pro_elite' && <Check className="w-3.5 h-3.5 text-cyan-400" />}
                     </div>
                   </button>
                 </div>
 
-                {/* Fee & Plan Details if Professional selected */}
-                {selectedProfileType === 'professional' && (
+                {/* Dynamic Selection Description, Reasoning & Thank You Note */}
+                <div className="mb-6 bg-[#252525] border border-neutral-700/60 rounded-2xl p-4 space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center space-x-2 text-xs font-bold text-white">
+                    <span className="w-2 h-2 rounded-full bg-[#FFC107]"></span>
+                    <span>Selected Tier Overview: {tierName}</span>
+                  </div>
+
+                  {selectedTier === 'regular' && (
+                    <div className="space-y-2 text-xs text-neutral-300">
+                      <p><strong className="text-white">What it entails:</strong> Standard community membership giving you full access to discover local profiles, chat, and connect in the Blaze community completely free of charge ($0/mo).</p>
+                      <p><strong className="text-amber-400">Why choose this:</strong> Choose this option if you want a relaxed, free experience to explore local connections at your own pace without any financial commitments.</p>
+                      <div className="pt-2 border-t border-neutral-800 text-emerald-400 font-medium italic">
+                        🙏 Thank you so much for choosing a Regular User profile! We appreciate you joining our community and hope you enjoy connecting with others.
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedTier === 'mintboys_elite' && (
+                    <div className="space-y-2 text-xs text-neutral-300">
+                      <p><strong className="text-white">What it entails:</strong> Verified professional tier ($19.99/mo with automatic billing) featuring priority discovery radar, verified badge, WhatsApp & phone display, and direct local connections.</p>
+                      <p><strong className="text-amber-400">Why choose this:</strong> Choose Mint Boys Elite if you want maximum visibility, verified trust badges, and direct contact options so local connections can reach you instantly.</p>
+                      <div className="pt-2 border-t border-neutral-800 text-amber-400 font-medium italic">
+                        👑 Thank you for choosing Mint Boys Elite! We are thrilled to welcome you to our exclusive verified network. Your automatic billing is set up to ensure uninterrupted elite access.
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedTier === 'pro_elite' && (
+                    <div className="space-y-2 text-xs text-neutral-300">
+                      <p><strong className="text-white">What it entails:</strong> Ultimate VIP tier ($29.99/mo with automatic billing) including top-tier spotlight placement, premium discovery, and priority concierge support.</p>
+                      <p><strong className="text-cyan-400">Why choose this:</strong> Choose Pro Elite if you want absolute top-tier exposure, premier status, and unmatched priority across the entire platform.</p>
+                      <div className="pt-2 border-t border-neutral-800 text-cyan-300 font-medium italic">
+                        ⭐ Thank you for choosing Pro Elite VIP! We deeply appreciate your commitment to our highest tier. Automatic billing ensures continuous VIP status.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Registration & Details Form if Mintboys Elite or Pro Elite selected */}
+                {selectedTier !== 'regular' && (
                   <div className="space-y-4 mb-6 bg-[#222222] p-4 rounded-2xl border border-amber-500/30 animate-in fade-in duration-200">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-neutral-300">Select Professional Fee Plan</span>
-                      <span className="text-xs text-[#FFC107] font-semibold">Associated Professional Fees</span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-neutral-300">1. Complete {tierName} Registration Details</span>
+                      <span className="text-xs text-[#FFC107] font-semibold">Automatic Billing Applies</span>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => setSelectedPlan('monthly')}
@@ -308,8 +381,8 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
                           selectedPlan === 'monthly' ? 'bg-[#FFC107] text-black font-bold border-[#FFC107]' : 'bg-[#1A1A1A] border-neutral-700 text-neutral-300'
                         }`}
                       >
-                        <span className="text-[10px] uppercase block opacity-80">Monthly</span>
-                        <span className="text-sm font-black">$19.99</span>
+                        <span className="text-[10px] uppercase block opacity-80">Monthly Auto-Bill</span>
+                        <span className="text-sm font-black">{planAmount}</span>
                       </button>
                       <button
                         type="button"
@@ -318,24 +391,14 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
                           selectedPlan === 'annual' ? 'bg-[#FFC107] text-black font-bold border-[#FFC107]' : 'bg-[#1A1A1A] border-neutral-700 text-neutral-300'
                         }`}
                       >
-                        <span className="text-[10px] uppercase block opacity-80">Annual (Save)</span>
-                        <span className="text-sm font-black">$10.99/mo</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedPlan('one_time')}
-                        className={`p-3 rounded-xl border text-center transition ${
-                          selectedPlan === 'one_time' ? 'bg-[#FFC107] text-black font-bold border-[#FFC107]' : 'bg-[#1A1A1A] border-neutral-700 text-neutral-300'
-                        }`}
-                      >
-                        <span className="text-[10px] uppercase block opacity-80">Setup Fee</span>
-                        <span className="text-sm font-black">$19.99</span>
+                        <span className="text-[10px] uppercase block opacity-80">Annual (Save 20%)</span>
+                        <span className="text-sm font-black">Discounted</span>
                       </button>
                     </div>
 
-                    {/* Contact Fields for Elite/Pro */}
+                    {/* Contact Fields */}
                     <div className="pt-2 border-t border-neutral-800 space-y-2">
-                      <label className="text-xs font-bold text-white block">Phone Number & WhatsApp (Elite/Pro Benefit)</label>
+                      <label className="text-xs font-bold text-white block">Phone Number & WhatsApp</label>
                       <div className="grid grid-cols-2 gap-2">
                         <input
                           type="text"
@@ -354,7 +417,7 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
                       </div>
                     </div>
 
-                    {/* ID Document Upload Interface for Admin Verification */}
+                    {/* ID Document Upload Interface */}
                     <div className="pt-2 border-t border-neutral-800">
                       <label className="text-xs font-bold text-white block mb-1 flex items-center justify-between">
                         <span>Government ID / Verification Document</span>
@@ -383,15 +446,11 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
                       )}
                     </div>
 
-                    <div className="space-y-2 pt-1 text-xs text-neutral-300">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                        <span>Includes Verified Pro Companion Badge & Secure ID Badge</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                        <span>Switch back to Regular User Profile for free at any time</span>
-                      </div>
+                    <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-[11px] text-neutral-300 space-y-1">
+                      <p className="font-bold text-amber-400">⚡ Automatic Billing Notice</p>
+                      <p className="text-neutral-400">
+                        After registering, you will securely input payment details. Your subscription will renew automatically each month ({planAmount}). Cancel anytime.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -402,7 +461,7 @@ export const CompanionMembershipModal: React.FC<CompanionMembershipModalProps> =
                   onClick={handleProceed}
                   className="w-full py-3.5 rounded-xl bg-[#FFC107] text-[#121212] font-black text-sm hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20 flex items-center justify-center space-x-2"
                 >
-                  <span>{selectedProfileType === 'regular' ? 'Confirm Regular User Profile' : `Proceed to Pay Fee (${planAmount})`}</span>
+                  <span>{selectedTier === 'regular' ? 'Confirm Regular User Profile' : `Register & Proceed to Pay (${planAmount})`}</span>
                 </button>
               </>
             )}

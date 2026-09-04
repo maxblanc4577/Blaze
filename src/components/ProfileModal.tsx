@@ -130,7 +130,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     <ShieldCheck className="w-5 h-5 text-cyan-400 fill-cyan-400/20" title="Verified Profile" />
                   )}
                 </h2>
-                <div className={`w-3 h-3 rounded-full ${profile.status === 'online' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className={`w-3 h-3 rounded-full ${profile.status === 'online' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  {profile.status !== 'online' && (
+                    <span className="text-[10px] text-neutral-300 font-medium bg-black/40 px-1.5 py-0.5 rounded">
+                      {profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : 'Active 1h ago')}
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="text-xs text-neutral-300 flex items-center gap-1 mt-1">
                 <MapPin className="w-3.5 h-3.5 text-[#FFC107]" />
@@ -168,7 +175,21 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       <ShieldCheck className="w-5 h-5 text-cyan-400 fill-cyan-400/20" title="Verified Profile" />
                     )}
                   </h2>
-                  <div className={`w-3 h-3 rounded-full ${profile.status === 'online' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                   <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                   <div className={`w-3 h-3 rounded-full ${profile.status === 'online' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                   {profile.status !== 'online' && (
+                     <span className="text-[10px] text-neutral-300 font-medium bg-black/40 px-1.5 py-0.5 rounded">
+                       {profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : 'Active 1h ago')}
+                     </span>
+                   )}
+                 </div>
+                    {profile.status !== 'online' && (
+                      <span className="text-[10px] text-neutral-400 font-medium">
+                        {profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : 'Active 1h ago')}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-neutral-300 flex items-center gap-1 mt-1">
                   <MapPin className="w-3.5 h-3.5 text-[#FFC107]" />

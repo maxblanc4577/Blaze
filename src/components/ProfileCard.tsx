@@ -39,6 +39,13 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
   const [showLightbox, setShowLightbox] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
 
+  const showAge = localStorage.getItem('blaze_card_show_age') !== 'false';
+  const showDistance = localStorage.getItem('blaze_card_show_distance') !== 'false';
+  const showStatus = localStorage.getItem('blaze_card_show_status') !== 'false';
+  const showContacts = localStorage.getItem('blaze_card_show_contacts') !== 'false';
+  const showDots = localStorage.getItem('blaze_card_show_dots') !== 'false';
+  const showTap = localStorage.getItem('blaze_card_show_tap') !== 'false';
+
   useEffect(() => {
     const isAutoAdvance = localStorage.getItem('blaze_auto_advance_photos') === 'true';
     if (!isAutoAdvance || (profile.photos && profile.photos.length <= 1)) return;
@@ -206,7 +213,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
           {/* Visual Pagination Dots */}
-          {photos.length > 1 && (
+          {showDots && photos.length > 1 && (
             <div className="absolute bottom-20 left-0 right-0 z-10 flex justify-center space-x-1.5 px-4 pointer-events-none">
               {photos.map((_, idx) => (
                 <div
@@ -235,9 +242,9 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
         {/* Bottom Info Overlay with Name, Age, and Distance */}
         <div className="relative z-10 mt-auto p-2.5 flex items-end justify-between">
           <div className="w-full flex items-center gap-2 flex-wrap">
-            <h3 style={{ fontSize: '8px', lineHeight: '10px' }} className="font-bold text-white text-sm sm:text-base inline-flex items-center gap-1.5 drop-shadow-md">
-              <span>{profile.name},</span>
-              <span>{profile.age}</span>
+            <h3 style={{ fontSize: '14px', lineHeight: '18px' }} className="font-normal text-white inline-flex items-center gap-1.5 drop-shadow-md">
+              <span>{profile.name}</span>
+              {showAge && <span>,{profile.age}</span>}
               {profile.isFeePaid && (profile.membershipTier === 'Elite Companion' || profile.isCompanionPro) && (
                 <span className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-md">
                   <Crown className="w-3 h-3" /> Verified Elite
@@ -295,19 +302,27 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             </h3>
 
             {/* Distance and Last Active Status on One Line */}
-            <p style={{ fontSize: '6px', lineHeight: '10px' }} className={`font-semibold inline-flex items-center gap-1.5 ${
-              (profile.distance || 0) < 1 ? 'text-emerald-400' : (profile.distance || 0) <= 5 ? 'text-yellow-400' : 'text-neutral-300'
-            }`}>
-              <span>• 📍 {profile.distance === 0 ? 'Here' : `${profile.distance} mi away`}</span>
-              <span className="text-neutral-500">•</span>
-              <span className="inline-flex items-center gap-1 text-neutral-400">
-                <span className={`w-1.5 h-1.5 rounded-full ${profile.status === 'online' ? 'bg-emerald-500 animate-pulse' : profile.status === 'away' ? 'bg-yellow-500' : 'bg-neutral-500'}`} />
-                <span style={{ fontSize: '6px', lineHeight: '10.5px' }}>{profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : profile.status === 'online' ? 'Active now' : 'Active 1h ago')}</span>
-              </span>
-            </p>
+            {(showDistance || showStatus) && (
+              <p style={{ fontSize: '6px', lineHeight: '10px' }} className={`font-semibold inline-flex items-center gap-1.5 ${
+                (profile.distance || 0) < 1 ? 'text-emerald-400' : (profile.distance || 0) <= 5 ? 'text-yellow-400' : 'text-neutral-300'
+              }`}>
+                {showDistance && <span>• 📍 {profile.distance === 0 ? 'Here' : `${profile.distance} mi away`}</span>}
+                {showDistance && showStatus && <span className="text-neutral-500">•</span>}
+                {showStatus && (
+                  <span className="inline-flex items-center gap-1 text-neutral-400">
+                    <span className={`w-1.5 h-1.5 rounded-full ${profile.status === 'online' ? 'bg-emerald-500 animate-pulse' : profile.status === 'away' ? 'bg-yellow-500' : 'bg-neutral-500'}`} />
+                    <span style={{ fontSize: '6px', lineHeight: '10.5px' }}>
+                      {profile.status === 'online' 
+                        ? 'Online' 
+                        : (profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : 'Active 1h ago'))}
+                    </span>
+                  </span>
+                )}
+              </p>
+            )}
 
 
-            {(profile.phone || profile.whatsapp) && (
+            {showContacts && (profile.phone || profile.whatsapp) && (
               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                 {profile.phone && (
                   <a
@@ -336,16 +351,18 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
           </div>
 
           {/* Quick Tap Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              triggerHaptic(30);
-              onTap(e, profile);
-            }}
-            className="p-2.5 rounded-full bg-black/60 hover:bg-[#FFC107] text-[#FFC107] hover:text-[#121212] backdrop-blur-md border border-white/10 transition group/btn active:scale-90 flex-shrink-0 ml-1.5 shadow-lg"
-          >
-            <Flame className="w-4 h-4 fill-current group-hover/btn:scale-110 transition-transform" />
-          </button>
+          {showTap && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerHaptic(30);
+                onTap(e, profile);
+              }}
+              className="p-2.5 rounded-full bg-black/60 hover:bg-[#FFC107] text-[#FFC107] hover:text-[#121212] backdrop-blur-md border border-white/10 transition group/btn active:scale-90 flex-shrink-0 ml-1.5 shadow-lg"
+            >
+              <Flame className="w-4 h-4 fill-current group-hover/btn:scale-110 transition-transform" />
+            </button>
+          )}
         </div>
       </motion.div>
 

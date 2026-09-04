@@ -54,6 +54,37 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
   const [newLockedVideoUrl, setNewLockedVideoUrl] = useState('');
   const [newPublicPhotoUrl, setNewPublicPhotoUrl] = useState('');
   const [newPublicVideoUrl, setNewPublicVideoUrl] = useState('');
+  const [newMomentUrl, setNewMomentUrl] = useState('');
+  const [newMomentText, setNewMomentText] = useState('');
+  const [newMomentType, setNewMomentType] = useState<'photo' | 'video'>('photo');
+
+  const addMoment = () => {
+    if (!newMomentUrl.trim() && !newMomentText.trim()) return;
+    const currentStories = formData.stories || [];
+    const newStory = {
+      id: 'mom_' + Date.now(),
+      url: newMomentUrl.trim() || (formData.photos[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600'),
+      text: newMomentText.trim() || 'My 24h Moment',
+      timestamp: Date.now()
+    };
+    setFormData(prev => ({
+      ...prev,
+      stories: [newStory, ...currentStories]
+    }));
+    setNewMomentUrl('');
+    setNewMomentText('');
+    setSuccessMsg('✨ 24h Moment posted successfully!');
+    setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
+  const removeMoment = (storyId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      stories: (prev.stories || []).filter(s => s.id !== storyId)
+    }));
+    setSuccessMsg('🗑️ Moment removed.');
+    setTimeout(() => setSuccessMsg(''), 3000);
+  };
   const [interestSearch, setInterestSearch] = useState('');
   const [locationSearch, setLocationSearch] = useState('');
   const [showGoogleMapsModal, setShowGoogleMapsModal] = useState(false);
@@ -381,14 +412,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
             >
               Log Off
             </button>
-            <button
-              onClick={() => setIsExportModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold text-xs transition flex items-center space-x-1.5 border border-neutral-700"
-              title="Export & Share Profile Card"
-            >
-              <Share2 className="w-4 h-4 text-amber-400" />
-              <span className="hidden sm:inline">Export Card</span>
-            </button>
+            {/* Export card removed */}
             <button
               onClick={() => {
                 setFormData({ ...currentUser });
@@ -717,79 +741,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
         </div>
       )}
 
-      {/* Referral Rewards Section for Pro and Elite users */}
-      {(currentUser.isCompanionPro || currentUser.membershipTier === 'Elite Companion' || currentUser.membershipTier === 'Pro') && (
-        <div className="bg-[#252525] border border-cyan-500/30 rounded-2xl p-6 space-y-4 shadow-xl bg-gradient-to-r from-cyan-500/10 via-[#252525] to-emerald-500/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-bold text-lg">
-                🎁
-              </div>
-              <div>
-                <h4 className="font-bold text-white text-sm flex items-center gap-2">
-                  <span>Referral Rewards & 10% Off</span>
-                  <span className="text-[10px] bg-cyan-500 text-black px-2 py-0.5 rounded-full font-black uppercase">Earn Discounts</span>
-                </h4>
-                <p className="text-xs text-neutral-300 mt-0.5">
-                  Invite friends to Blaze. Earn 10% off your next month's subscription for every successful sign-up!
-                </p>
-              </div>
-            </div>
-            <div className="text-right hidden sm:block">
-              <p className="text-[10px] uppercase font-bold text-neutral-400">Successful Referrals</p>
-              <p className="text-base font-black text-cyan-400">{currentUser.referralCount || 0}</p>
-            </div>
-          </div>
 
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="w-full sm:flex-1 space-y-1">
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Your Unique Referral Link</label>
-                <div className="bg-[#121212] border border-neutral-700 rounded-lg px-3 py-2 text-xs font-mono text-cyan-300 truncate select-all">
-                  https://blaze.io/invite?ref=BLAZE_{currentUser.id.toUpperCase()}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const link = `https://blaze.io/invite?ref=BLAZE_${currentUser.id.toUpperCase()}`;
-                    navigator.clipboard.writeText(link);
-                    setSuccessMsg('📋 Referral link copied to clipboard!');
-                    setTimeout(() => setSuccessMsg(''), 3000);
-                  }}
-                  className="flex-1 sm:flex-none px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold text-xs rounded-xl transition shadow"
-                >
-                  📋 Copy Link
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const currentCount = currentUser.referralCount || 0;
-                    const updated = {
-                      ...currentUser,
-                      referralCount: currentCount + 1,
-                      referralDiscountEarned: `${(currentCount + 1) * 10}% Off Next Month`
-                    };
-                    onUpdateUser(updated);
-                    setFormData(updated);
-                    setSuccessMsg(`🎉 Simulated successful sign-up! Earned referral bonus (${(currentCount + 1) * 10}% Off).`);
-                    setTimeout(() => setSuccessMsg(''), 4000);
-                  }}
-                  className="flex-1 sm:flex-none px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs rounded-xl transition shadow-lg shadow-cyan-500/20"
-                >
-                  ✨ Simulate Referral Sign-Up
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-2 border-t border-neutral-800 text-xs">
-              <span className="text-neutral-400">Active Subscription Reward:</span>
-              <span className="font-bold text-emerald-400">{currentUser.referralDiscountEarned || 'No discounts active yet'}</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Edit Form or Display View */}
       {isEditing ? (
@@ -1079,6 +1031,88 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* 24-Hour Moments & Stories Management */}
+          <div className="space-y-3 pt-4 border-t border-neutral-800">
+            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400 flex items-center justify-between">
+              <span className="flex items-center gap-1.5"><span className="text-amber-400">⚡</span> 24-Hour Moments & Stories ({(formData.stories || []).length})</span>
+              <span className="text-[10px] text-neutral-400">Active for 24h, removable anytime</span>
+            </label>
+
+            <div className="space-y-2 bg-neutral-900/60 border border-neutral-800 p-3 rounded-2xl">
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="Paste photo or video URL for your moment..."
+                  value={newMomentUrl}
+                  onChange={e => setNewMomentUrl(e.target.value)}
+                  className="flex-1 bg-[#252525] border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500"
+                />
+                <select
+                  value={newMomentType}
+                  onChange={e => setNewMomentType(e.target.value as 'photo' | 'video')}
+                  className="bg-[#252525] border border-neutral-800 rounded-xl px-2 py-2 text-xs text-white outline-none"
+                >
+                  <option value="photo">Photo Moment</option>
+                  <option value="video">Video Moment</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Add a caption or status text for your moment..."
+                  value={newMomentText}
+                  onChange={e => setNewMomentText(e.target.value)}
+                  className="flex-1 bg-[#252525] border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500"
+                />
+                <button
+                  type="button"
+                  onClick={addMoment}
+                  className="px-4 py-2 bg-amber-500 text-black font-bold text-xs rounded-xl hover:bg-amber-400 transition flex items-center gap-1 shrink-0"
+                >
+                  <Plus className="w-4 h-4" /> Post Moment
+                </button>
+              </div>
+            </div>
+
+            {(formData.stories || []).length > 0 && (
+              <div className="space-y-2 pt-1">
+                <span className="text-[11px] font-semibold text-neutral-300">Your Active Moments (Posts expire automatically after 24h):</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(formData.stories || []).map((story) => {
+                    const elapsedHours = (Date.now() - story.timestamp) / (1000 * 60 * 60);
+                    const remainingHours = Math.max(0, Math.floor(24 - elapsedHours));
+                    return (
+                      <div key={story.id} className="bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl flex items-center justify-between gap-3 shadow-sm">
+                        <div className="flex items-center space-x-2.5 overflow-hidden">
+                          {story.url ? (
+                            <img src={story.url} alt="Moment" className="w-12 h-12 rounded-lg object-cover border border-neutral-700 shrink-0" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm shrink-0">⚡</div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-white truncate">{story.text || 'Moment'}</p>
+                            <p className="text-[10px] text-amber-400 flex items-center gap-1">
+                              <span>⏳ Expires in ~{remainingHours}h</span>
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeMoment(story.id)}
+                          className="px-2.5 py-1.5 bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white rounded-lg text-xs font-bold transition shrink-0"
+                          title="Remove moment immediately"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

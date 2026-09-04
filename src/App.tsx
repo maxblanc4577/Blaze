@@ -34,6 +34,8 @@ import { DownloadAppModal } from './components/DownloadAppModal';
 import { RegistrationConsentModal } from './components/RegistrationConsentModal';
 import { DailyCheckinModal } from './components/DailyCheckinModal';
 import { OnboardingOverlay } from './components/OnboardingOverlay';
+import { FullRegistrationModal } from './components/FullRegistrationModal';
+import { LogOffConfirmationModal } from './components/LogOffConfirmationModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grid');
@@ -101,7 +103,7 @@ export default function App() {
   const [filters, setFilters] = useState<FilterState>({
     onlineOnly: false,
     withPhotoOnly: false,
-    maxDistance: 25,
+    maxDistance: 20,
     ageRange: [18, 70],
     selectedTribes: [],
     searchQuery: '',
@@ -163,7 +165,7 @@ export default function App() {
     return false;
   });
   const [isConsentModalOpen, setIsConsentModalOpen] = useState<boolean>(() => {
-    return localStorage.getItem('blaze_privacy_consent') !== 'true';
+    return localStorage.getItem('blaze_onboarding_completed') === 'true' && localStorage.getItem('blaze_privacy_consent') !== 'true';
   });
 
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
@@ -177,6 +179,8 @@ export default function App() {
     const today = new Date().toDateString();
     return lastDate !== today;
   });
+
+  const [isFullRegistrationOpen, setIsFullRegistrationOpen] = useState(false);
 
   const handleClaimCheckin = (rewardSparks: number) => {
     setCurrentUser(prev => ({
@@ -428,6 +432,7 @@ export default function App() {
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isCompanionModalOpen, setIsCompanionModalOpen] = useState(false);
+  const [isLogOffModalOpen, setIsLogOffModalOpen] = useState(false);
   const [isNewActivityModalOpen, setIsNewActivityModalOpen] = useState(false);
   const [reportHistory, setReportHistory] = useState<Array<{
     id: string;
@@ -579,11 +584,11 @@ export default function App() {
   const filteredProfiles = profiles
     .filter((p) => {
       if (p.isBlocked) return false;
-      if ((p.isCompanionPro || p.membershipTier === 'Elite Companion') && !p.isFeePaid) return false;
+      const isEliteOrPro = p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro';
       if (mintboysMode) {
-        const isEliteOrPro = p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro';
-        const isVerified = p.isVerified || p.verified || p.isFeePaid;
-        if (!isEliteOrPro || !isVerified) return false;
+        if (!isEliteOrPro || !p.isFeePaid) return false;
+      } else {
+        if (isEliteOrPro && p.isFeePaid) return false;
       }
       if (filters.onlineOnly && p.status !== 'online') return false;
       if (filters.withPhotoOnly && (!p.photos || p.photos.length === 0)) return false;
@@ -605,7 +610,7 @@ export default function App() {
       }
       const isElite = p.isCompanionPro || p.membershipTier === 'Elite Companion';
       if (filters.verifiedEliteOnly && (!isElite || !p.isFeePaid)) return false;
-      if (!isElite && p.distance > filters.maxDistance) return false;
+      if (!mintboysMode && !isElite && p.distance > filters.maxDistance) return false;
       if (filters.countryFilter && filters.countryFilter !== 'all') {
         const loc = (p.locationName || '').toLowerCase();
         const target = filters.countryFilter.toLowerCase();
@@ -1036,32 +1041,8 @@ export default function App() {
                 >
                   <span>🌟 All Profiles</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setGridSubTab('recently_viewed')}
-                  style={{ fontSize: '6px', lineHeight: '8px', height: '23px', width: '114px' }}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                    gridSubTab === 'recently_viewed'
-                      ? 'bg-amber-500 text-[#121212] shadow'
-                      : 'text-neutral-300 hover:text-white bg-neutral-800/60'
-                  }`}
-                  title="Show only profiles that viewed me"
-                >
-                  <span>👀 Viewed Me ({currentAreaViewedIds.length})</span>
-                </button>
-                <div className="w-[1px] h-5 bg-neutral-800 mx-1" />
-                <button
-                  type="button"
-                  onClick={() => setFilters({ ...filters, sortBy: 'smart_sort' })}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                    filters.sortBy === 'smart_sort'
-                      ? 'bg-[#FFC107] text-[#121212] shadow'
-                      : 'text-neutral-400 hover:text-white'
-                  }`}
-                  title="Smart Sort: Prioritize profiles matching your interests & tribes"
-                >
-                  <span>🧠 Smart Sort</span>
-                </button>
+
+
                 <button
                   type="button"
                   onClick={() => setFilters({ ...filters, sortBy: 'closest' })}
@@ -1073,55 +1054,10 @@ export default function App() {
                 >
                   <span>📍 Closest</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setFilters({ ...filters, sortBy: 'active_now' })}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                    filters.sortBy === 'active_now'
-                      ? 'bg-[#FFC107] text-[#121212] shadow'
-                      : 'text-neutral-400 hover:text-white'
-                  }`}
-                >
-                  <span>🟢 Active Now</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGridSubTab('right_now')}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                    gridSubTab === 'right_now'
-                      ? 'bg-amber-500 text-black shadow'
-                      : isRightNowActive
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                      : 'text-neutral-300 hover:text-white bg-neutral-800/60'
-                  }`}
-                  title="View and set your Right Now status"
-                >
-                  <span>⚡ Right Now {isRightNowActive && `(${getRemainingTimeStr()})`}</span>
-                  {isRightNowActive && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilters({ ...filters, sortBy: 'newest' })}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                    filters.sortBy === 'newest'
-                      ? 'bg-[#FFC107] text-[#121212] shadow'
-                      : 'text-neutral-400 hover:text-white'
-                  }`}
-                >
-                  <span>✨ Newest</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMintboysMode(!mintboysMode)}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                    mintboysMode
-                      ? 'bg-amber-500 text-black shadow-lg ring-2 ring-amber-400'
-                      : 'text-neutral-300 hover:text-white bg-neutral-800/60'
-                  }`}
-                  title="Toggle MintBoys Elite Companions mode"
-                >
-                  <span>👔 MintBoys Elite</span>
-                </button>
+
+
+
+
 
               </div>
             </div>
@@ -1175,7 +1111,7 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {gridSubTab === 'right_now' && (
+                  {gridSubTab === 'right_now' && !mintboysMode && (
                     <div className="mb-4 bg-gradient-to-r from-amber-500/15 via-neutral-900 to-neutral-900 border border-amber-500/30 p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 rounded-2xl bg-amber-500 text-black flex items-center justify-center font-black text-lg shadow-md animate-pulse">
@@ -1200,48 +1136,98 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="mb-4 flex items-center justify-between bg-neutral-900 border border-neutral-800 p-3 rounded-2xl shadow-sm">
-                    <div className="flex items-center space-x-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm">
-                        🌟
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-white">What's New in {currentArea}</h4>
-                        <p className="text-[11px] text-neutral-400">See who uploaded new photos and new members nearby</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setIsNewActivityModalOpen(true)}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1.5"
-                    >
-                      <span>✨ Area Activity</span>
-                    </button>
-                  </div>
+
 
                   {/* Quick Sort Segment Control */}
-                  <div className="mb-4 flex items-center justify-between bg-neutral-900 border border-neutral-800 p-2 rounded-2xl shadow-sm">
-                    <span className="text-xs font-bold text-neutral-400 pl-2">Sort by:</span>
-                    <div className="flex items-center space-x-1.5 bg-neutral-950 p-1 rounded-xl border border-neutral-800">
+                  <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-neutral-900 border border-neutral-800 p-3 rounded-2xl shadow-sm gap-3">
+                    <span className="text-xs font-bold text-neutral-400 px-1 shrink-0">Sort & Filter:</span>
+                    <div className="grid grid-cols-2 sm:flex items-center gap-1.5 bg-neutral-950 p-1.5 rounded-xl border border-neutral-800 w-full">
                       <button
-                        onClick={() => setFilters({ ...filters, sortBy: 'closest' })}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                          (!filters.sortBy || filters.sortBy === 'closest') ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
+                        onClick={() => {
+                          setGridSubTab('recently_viewed');
+                        }}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition text-center truncate ${
+                          gridSubTab === 'recently_viewed' ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
+                        }`}
+                        title="Show only profiles that viewed me"
+                      >
+                        👀 Viewed Me ({currentAreaViewedIds.length})
+                      </button>
+                      <button
+                        onClick={() => {
+                          setGridSubTab('right_now');
+                        }}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition text-center truncate ${
+                          gridSubTab === 'right_now' ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
+                        }`}
+                        title="Show only profiles in Right Now mode"
+                      >
+                        ⚡ Right Now {isRightNowActive && `(${getRemainingTimeStr()})`}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setGridSubTab('all');
+                          setFilters({ ...filters, sortBy: 'closest' });
+                        }}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition text-center truncate ${
+                          gridSubTab === 'all' && (!filters.sortBy || filters.sortBy === 'closest') ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
                         }`}
                       >
                         📍 Distance
                       </button>
+
+                      {/* Paid User Elite Tier Buttons */}
                       <button
-                        onClick={() => setFilters({ ...filters, sortBy: 'newest' })}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                          filters.sortBy === 'newest' ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
+                        onClick={() => {
+                          setMintboysMode(true);
+                          setGridSubTab('all');
+                          showToast('👑 Mintboys Elite verified member directory activated.');
+                        }}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition text-center truncate ${mintboysMode ? 'bg-amber-500 text-black shadow' : 'bg-neutral-800 text-amber-300 border border-amber-500/40 hover:bg-neutral-700'}`}
+                        title="Mintboys Elite Paid Users Directory"
+                      >
+                        👔 Mintboys Elite
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsSubscriptionModalOpen(true);
+                          showToast('⭐ Pro Elite membership status & perks.');
+                        }}
+                        className="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition text-center truncate bg-neutral-800 text-cyan-300 border border-cyan-500/40 hover:bg-neutral-700"
+                        title="Pro Elite Paid Users"
+                      >
+                        ⭐ Pro Elite
+                      </button>
+                      <button
+                        onClick={() => {
+                          setGridSubTab('all');
+                          setFilters({ ...filters, sortBy: 'newest' });
+                        }}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition text-center truncate ${
+                          gridSubTab === 'all' && filters.sortBy === 'newest' ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
                         }`}
                       >
                         ✨ Newest
                       </button>
                       <button
-                        onClick={() => setFilters({ ...filters, sortBy: 'compatibility' })}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                          filters.sortBy === 'compatibility' ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
+                        onClick={() => {
+                          setGridSubTab('all');
+                          setFilters({ ...filters, sortBy: 'active_now' });
+                        }}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition text-center truncate ${
+                          gridSubTab === 'all' && filters.sortBy === 'active_now' ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        🟢 Active Now
+                      </button>
+                      <button
+                        onClick={() => {
+                          setGridSubTab('all');
+                          setFilters({ ...filters, sortBy: 'compatibility' });
+                        }}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition text-center truncate ${
+                          gridSubTab === 'all' && filters.sortBy === 'compatibility' ? 'bg-amber-500 text-black shadow' : 'text-neutral-400 hover:text-white'
                         }`}
                       >
                         🔥 Compatibility
@@ -1737,303 +1723,148 @@ export default function App() {
             onUpdateUser={handleSaveProfile}
             onOpenCompanionModal={() => setIsCompanionModalOpen(true)}
             onLogOff={() => {
-              setIsLoggedIn(false);
-              showToast('🔒 Logged off from profile successfully.');
+              setIsLogOffModalOpen(true);
             }}
           />
         )}
       </main>
 
-      {/* Logged Off / Login & Register Screen Overlay */}
+      {/* Logged Off / Clean Front Page Intro with AI Design Male Model Display & Instant Entry (No Form) */}
       {!isLoggedIn && (
-        <div className="fixed inset-0 z-50 bg-[#121212] flex items-center justify-center p-4 overflow-y-auto">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              sessionStorage.setItem('blaze_session_token', 'token_' + Date.now());
-              sessionStorage.setItem('blaze_login_time', Date.now().toString());
-              if (authMode === 'register') {
-                const isProOrElite = registerProfileType === 'professional' || registerProfileType === 'elite';
-                const updated: UserProfile = {
-                  ...currentUser,
-                  name: registerName,
-                  email: registerEmail || 'user@blaze.io',
-                  membershipTier: registerProfileType === 'elite' ? 'Elite Companion' : registerProfileType === 'professional' ? 'Pro' : currentUser.membershipTier,
-                  isCompanionPro: isProOrElite,
-                  isFeePaid: false, // Payment made after registration before publication & activation
-                  verified: false,
-                  isVerified: false,
-                };
-                setCurrentUser(updated);
-                localStorage.setItem('blaze_current_user', JSON.stringify(updated));
-                showToast(registerProfileType === 'elite' ? '👑 Elite Companion registered! Please complete your subscription payment & ID verification to publish your profile.' : registerProfileType === 'professional' ? '⭐ Professional Companion registered! Please complete your subscription payment & ID verification to publish your profile.' : '🎉 Account registered and logged in successfully!');
-              } else {
-                showToast('👋 Welcome back! Logged in successfully.');
-              }
-              setIsLoggedIn(true);
-            }}
-            className="bg-[#1A1A1A] border border-neutral-800 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center space-y-5 shadow-2xl animate-in fade-in my-auto max-h-[92vh] overflow-y-auto"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-[#FFC107] flex items-center justify-center font-black text-[#121212] text-2xl mx-auto shadow-lg shadow-[#FFC107]/20">
-              B
-            </div>
+        <div className="fixed inset-0 z-50 bg-[#121212] flex items-center justify-center p-3 h-screen w-screen overflow-hidden select-none">
+          <div className="max-w-4xl w-full bg-[#1A1A1A] border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl grid grid-cols-1 md:grid-cols-2 gap-6 items-center animate-in fade-in">
+            
+            {/* Left Column: Intro & Text */}
+            <div className="space-y-4 text-left">
+              <div className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                Live Radar Active
+              </div>
 
-            {/* Mode Tabs */}
-            <div className="flex bg-[#252525] p-1 rounded-2xl border border-neutral-800">
-              <button
-                type="button"
-                onClick={() => { setAuthMode('login'); setRegisterPhase(1); }}
-                className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
-                  authMode === 'login' ? 'bg-[#FFC107] text-[#121212] shadow' : 'text-neutral-400 hover:text-white'
-                }`}
-              >
-                Log In
-              </button>
-              <button
-                type="button"
-                onClick={() => { setAuthMode('register'); setRegisterPhase(1); }}
-                className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
-                  authMode === 'register' ? 'bg-[#FFC107] text-[#121212] shadow' : 'text-neutral-400 hover:text-white'
-                }`}
-              >
-                Register
-              </button>
-            </div>
+              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight">
+                The after-dark map<br />
+                <span className="text-amber-400">Cruise who's near.</span>
+              </h1>
 
-            <div>
-              <h2 className="text-2xl font-black text-white">
-                {authMode === 'login' ? 'Log In Required' : 'Create Account'}
-              </h2>
-              <p className="text-xs text-neutral-400 mt-2">
-                {authMode === 'login'
-                  ? 'Your session has expired or you logged off. Enter your credentials to re-authenticate.'
-                  : 'Join Blaze today to connect, chat, and discover people near you.'}
+              {/* AI Male Models Larger & Wider Showcase Row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-3 bg-neutral-900 border border-neutral-800 rounded-2xl p-3 shadow-lg">
+                  <div className="relative">
+                    <img
+                      src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80"
+                      alt="Marcus"
+                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover ring-2 ring-amber-500/60 shadow-md"
+                    />
+                    <div className="absolute -bottom-1 -right-1 bg-green-500 w-3.5 h-3.5 rounded-full border-2 border-neutral-900 shadow"></div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-black text-white">Marcus</h4>
+                    <span className="text-[11px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-md inline-block">0.2 mi away</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-neutral-900 border border-neutral-800 rounded-2xl p-3 shadow-lg">
+                  <div className="relative">
+                    <img
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80"
+                      alt="Julian"
+                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover ring-2 ring-amber-500/60 shadow-md"
+                    />
+                    <div className="absolute -bottom-1 -right-1 bg-green-500 w-3.5 h-3.5 rounded-full border-2 border-neutral-900 shadow"></div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-black text-white">Julian</h4>
+                    <span className="text-[11px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-md inline-block">0.4 mi away</span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs sm:text-sm text-white font-bold leading-snug">
+                Join free, add a photo, and see who's out tonight. No download, no app store, no trace.
               </p>
             </div>
 
-            <div className="space-y-4 text-left">
-              {authMode === 'register' && (
-                <div className="flex items-center justify-between bg-[#252525] px-3 py-2 rounded-xl border border-neutral-800 text-xs">
-                  <span className="text-neutral-400 font-bold">Registration Phase:</span>
-                  <span className="text-[#FFC107] font-black">
-                    {registerPhase === 1 ? '1 of 2 (Basic Info)' : '2 of 2 (Saved Filters)'}
-                  </span>
-                </div>
-              )}
+            {/* Right Column: Instant Action Card */}
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 text-center space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-[#FFC107] flex items-center justify-center font-black text-[#121212] text-xl mx-auto shadow-lg shadow-[#FFC107]/20">
+                B
+              </div>
 
-              {authMode === 'register' && registerPhase === 2 ? (
-                <div className="space-y-4 py-2 animate-in fade-in">
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                      <span>🔖 Initial Saved Filter Preset</span>
-                    </h4>
-                    <p className="text-xs text-neutral-400">
-                      Choose a default filter set for your discovery feed upon joining:
-                    </p>
-                  </div>
+              <div>
+                <h2 className="text-[15px] font-black text-white">Welcome to Blaze</h2>
+                <p className="text-[11px] text-neutral-400 mt-0.5">
+                  Instant after-dark local radar with zero friction.
+                </p>
+              </div>
 
-                  <div className="space-y-2">
-                    {[
-                      { id: 'Nearby Friends', title: '📍 Nearby Friends', desc: '15mi max • Online Only • Looking for Friends' },
-                      { id: 'Night Owls', title: '🌙 Night Owls', desc: 'Active Today • Online Status Now' },
-                      { id: 'Same Tribes', title: '🤝 Same Tribes', desc: 'Matching Geek, Jock, & Otter Tribes' },
-                    ].map(preset => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setRegisterFilterPreset(preset.id as any)}
-                        className={`w-full text-left p-3.5 rounded-2xl border transition flex items-center justify-between ${
-                          registerFilterPreset === preset.id
-                            ? 'bg-[#FFC107]/10 border-[#FFC107] text-white'
-                            : 'bg-[#252525] border-neutral-800 text-neutral-300 hover:border-neutral-700'
-                        }`}
-                      >
-                        <div>
-                          <p className="text-xs font-black">{preset.title}</p>
-                          <p className="text-[10px] text-neutral-400 mt-0.5">{preset.desc}</p>
-                        </div>
-                        {registerFilterPreset === preset.id && (
-                          <span className="w-5 h-5 rounded-full bg-[#FFC107] text-black font-black text-xs flex items-center justify-center">✓</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+              <button
+                type="button"
+                onClick={() => {
+                  sessionStorage.setItem('blaze_session_token', 'token_' + Date.now());
+                  sessionStorage.setItem('blaze_login_time', Date.now().toString());
+                  setIsLoggedIn(true);
+                  showToast('⚡ Entered Blaze Live Radar successfully!');
+                }}
+                className="w-full py-3 bg-[#FFC107] hover:bg-[#ffca28] text-neutral-950 font-black rounded-xl shadow-md transition text-xs flex items-center justify-center gap-1.5"
+              >
+                Enter Live Radar Now
+              </button>
 
-                  <div className="bg-[#252525] border border-neutral-800 rounded-xl p-3 text-[11px] text-neutral-300">
-                    💡 You can modify or create custom saved filter presets anytime from the Filter modal.
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {authMode === 'register' && (
-                    <>
-                      <div>
-                        <label className="block text-xs font-bold text-neutral-400 mb-1">Full Name</label>
-                        <input
-                          type="text"
-                          value={registerName}
-                          onChange={(e) => setRegisterName(e.target.value)}
-                          className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FFC107]"
-                          placeholder="Enter your full name"
-                          required
-                        />
-                      </div>
+              <button
+                type="button"
+                onClick={() => setIsFullRegistrationOpen(true)}
+                className="w-full py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-black rounded-xl transition text-xs flex items-center justify-center gap-1.5 shadow-md"
+              >
+                Register Account & Select Tier
+              </button>
 
-                      <div>
-                        <label className="block text-xs font-bold text-neutral-400 mb-1.5">Select Profile Type & Tier</label>
-                        <div className="grid grid-cols-3 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => { setRegisterProfileType('regular'); setRegisterAsElite(false); setIsFeePaid(true); }}
-                            className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
-                              registerProfileType === 'regular' ? 'bg-[#FFC107]/10 border-[#FFC107] text-[#FFC107]' : 'bg-[#252525] border-neutral-800 text-neutral-300 hover:border-neutral-700'
-                            }`}
-                          >
-                            <span className="text-sm font-black">👤 Regular</span>
-                            <span className="text-[10px] text-neutral-400 mt-1">Free ($0)</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => { setRegisterProfileType('professional'); setRegisterAsElite(false); setIsFeePaid(false); }}
-                            className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
-                              registerProfileType === 'professional' ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300' : 'bg-[#252525] border-neutral-800 text-neutral-300 hover:border-neutral-700'
-                            }`}
-                          >
-                            <span className="text-sm font-black">⭐ Pro</span>
-                            <span className="text-[10px] text-cyan-400 mt-1">$19.99/mo + ID Verify</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => { setRegisterProfileType('elite'); setRegisterAsElite(true); setIsFeePaid(false); }}
-                            className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
-                              registerProfileType === 'elite' ? 'bg-amber-500/10 border-amber-500 text-amber-300' : 'bg-[#252525] border-neutral-800 text-neutral-300 hover:border-neutral-700'
-                            }`}
-                          >
-                            <span className="text-sm font-black">👑 Elite</span>
-                            <span className="text-[10px] text-amber-400 mt-1">$19.99/mo + ID Verify</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {registerProfileType !== 'regular' && (
-                        <div className="bg-[#252525] border border-amber-500/30 rounded-xl p-3.5 space-y-1.5">
-                          <div className="flex items-center space-x-2.5">
-                            <span className="text-xl">ℹ️</span>
-                            <div>
-                              <p className="text-xs font-bold text-amber-300">
-                                {registerProfileType === 'elite' ? 'Mintboys Elite Membership ($19.99/mo)' : 'Professional Membership ($19.99/mo)'}
-                              </p>
-                              <p className="text-[10px] text-neutral-400">Register now. You can make your $19.99/mo subscription payment and complete ID verification *after registration* from your profile before your profile can be published and active on the platform.</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-400 mb-1">
-                      {authMode === 'login' ? 'Email / Username' : 'Email Address'}
-                    </label>
-                    <input
-                      type={authMode === 'login' ? 'text' : 'email'}
-                      value={authMode === 'login' ? loginEmail : registerEmail}
-                      onChange={(e) => authMode === 'login' ? setLoginEmail(e.target.value) : setRegisterEmail(e.target.value)}
-                      className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FFC107]"
-                      placeholder={authMode === 'login' ? 'Enter email or username' : 'name@example.com'}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-400 mb-1">Password</label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={authMode === 'login' ? loginPassword : registerPassword}
-                        onChange={(e) => authMode === 'login' ? setLoginPassword(e.target.value) : setRegisterPassword(e.target.value)}
-                        className="w-full bg-[#252525] border border-neutral-800 rounded-xl px-4 py-3 pr-12 text-sm text-white focus:outline-none focus:border-[#FFC107]"
-                        placeholder="Enter password"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-1"
-                        title={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    {authMode === 'register' && registerPassword.length > 0 && (() => {
-                      const pass = registerPassword;
-                      let strength = 0;
-                      if (pass.length >= 8) strength++;
-                      if (/[A-Z]/.test(pass)) strength++;
-                      if (/[0-9]/.test(pass)) strength++;
-                      if (/[^A-Za-z0-9]/.test(pass)) strength++;
-                      
-                      const label = strength <= 1 ? 'Weak' : strength === 2 || strength === 3 ? 'Medium' : 'Strong';
-                      const color = strength <= 1 ? 'bg-red-500' : strength === 2 || strength === 3 ? 'bg-amber-500' : 'bg-emerald-500';
-                      const textColor = strength <= 1 ? 'text-red-400' : strength === 2 || strength === 3 ? 'text-amber-400' : 'text-emerald-400';
-
-                      return (
-                        <div className="mt-2 space-y-1">
-                          <div className="flex items-center justify-between text-[10px]">
-                            <span className="text-neutral-400">Password Strength:</span>
-                            <span className={`font-bold ${textColor}`}>{label}</span>
-                          </div>
-                          <div className="grid grid-cols-4 gap-1 h-1.5 w-full">
-                            <div className={`rounded-full transition-all ${strength >= 1 ? color : 'bg-neutral-800'}`} />
-                            <div className={`rounded-full transition-all ${strength >= 2 ? color : 'bg-neutral-800'}`} />
-                            <div className={`rounded-full transition-all ${strength >= 3 ? color : 'bg-neutral-800'}`} />
-                            <div className={`rounded-full transition-all ${strength >= 4 ? color : 'bg-neutral-800'}`} />
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </>
-              )}
+              <p className="text-[10px] leading-[15px] text-neutral-400">
+                You must be 18 or older to enter. Blaze is strictly 18+. Be safe, be discreet, be you.
+              </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              {authMode === 'register' && registerPhase === 2 && (
-                <button
-                  type="button"
-                  onClick={() => setRegisterPhase(1)}
-                  className="flex-1 py-3.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold text-sm rounded-xl transition"
-                >
-                  ← Back
-                </button>
-              )}
-
-              {authMode === 'register' && registerPhase === 1 ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!registerName.trim() || !registerEmail.trim() || !registerPassword.trim()) {
-                      showToast('⚠️ Please fill in all required registration fields.');
-                      return;
-                    }
-                    setRegisterPhase(2);
-                  }}
-                  className="w-full py-3.5 bg-[#FFC107] text-[#121212] font-black text-sm rounded-xl hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20"
-                >
-                  Next: Saved Filters & Preferences →
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  className="flex-1 py-3.5 bg-[#FFC107] text-[#121212] font-black text-sm rounded-xl hover:opacity-90 transition shadow-lg shadow-[#FFC107]/20"
-                >
-                  {authMode === 'login' ? 'Log In to Blaze' : 'Register & Join Blaze'}
-                </button>
-              )}
-            </div>
-          </form>
+          </div>
         </div>
       )}
+
+      {/* Full Registration Modal */}
+      <FullRegistrationModal
+        isOpen={isFullRegistrationOpen}
+        onClose={() => setIsFullRegistrationOpen(false)}
+        showToast={showToast}
+        onCompleteRegistration={(profileData, tier, isPaid) => {
+          setCurrentUser(prev => ({
+            ...prev,
+            ...profileData,
+            membershipTier: tier === 'Elite Companion' ? 'Elite Companion' : tier === 'Pro' ? 'Pro' : 'Free',
+            isCompanionPro: isPaid,
+            isFeePaid: isPaid
+          }));
+          setIsLoggedIn(true);
+          sessionStorage.setItem('blaze_session_token', 'token_' + Date.now());
+          showToast('🎉 Registration complete! Welcome to Blaze.');
+        }}
+      />
+
+      {/* Log Off Confirmation Modal */}
+      <LogOffConfirmationModal
+        isOpen={isLogOffModalOpen}
+        onClose={() => setIsLogOffModalOpen(false)}
+        onConfirmPermanent={() => {
+          setIsLogOffModalOpen(false);
+          setIsLoggedIn(false);
+          sessionStorage.removeItem('blaze_session_token');
+          sessionStorage.removeItem('blaze_login_time');
+          showToast('🔒 Permanently logged off. Please enter username and password / credentials to sign back in.');
+        }}
+        onConfirmTemporary={() => {
+          setIsLogOffModalOpen(false);
+          setIsLoggedIn(false);
+          showToast('⏸️ Temporarily logged off (Stealth Mode active). Click Enter Radar to return instantly.');
+        }}
+      />
+
+
 
       {/* Notifications Modal */}
       <NotificationsModal
@@ -2260,7 +2091,7 @@ export default function App() {
           setFilters({
             onlineOnly: false,
             withPhotoOnly: false,
-            maxDistance: 25,
+            maxDistance: 20,
             ageRange: [18, 70],
             selectedTribes: [],
             searchQuery: '',
@@ -2333,10 +2164,13 @@ export default function App() {
       {/* Onboarding Overlay */}
       {isOnboardingOpen && (
         <OnboardingOverlay
+          currentUser={currentUser}
+          onUpdateUser={setCurrentUser}
           onComplete={() => {
             localStorage.setItem('blaze_onboarding_completed', 'true');
             setIsOnboardingOpen(false);
-            showToast('🎉 Onboarding completed! Welcome to Blaze.');
+            setIsConsentModalOpen(true);
+            showToast('🎉 Profile created! Please review privacy terms.');
           }}
         />
       )}

@@ -42,6 +42,39 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  const handleSpeechToText = () => {
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      alert("Speech recognition is not supported in this browser. Please type your message.");
+      return;
+    }
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'en-US';
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    setIsListening(true);
+    recognition.onresult = (event: any) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setInputText(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
   const [showReplySpeedModal, setShowReplySpeedModal] = useState(false);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
@@ -1012,6 +1045,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             title="Hold to Record Voice Note"
           >
             <Mic className={`w-5 h-5 ${isRecording ? 'text-white' : 'text-[#FFC107]'}`} />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSpeechToText}
+            className={`p-2.5 rounded-full transition ${isListening ? 'bg-cyan-500 text-white animate-pulse shadow-lg shadow-cyan-500/50' : 'bg-[#252525] hover:bg-[#333333] text-cyan-400'}`}
+            title="Transcribe Voice to Text (Speech-to-Text)"
+          >
+            <Sparkles className={`w-5 h-5 ${isListening ? 'text-white' : 'text-cyan-400'}`} />
           </button>
 
           <button

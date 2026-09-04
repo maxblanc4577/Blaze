@@ -282,6 +282,7 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
             const x = Math.cos(angle) * radius;
             const y = Math.sin(angle) * radius;
             const isActive = profile.status === 'online';
+            const isRecentlyActive = isActive || (profile.lastLogin && (Date.now() - profile.lastLogin) < 300000) || (profile.lastActiveMinutes !== undefined && profile.lastActiveMinutes <= 5);
 
             return (
               <div
@@ -290,8 +291,8 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
                 className="absolute cursor-pointer group transition-transform hover:scale-125 z-10"
                 style={{ transform: `translate(${x}px, ${y}px)` }}
               >
-                {isActive && (
-                  <div className="absolute -inset-2 rounded-full border-2 border-emerald-400 animate-ping opacity-75 pointer-events-none" />
+                {isRecentlyActive && (
+                  <div className="absolute -inset-3 rounded-full border-2 border-emerald-400/80 animate-ping opacity-75 pointer-events-none duration-1000" />
                 )}
                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-500 shadow-xl bg-stone-800 relative z-10">
                   <img

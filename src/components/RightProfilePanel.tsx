@@ -194,10 +194,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   const lastVisitedTime = profile.lastVisited ? new Date(profile.lastVisited).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '2 mins ago';
   const mutualContacts = profile.mutualContacts || ['Sarah K.', 'Alex M.'];
   const hasSocialLinks = profile.socialLinks && Object.values(profile.socialLinks).some(Boolean);
-  const stories = profile.stories || [
-    { id: '1', text: 'Enjoying rooftop coffee in the sun ☀️', timestamp: Date.now() - 3600000 },
-    { id: '2', url: profile.photos[0], timestamp: Date.now() - 14000000 }
-  ];
+  const stories = (profile.stories || []).filter(s => Date.now() - s.timestamp < 24 * 60 * 60 * 1000);
   const [activeStoryIdx, setActiveStoryIdx] = useState(0);
 
   return (
@@ -449,50 +446,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </div>
         )}
 
-        {/* Safety Check-In Button for meeting match for first time */}
-        <div className="bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30 rounded-xl p-3 mb-3 flex items-center justify-between shadow">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-white">First-Time Meetup Safety</h4>
-              <p className="text-[10px] text-amber-300/80">Share live location for 2h with a friend</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowSafetyModal(true)}
-            className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1"
-          >
-            <span>🛡️ Check-In</span>
-          </button>
-        </div>
 
-        {/* Request Photo Verification Section */}
-        <div className="bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-transparent border border-blue-500/30 rounded-xl p-3 mb-3 flex items-center justify-between shadow">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-white">Photo Verification Status</h4>
-              <p className="text-[10px] text-blue-300/80">
-                {photoVerificationStatus === 'pending' ? 'Verification Request Pending Admin Review' : photoVerificationStatus === 'verified' ? 'Photos Authenticated & Verified' : 'Verify authenticity of profile photos'}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setPhotoVerificationStatus('pending');
-              if (showToast) showToast(`📸 Photo verification requested for ${profile.name}. Status: Pending.`);
-            }}
-            disabled={photoVerificationStatus !== 'none'}
-            className="px-3 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-neutral-700 text-black disabled:text-neutral-400 font-extrabold text-xs rounded-xl transition shadow flex items-center gap-1"
-          >
-            <span>{photoVerificationStatus === 'pending' ? '⏳ Pending' : photoVerificationStatus === 'verified' ? '✓ Verified' : 'Request Verification'}</span>
-          </button>
-        </div>
 
         {/* Profile Song Player */}
         <div className="bg-neutral-800/90 border border-neutral-700/80 rounded-xl p-3 mb-3 flex items-center justify-between shadow">
@@ -535,7 +489,8 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
           </div>
         </div>
 
-        {/* Voice Introduction Player */}
+        {/* Voice Introduction Player (Paid Members Only) */}
+        {profile.isFeePaid && (profile.membershipTier === 'Elite Companion' || profile.isCompanionPro || profile.membershipTier === 'Pro' || profile.isFeePaid) && (
         <div className="bg-neutral-800/90 border border-neutral-700/80 rounded-xl p-3 mb-3 flex items-center justify-between shadow">
           <div className="flex items-center space-x-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isPlayingVoice ? 'bg-emerald-500 text-black animate-pulse' : 'bg-neutral-700 text-emerald-400'}`}>
@@ -566,6 +521,7 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
             {isPlayingVoice ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
           </button>
         </div>
+        )}
 
         {/* Social Media Section */}
         {profile.socialLinks && (profile.socialLinks.instagram || profile.socialLinks.tiktok || profile.socialLinks.twitter || profile.socialLinks.snapchat) && (
