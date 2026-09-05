@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Eye, EyeOff, Trash2, Star } from 'lucide-react';
+import { Eye, EyeOff, Trash2, Star, MapPin, Compass } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { UserProfile, FilterState, ChatConversation, Message } from './types';
 import { MOCK_PROFILES, CURRENT_USER } from './data/mockProfiles';
@@ -40,6 +40,25 @@ import { LogOffConfirmationModal } from './components/LogOffConfirmationModal';
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grid');
   const [gridColumns, setGridColumns] = useState<number>(3);
+  const [cardLayout, setCardLayout] = useState<'expanded' | 'compact'>('expanded');
+  const [isMultiMessageModalOpen, setIsMultiMessageModalOpen] = useState<boolean>(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState<boolean>(false);
+  const [multiMessageText, setMultiMessageText] = useState<string>('Hey! Saw you checked out my profile. Would love to connect and chat!');
+  const [quickReplyTemplates, setQuickReplyTemplates] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('blaze_quick_reply_templates');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      "Hey! Loved your vibe, let's connect! ⚡",
+      "Hey there! Saw you nearby, what are you up to today? 👋",
+      "Hi! Great profile, let's grab coffee sometime ☕"
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('blaze_quick_reply_templates', JSON.stringify(quickReplyTemplates));
+  }, [quickReplyTemplates]);
   const [deviceMode, setDeviceMode] = useState<'responsive' | 'ios' | 'android'>('responsive');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('blaze_theme');
@@ -264,6 +283,20 @@ export default function App() {
   };
   const [gridSubTab, setGridSubTab] = useState<'all' | 'recently_viewed' | 'right_now'>('all');
   const [selectedVisitorIds, setSelectedVisitorIds] = useState<string[]>([]);
+  const [filterBySelectedVisitors, setFilterBySelectedVisitors] = useState<boolean>(false);
+  const visitorSectionRef = useRef<HTMLDivElement>(null);
+  const prevVisitorCountRef = useRef(currentAreaViewedIds.length);
+  const [highlightVisitors, setHighlightVisitors] = useState(false);
+
+  useEffect(() => {
+    if (currentAreaViewedIds.length > prevVisitorCountRef.current) {
+      visitorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightVisitors(true);
+      const timer = setTimeout(() => setHighlightVisitors(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    prevVisitorCountRef.current = currentAreaViewedIds.length;
+  }, [currentAreaViewedIds.length]);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     try {
       const sessionToken = sessionStorage.getItem('blaze_session_token');
@@ -336,6 +369,7 @@ export default function App() {
   const [showPresets, setShowPresets] = useState<boolean>(true);
   const [showRightNowModal, setShowRightNowModal] = useState<boolean>(false);
   const [mintboysMode, setMintboysMode] = useState<boolean>(false);
+  const [proEliteMode, setProEliteMode] = useState<boolean>(false);
   const [bookingModalProfile, setBookingModalProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
@@ -584,9 +618,15 @@ export default function App() {
   const filteredProfiles = profiles
     .filter((p) => {
       if (p.isBlocked) return false;
+      if (filterBySelectedVisitors && selectedVisitorIds.length > 0 && !selectedVisitorIds.includes(p.id)) return false;
       const isEliteOrPro = p.isCompanionPro || p.membershipTier === 'Elite Companion' || p.membershipTier === 'Pro';
+      const isProTier = p.membershipTier === 'Pro' || (p.isCompanionPro && p.membershipTier === 'Pro');
+      const isEliteTier = p.membershipTier === 'Elite Companion' || (p.isCompanionPro && p.membershipTier !== 'Pro');
+
       if (mintboysMode) {
-        if (!isEliteOrPro || !p.isFeePaid) return false;
+        if (!isEliteTier || !p.isFeePaid) return false;
+      } else if (proEliteMode) {
+        if (!isProTier || !p.isFeePaid) return false;
       } else {
         if (isEliteOrPro && p.isFeePaid) return false;
       }
@@ -689,6 +729,18 @@ export default function App() {
         };
         const scoreA = getCompatibilityScore(a);
         const scoreB = getCompatibilityScore(b);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+      }
+      if (filters.sortBy === 'tribe') {
+        const userTribes = [...(currentUser.tribes || []), ...(currentUser.tribe ? [currentUser.tribe] : []), ...(filters.selectedTribes || [])];
+        const getTribeScore = (p: UserProfile) => {
+          let score = 0;
+          const matchingTribes = p.tribes?.filter(t => userTribes.includes(t)).length || 0;
+          score += matchingTribes * 10;
+          return score;
+        };
+        const scoreA = getTribeScore(a);
+        const scoreB = getTribeScore(b);
         if (scoreB !== scoreA) return scoreB - scoreA;
       }
       if (filters.sortBy === 'active_now') {
@@ -1019,28 +1071,21 @@ export default function App() {
 
             {/* Search Input, Geolocation Status Bar & Sorting Toggle */}
             <div className="mb-4 flex flex-col md:flex-row gap-2.5 items-center justify-between">
-              <input
-                type="text"
-                placeholder="Search by name, bio, or interests..."
-                value={filters.searchQuery}
-                onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
-                className={`w-full sm:flex-1 border rounded-xl px-3 py-2.5 text-xs sm:text-sm outline-none transition shadow-sm ${isDarkMode ? 'bg-[#1E1E1E] border-neutral-800 focus:border-[#FFC107] text-white' : 'bg-white border-neutral-300 focus:border-amber-500 text-neutral-900'}`}
-              />
+              <button
+                type="button"
+                onClick={() => {
+                  setGridSubTab('all');
+                  setFilters({ ...filters, searchQuery: '', sortBy: 'closest' });
+                  setFilterBySelectedVisitors(false);
+                  showToast('🌟 Showing all current users');
+                }}
+                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl shadow transition flex items-center gap-1.5 flex-shrink-0"
+              >
+                <span>👥 All Users ({profiles.filter(p => !p.isBlocked).length})</span>
+              </button>
 
-              {/* Sorting & Visitors Toggle: All Profiles, Who Viewed Me, Closest, Newest, Compatibility */}
-              <div className="flex items-center space-x-1 bg-[#1E1E1E] border border-neutral-800 p-1 rounded-xl flex-shrink-0 overflow-x-auto max-w-full">
-                <button
-                  type="button"
-                  onClick={() => setGridSubTab('all')}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                    gridSubTab === 'all'
-                      ? 'bg-[#FFC107] text-[#121212] shadow'
-                      : 'text-neutral-400 hover:text-white bg-neutral-800/40'
-                  }`}
-                  title="Show all profiles"
-                >
-                  <span>🌟 All Profiles</span>
-                </button>
+              {/* Sorting & Visitors Toggle: Closest, Newest, Active Now, Compatibility, and Layout Toggle */}
+              <div className="flex items-center space-x-2 bg-[#1E1E1E] border border-neutral-800 p-1 rounded-xl flex-shrink-0 overflow-x-auto max-w-full">
 
 
                 <button
@@ -1055,10 +1100,53 @@ export default function App() {
                   <span>📍 Closest</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => setFilters({ ...filters, sortBy: 'newest' })}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    filters.sortBy === 'newest'
+                      ? 'bg-[#FFC107] text-[#121212] shadow'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span>✨ Newest</span>
+                </button>
 
+                <button
+                  type="button"
+                  onClick={() => setFilters({ ...filters, sortBy: 'active_now' })}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    filters.sortBy === 'active_now'
+                      ? 'bg-[#FFC107] text-[#121212] shadow'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span>⚡ Active Now</span>
+                </button>
 
+                <button
+                  type="button"
+                  onClick={() => setFilters({ ...filters, sortBy: 'compatibility' })}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+                    filters.sortBy === 'compatibility'
+                      ? 'bg-[#FFC107] text-[#121212] shadow'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span>🔥 Compatibility</span>
+                </button>
 
+                <div className="w-px h-6 bg-neutral-700 mx-1" />
 
+                {/* Layout Toggle: Expanded vs Compact */}
+                <button
+                  type="button"
+                  onClick={() => setCardLayout(cardLayout === 'expanded' ? 'compact' : 'expanded')}
+                  className="px-3 py-2 rounded-lg text-xs font-bold bg-neutral-800 text-amber-400 hover:bg-neutral-700 transition flex items-center gap-1 shadow whitespace-nowrap"
+                  title="Toggle card layout view"
+                >
+                  <span>{cardLayout === 'expanded' ? '🔲 Expanded View' : '◼️ Compact View'}</span>
+                </button>
               </div>
             </div>
 
@@ -1073,10 +1161,10 @@ export default function App() {
                 return (
                   <div className="text-center py-20 text-neutral-400">
                     <p className="text-lg font-bold mb-1">
-                      {mintboysMode ? 'No MintBoys Elite companions currently match criteria' : gridSubTab === 'recently_viewed' ? 'No recently viewed profiles yet' : 'No profiles match your filters'}
+                      {mintboysMode ? 'No MintBoys Elite companions currently match criteria' : proEliteMode ? 'No Pro Elite paid members currently match criteria' : gridSubTab === 'recently_viewed' ? 'No recently viewed profiles yet' : 'No profiles match your filters'}
                     </p>
                     <p className="text-sm">
-                      {mintboysMode ? 'Try toggling off MintBoys Elite mode or broadening your filters.' : gridSubTab === 'recently_viewed' ? 'Browse the discovery grid and click on profiles to spend a free view.' : 'Try broadening your distance radius or resetting your filters.'}
+                      {mintboysMode ? 'Try toggling off MintBoys Elite mode or broadening your filters.' : proEliteMode ? 'Try toggling off Pro Elite mode or broadening your filters.' : gridSubTab === 'recently_viewed' ? 'Browse the discovery grid and click on profiles to spend a free view.' : 'Try broadening your distance radius or resetting your filters.'}
                     </p>
                   </div>
                 );
@@ -1086,7 +1174,7 @@ export default function App() {
                 <>
                   {mintboysMode && (
                     <div className="mb-4 bg-gradient-to-r from-amber-500/20 via-neutral-900 to-neutral-900 border border-amber-500/40 p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3" style={{ lineHeight: '31px', width: '704px' }}>
                         <div className="w-10 h-10 rounded-2xl bg-amber-500 text-black flex items-center justify-center font-black text-lg shadow-md">
                           👔
                         </div>
@@ -1111,28 +1199,78 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                  {gridSubTab === 'right_now' && !mintboysMode && (
-                    <div className="mb-4 bg-gradient-to-r from-amber-500/15 via-neutral-900 to-neutral-900 border border-amber-500/30 p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-2xl bg-amber-500 text-black flex items-center justify-center font-black text-lg shadow-md animate-pulse">
-                          ⚡
+                  {proEliteMode && (
+                    <div className="mb-4 bg-gradient-to-r from-cyan-500/20 via-neutral-900 to-neutral-900 border border-cyan-500/40 p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="flex items-center space-x-3" style={{ lineHeight: '31px', width: '704px' }}>
+                        <div className="w-10 h-10 rounded-2xl bg-cyan-400 text-black flex items-center justify-center font-black text-lg shadow-md">
+                          ⭐
                         </div>
                         <div>
                           <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                            <span>Right Now Section</span>
-                            {isRightNowActive && <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">Active ({getRemainingTimeStr()})</span>}
+                            <span>Pro Elite Paid Users Directory</span>
+                            <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-full font-bold">Top Tier VIP</span>
                           </h4>
                           <p className="text-xs text-neutral-300">
-                            {isRightNowActive ? `Your status: "${rightNowNote || 'Ready to meet!'}"` : "You are not currently broadcasting in Right Now."}
+                            Exclusive network of verified Pro Elite members enjoying maximum priority and premier platform exposure.
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => setShowRightNowModal(true)}
-                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg flex items-center gap-1.5 shrink-0"
-                      >
-                        <span>⚡ {isRightNowActive ? 'Edit Status' : 'Set Right Now Status'}</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-cyan-400 font-semibold">Active Mode</span>
+                        <button
+                          onClick={() => setProEliteMode(false)}
+                          className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold rounded-xl transition"
+                        >
+                          Exit Pro Elite
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {gridSubTab === 'right_now' && !mintboysMode && (
+                    <div className="space-y-3 mb-4">
+                      <div className="bg-gradient-to-r from-amber-500/15 via-neutral-900 to-neutral-900 border border-amber-500/30 p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div className="flex items-center space-x-3" style={{ lineHeight: '31px', width: '704px' }}>
+                          <div className="w-10 h-10 rounded-2xl bg-amber-500 text-black flex items-center justify-center font-black text-lg shadow-md animate-pulse">
+                            ⚡
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                              <span>Right Now Section</span>
+                              {isRightNowActive && <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">Active ({getRemainingTimeStr()})</span>}
+                            </h4>
+                            <p className="text-xs text-neutral-300">
+                              {isRightNowActive ? `Your status: "${rightNowNote || 'Ready to meet!'}"` : "You are not currently broadcasting in Right Now."}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setShowRightNowModal(true)}
+                          className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg flex items-center gap-1.5 shrink-0"
+                        >
+                          <span>⚡ {isRightNowActive ? 'Edit Status' : 'Set Right Now Status'}</span>
+                        </button>
+                      </div>
+                      {isRightNowActive && rightNowExpiresAt && (() => {
+                        const totalDuration = 2 * 60 * 60 * 1000;
+                        const remaining = Math.max(0, rightNowExpiresAt - Date.now());
+                        const progressPct = Math.max(0, Math.min(100, (remaining / totalDuration) * 100));
+                        return (
+                          <div className="bg-neutral-900 border border-amber-500/30 p-3 rounded-2xl space-y-1.5 shadow">
+                            <div className="flex items-center justify-between text-xs font-bold text-neutral-300">
+                              <span className="flex items-center gap-1.5 text-amber-400">
+                                <span>🚀 Active Boost Countdown</span>
+                              </span>
+                              <span className="text-amber-300 font-mono">{getRemainingTimeStr()}</span>
+                            </div>
+                            <div className="w-full bg-neutral-800 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-gradient-to-r from-amber-500 to-yellow-400 h-full transition-all duration-1000 rounded-full"
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 
@@ -1140,7 +1278,7 @@ export default function App() {
 
                   {/* Quick Sort Segment Control */}
                   <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-neutral-900 border border-neutral-800 p-3 rounded-2xl shadow-sm gap-3">
-                    <span className="text-xs font-bold text-neutral-400 px-1 shrink-0">Sort & Filter:</span>
+
                     <div className="grid grid-cols-2 sm:flex items-center gap-1.5 bg-neutral-950 p-1.5 rounded-xl border border-neutral-800 w-full">
                       <button
                         onClick={() => {
@@ -1180,6 +1318,7 @@ export default function App() {
                       <button
                         onClick={() => {
                           setMintboysMode(true);
+                          setProEliteMode(false);
                           setGridSubTab('all');
                           showToast('👑 Mintboys Elite verified member directory activated.');
                         }}
@@ -1191,10 +1330,12 @@ export default function App() {
 
                       <button
                         onClick={() => {
-                          setIsSubscriptionModalOpen(true);
-                          showToast('⭐ Pro Elite membership status & perks.');
+                          setProEliteMode(true);
+                          setMintboysMode(false);
+                          setGridSubTab('all');
+                          showToast('⭐ Pro Elite paid users directory activated.');
                         }}
-                        className="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition text-center truncate bg-neutral-800 text-cyan-300 border border-cyan-500/40 hover:bg-neutral-700"
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition text-center truncate ${proEliteMode ? 'bg-cyan-400 text-black shadow' : 'bg-neutral-800 text-cyan-300 border border-cyan-500/40 hover:bg-neutral-700'}`}
                         title="Pro Elite Paid Users"
                       >
                         ⭐ Pro Elite
@@ -1232,6 +1373,7 @@ export default function App() {
                       >
                         🔥 Compatibility
                       </button>
+
                     </div>
                   </div>
 
@@ -1267,6 +1409,7 @@ export default function App() {
                         showToast={showToast}
                         onReportSubmitted={handleReportSubmitted}
                         hasActiveConversation={conversations.some(c => c.profile.id === profile.id && c.messages && c.messages.length > 0)}
+                        layout={cardLayout}
                       />
                     ))}
                   </div>
@@ -1309,20 +1452,19 @@ export default function App() {
 
                     const handleBulkMessage = () => {
                       if (selectedVisitorIds.length === 0) return;
-                      const target = profiles.find(p => p.id === selectedVisitorIds[0]);
-                      if (target) {
-                        handleStartChat(target);
-                        showToast(`💬 Opened chat with ${target.name}`);
-                      }
+                      setIsMultiMessageModalOpen(true);
                     };
 
                     return (
                       <motion.div
+                        ref={visitorSectionRef}
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.5 }}
-                        className={`mt-12 p-5 rounded-2xl border ${isDarkMode ? 'bg-[#181818] border-neutral-800' : 'bg-white border-neutral-200 shadow-xl'} space-y-4`}
+                        className={`mt-12 p-5 rounded-2xl border ${isDarkMode ? 'bg-[#181818] border-neutral-800' : 'bg-white border-neutral-200 shadow-xl'} space-y-4 ${
+                          highlightVisitors ? 'ring-4 ring-cyan-500/60 shadow-cyan-500/30 transition-all duration-500 scale-[1.01]' : ''
+                        }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-800">
                           <div className="flex items-center space-x-2.5">
@@ -1350,6 +1492,17 @@ export default function App() {
                                 className="w-4 h-4 accent-[#FFC107] rounded cursor-pointer"
                               />
                               <span>Select All ({selectedVisitorIds.length}/{visitorProfiles.length})</span>
+                            </label>
+
+                            {/* Filter by Selected Checkbox */}
+                            <label className="cursor-pointer flex items-center gap-2 text-xs font-semibold text-neutral-300 hover:text-white bg-neutral-900 px-3 py-2 rounded-xl border border-neutral-700 select-none">
+                              <input
+                                type="checkbox"
+                                checked={filterBySelectedVisitors}
+                                onChange={(e) => setFilterBySelectedVisitors(e.target.checked)}
+                                className="w-4 h-4 accent-[#FFC107] rounded cursor-pointer"
+                              />
+                              <span>Filter by Selected</span>
                             </label>
 
                             {/* Clear All Button */}
@@ -1451,9 +1604,10 @@ export default function App() {
                               </button>
                               <button
                                 onClick={handleBulkMessage}
-                                className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-cyan-500/30 transition"
+                                className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-cyan-500/30 transition flex items-center gap-1"
                               >
-                                💬 Message
+                                <span>💬</span>
+                                <span>Message Selected</span>
                               </button>
                             </div>
                           </div>
@@ -1515,6 +1669,18 @@ export default function App() {
                                         <span>{visitor.name}</span>
                                         <span className="text-xs text-neutral-400 font-normal">{visitor.age}</span>
                                       </h4>
+                                      <div className="flex items-center gap-1.5 mt-0.5">
+                                        {visitorSources[visitor.id] === 'Map' ? (
+                                          <span className="bg-amber-500/15 text-amber-300 text-[10px] px-2 py-0.5 rounded-md inline-flex items-center gap-1 border border-amber-500/30 font-semibold">
+                                            <MapPin className="w-3 h-3 text-amber-400" /> Radar
+                                          </span>
+                                        ) : (
+                                          <span className="bg-cyan-500/15 text-cyan-300 text-[10px] px-2 py-0.5 rounded-md inline-flex items-center gap-1 border border-cyan-500/30 font-semibold">
+                                            <Compass className="w-3 h-3 text-cyan-400" /> Grid
+                                          </span>
+                                        )}
+                                        <span className="text-[10px] text-neutral-400">• {timeStr}</span>
+                                      </div>
                                       <p className="text-[10px] text-cyan-400 font-medium">Visited {timeStr}</p>
                                     </div>
                                   </div>
@@ -1620,6 +1786,7 @@ export default function App() {
                         setIsQuickActionsOpen(false);
                         setProfiles(prev => [...prev].sort(() => Math.random() - 0.5));
                         showToast('🔄 Grid refreshed with latest profiles!');
+                        mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
                       className="w-full text-left px-3 py-2 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 text-white text-xs font-bold flex items-center gap-2 transition"
                     >
@@ -1864,6 +2031,187 @@ export default function App() {
         }}
       />
 
+      {/* Multi-Recipient Icebreaker Chat Modal */}
+      {isMultiMessageModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#1A1A1A] border border-neutral-800 rounded-3xl max-w-lg w-full p-6 text-white shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold">
+                  💬
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Message Selected Visitors</h3>
+                  <p className="text-xs text-neutral-400">Send an icebreaker to {selectedVisitorIds.length} recipients at once</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMultiMessageModalOpen(false)}
+                className="p-2 rounded-full bg-neutral-800 text-neutral-400 hover:text-white transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Selected Recipients Preview */}
+            <div className="flex items-center gap-2 overflow-x-auto py-1">
+              {selectedVisitorIds.map(id => {
+                const visitor = profiles.find(p => p.id === id);
+                if (!visitor) return null;
+                return (
+                  <div key={id} className="flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 px-2.5 py-1.5 rounded-full shrink-0">
+                    <img src={visitor.photos[0]} alt="" className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
+                    <span className="text-xs font-bold">{visitor.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Quick Reply Template Selector */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider">Quick Reply Templates</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!multiMessageText.trim()) return;
+                    if (quickReplyTemplates.includes(multiMessageText)) {
+                      showToast('⚠️ This template is already saved.');
+                      return;
+                    }
+                    setQuickReplyTemplates(prev => [...prev, multiMessageText.trim()]);
+                    showToast('💾 Saved current message as Quick Reply template!');
+                  }}
+                  className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 transition"
+                >
+                  <span>+ Save Current as Template</span>
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1.5 bg-neutral-950 rounded-xl border border-neutral-800">
+                {quickReplyTemplates.map((template, idx) => (
+                  <div key={idx} className="group relative flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => setMultiMessageText(template)}
+                      className="text-xs bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-800 hover:border-amber-500/50 px-3 py-1.5 rounded-lg text-left transition truncate max-w-[240px]"
+                      title={template}
+                    >
+                      {template}
+                    </button>
+                    {quickReplyTemplates.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setQuickReplyTemplates(prev => prev.filter((_, i) => i !== idx));
+                          showToast('🗑️ Removed quick reply template.');
+                        }}
+                        className="absolute -top-1 -right-1 w-4 h-4 bg-neutral-800 text-neutral-400 hover:text-rose-400 rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition border border-neutral-700"
+                        title="Delete template"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Icebreaker Input */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider block">Icebreaker Message</label>
+              <textarea
+                rows={3}
+                value={multiMessageText}
+                onChange={e => setMultiMessageText(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-3 text-xs text-white outline-none focus:border-[#FFC107] resize-none"
+                placeholder="Type your icebreaker message..."
+              />
+              <p className="text-[10px] text-neutral-400">
+                This will open individual chat threads with each selected recipient containing this icebreaker message.
+              </p>
+            </div>
+
+            {/* Actions */}
+            {showBulkConfirm ? (
+              <div className="bg-neutral-900 border border-amber-500/40 p-4 rounded-2xl space-y-3">
+                <h4 className="font-bold text-sm text-amber-400">⚠️ Confirm Bulk Icebreaker</h4>
+                <p className="text-xs text-neutral-300">
+                  You are about to send this icebreaker message to <span className="font-bold text-white">{selectedVisitorIds.length}</span> selected profiles simultaneously. Are you sure you want to proceed?
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkConfirm(false)}
+                    className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold py-2.5 rounded-xl text-xs transition"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      selectedVisitorIds.forEach(id => {
+                        const visitor = profiles.find(p => p.id === id);
+                        if (visitor) {
+                          setConversations(prev => {
+                            const existing = prev.find(c => c.profile.id === visitor.id);
+                            if (existing) {
+                              return prev.map(c => c.profile.id === visitor.id ? {
+                                ...c,
+                                messages: [
+                                  ...c.messages,
+                                  { id: 'msg_' + Date.now() + Math.random(), senderId: currentUser.id, text: multiMessageText, timestamp: Date.now() }
+                                ]
+                              } : c);
+                            } else {
+                              return [
+                                {
+                                  id: 'conv_' + visitor.id,
+                                  profile: visitor,
+                                  messages: [
+                                    { id: 'msg_' + Date.now(), senderId: currentUser.id, text: multiMessageText, timestamp: Date.now() }
+                                  ]
+                                },
+                                ...prev
+                              ];
+                            }
+                          });
+                        }
+                      });
+                      showToast(`💬 Sent icebreaker message to ${selectedVisitorIds.length} visitors!`);
+                      setSelectedVisitorIds([]);
+                      setShowBulkConfirm(false);
+                      setIsMultiMessageModalOpen(false);
+                      setActiveTab('chats');
+                    }}
+                    className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-extrabold py-2.5 rounded-xl text-xs shadow-lg transition"
+                  >
+                    Yes, Send Bulk Message
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsMultiMessageModalOpen(false)}
+                  className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-bold py-3 px-4 rounded-xl text-xs transition text-center"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkConfirm(true)}
+                  className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black font-black py-3 px-4 rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition text-center flex items-center justify-center gap-1.5"
+                >
+                  <span>💬</span> Send to All ({selectedVisitorIds.length})
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
 
 
       {/* Notifications Modal */}
@@ -1897,6 +2245,7 @@ export default function App() {
           setIsSubscriptionModalOpen(true);
         }}
         areaName={currentArea}
+        boostActiveUntil={boostActiveUntil}
       />
 
       {/* Companion Membership Modal */}
@@ -2077,6 +2426,62 @@ export default function App() {
             hasWinked={!!selectedProfile.isTapped || !!selectedProfile.isWinked}
             hasMessaged={conversations.some(c => c.profile.id === selectedProfile.id && c.messages && c.messages.length > 0)}
             conversationMessages={conversations.find(c => c.profile.id === selectedProfile.id)?.messages || []}
+            isRightNowActive={selectedProfile.id === currentUser.id ? isRightNowActive : !!selectedProfile.isRightNowActive}
+            rightNowNote={selectedProfile.id === currentUser.id ? rightNowNote : selectedProfile.rightNowNote}
+            rightNowExpiresAt={selectedProfile.id === currentUser.id ? rightNowExpiresAt : selectedProfile.rightNowExpiresAt}
+            onMessageRightNow={(p, note) => {
+              setSelectedProfile(null);
+              let existing = conversations.find((c) => c.profile.id === p.id);
+              const msgText = `⚡ Hey! Saw your Right Now status: "${note}". Let's connect!`;
+              if (!existing) {
+                const newConv: ChatConversation = {
+                  id: `conv-${p.id}`,
+                  profile: p,
+                  lastMessage: `⚡ Right Now: "${note}"`,
+                  unreadCount: 0,
+                  updatedAt: Date.now(),
+                  messages: [
+                    {
+                      id: `msg-${Date.now()}`,
+                      senderId: currentUser.id,
+                      receiverId: p.id,
+                      text: msgText,
+                      timestamp: Date.now(),
+                    },
+                  ],
+                };
+                setConversations((prev) => [newConv, ...prev]);
+                existing = newConv;
+              } else {
+                const newMsg: Message = {
+                  id: `msg-${Date.now()}`,
+                  senderId: currentUser.id,
+                  receiverId: p.id,
+                  text: msgText,
+                  timestamp: Date.now(),
+                  isRead: false,
+                  status: 'pending',
+                };
+                setConversations(prev => prev.map(c => c.profile.id === p.id ? { ...c, messages: [...c.messages, newMsg], lastMessage: newMsg.text, updatedAt: Date.now() } : c));
+              }
+              setActiveChat(existing);
+              setActiveTab('chats');
+              showToast(`⚡ Started conversation about Right Now status with ${p.name}`);
+            }}
+            onToggleRightNow={selectedProfile.id === currentUser.id ? () => {
+              const nextState = !isRightNowActive;
+              setIsRightNowActive(nextState);
+              if (nextState) {
+                setRightNowExpiresAt(Date.now() + 2 * 60 * 60 * 1000);
+                showToast('⚡ "Right Now" status activated for 2 hours!');
+              } else {
+                setRightNowExpiresAt(null);
+                setRightNowNote('');
+                showToast('⚡ "Right Now" status hidden.');
+              }
+              setCurrentUser(prev => ({ ...prev, isRightNowActive: nextState }));
+              setProfiles(prev => prev.map(p => p.id === currentUser.id ? { ...p, isRightNowActive: nextState } : p));
+            } : undefined}
           />
         )}
       </AnimatePresence>

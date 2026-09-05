@@ -68,7 +68,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               <span className="text-[10px] text-neutral-400">Quick Toggle</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -112,6 +112,21 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               >
                 <p className="text-xs font-bold text-white group-hover:text-amber-400">🤝 Same Tribes</p>
                 <p className="text-[9px] text-neutral-400 mt-0.5">Matching Tribes</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters(prev => ({
+                    ...prev,
+                    lookingFor: ['Right Now'],
+                    onlineOnly: true
+                  }));
+                }}
+                className="p-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 rounded-xl text-center transition group"
+              >
+                <p className="text-xs font-bold text-white group-hover:text-amber-400">⚡ Right Now</p>
+                <p className="text-[9px] text-neutral-400 mt-0.5">Looking for Meetup</p>
               </button>
             </div>
           </div>

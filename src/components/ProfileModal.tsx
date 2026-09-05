@@ -52,6 +52,22 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const lockedPhotos = profile.lockedAlbum?.photos || [];
   const lockedVideos = profile.lockedAlbum?.videos || [];
 
+  const getLastActiveText = (p: UserProfile) => {
+    if (p.status === 'online') return 'Online now';
+    if (p.status === 'away') return 'Away (Active 12m ago)';
+    if (p.lastActive) return p.lastActive;
+    if (p.lastLogin) {
+      const mins = Math.max(1, Math.floor((Date.now() - p.lastLogin) / 60000));
+      if (mins < 60) return `Active ${mins}m ago`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return `Active ${hours}h ago`;
+      return `Active ${Math.floor(hours / 24)}d ago`;
+    }
+    return 'Active 2h ago';
+  };
+
+  const isProEliteUser = profile.membershipTier === 'Pro' || profile.membershipTier === 'Elite Companion' || profile.isCompanionPro || profile.isFeePaid;
+
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-0 sm:p-4">
       <div className="bg-[#1A1A1A] w-full sm:max-w-4xl sm:rounded-2xl rounded-t-3xl border border-neutral-800 text-white max-h-[95vh] sm:max-h-[85vh] flex flex-col sm:flex-row shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 relative">
@@ -122,21 +138,24 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           {/* Name & Distance Overlay (Mobile Only) */}
           <div className="absolute bottom-4 left-4 right-4 z-10 flex items-end justify-between sm:hidden">
             <div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 flex-wrap gap-1">
                 <h2 className="text-2xl font-black text-white flex items-center gap-1.5">
                   <span>{profile.name}</span>
                   <span className="font-normal text-neutral-300">, {profile.age}</span>
                   {profile.isVerified && (
-                    <ShieldCheck className="w-5 h-5 text-cyan-400 fill-cyan-400/20" title="Verified Profile" />
+                    <ShieldCheck className="w-5 h-5 text-cyan-400 fill-cyan-400/20 cursor-help" title="Verified Identity: This user has successfully verified their identity with a government ID or selfie capture, ensuring authenticity and platform safety." />
+                  )}
+                  {isProEliteUser && (
+                    <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow" title="Pro Elite VIP: Premium membership tier featuring priority discovery radar, blue checkmark badge, WhatsApp & phone display, and top-tier local priority.">
+                      👑 Pro Elite
+                    </span>
                   )}
                 </h2>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <div className={`w-3 h-3 rounded-full ${profile.status === 'online' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  {profile.status !== 'online' && (
-                    <span className="text-[10px] text-neutral-300 font-medium bg-black/40 px-1.5 py-0.5 rounded">
-                      {profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : 'Active 1h ago')}
-                    </span>
-                  )}
+                  <div className={`w-3 h-3 rounded-full ${profile.status === 'online' ? 'bg-emerald-500 animate-pulse' : profile.status === 'away' ? 'bg-amber-400' : 'bg-neutral-500'}`} />
+                  <span className="text-[10px] text-neutral-200 font-medium bg-black/60 px-2 py-0.5 rounded-full border border-neutral-700">
+                    {getLastActiveText(profile)}
+                  </span>
                 </div>
               </div>
               <p className="text-xs text-neutral-300 flex items-center gap-1 mt-1">
@@ -167,28 +186,26 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             {/* Desktop Name & Header info */}
             <div className="hidden sm:flex items-center justify-between border-b border-neutral-800 pb-4 pr-12">
               <div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2.5 flex-wrap gap-1">
                   <h2 className="text-2xl font-black text-white flex items-center gap-1.5">
                     <span>{profile.name}</span>
                     <span className="font-normal text-neutral-300">, {profile.age}</span>
                     {profile.isVerified && (
-                      <ShieldCheck className="w-5 h-5 text-cyan-400 fill-cyan-400/20" title="Verified Profile" />
+                      <ShieldCheck className="w-5 h-5 text-cyan-400 fill-cyan-400/20 cursor-help" title="Verified Identity: This user has successfully verified their identity with a government ID or selfie capture, ensuring authenticity and platform safety." />
                     )}
-                  </h2>
-                   <div className="flex items-center gap-1.5">
-                    <div className="flex items-center gap-1.5">
-                   <div className={`w-3 h-3 rounded-full ${profile.status === 'online' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                   {profile.status !== 'online' && (
-                     <span className="text-[10px] text-neutral-300 font-medium bg-black/40 px-1.5 py-0.5 rounded">
-                       {profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : 'Active 1h ago')}
-                     </span>
-                   )}
-                 </div>
-                    {profile.status !== 'online' && (
-                      <span className="text-[10px] text-neutral-400 font-medium">
-                        {profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : 'Active 1h ago')}
+                    {isProEliteUser && (
+                      <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow" title="Pro Elite VIP: Premium membership tier featuring priority discovery radar, blue checkmark badge, WhatsApp & phone display, and top-tier local priority.">
+                        👑 Pro Elite
                       </span>
                     )}
+                  </h2>
+                   <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 px-2.5 py-1 rounded-full">
+                      <div className={`w-2.5 h-2.5 rounded-full ${profile.status === 'online' ? 'bg-emerald-500 animate-pulse' : profile.status === 'away' ? 'bg-amber-400' : 'bg-neutral-500'}`} />
+                      <span className="text-[10px] text-neutral-300 font-bold">
+                        {getLastActiveText(profile)}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <p className="text-xs text-neutral-300 flex items-center gap-1 mt-1">

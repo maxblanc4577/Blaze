@@ -23,9 +23,10 @@ interface ProfileCardProps {
   showToast?: (msg: string) => void;
   onReportSubmitted?: (profile: UserProfile, reason: string, details: string) => void;
   hasActiveConversation?: boolean;
+  layout?: 'expanded' | 'compact';
 }
 
-export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onBlockUser, onToggleFavorite, onOpenChat, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false, showToast, onReportSubmitted, hasActiveConversation = false }) => {
+export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, onClick, onTap, onPass, onDelete, onBlockUser, onToggleFavorite, onOpenChat, currentUserInterests, onBadgeClick, viewedCount = 0, hasActiveSubscription = false, showToast, onReportSubmitted, hasActiveConversation = false, layout = 'expanded' }) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeX, setSwipeX] = useState(0);
@@ -38,6 +39,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showLightbox, setShowLightbox] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const showAge = localStorage.getItem('blaze_card_show_age') !== 'false';
   const showDistance = localStorage.getItem('blaze_card_show_distance') !== 'false';
@@ -136,15 +138,17 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
   };
 
   const isBoostOrPremium = profile.membershipTier === 'Pro' || profile.membershipTier === 'Elite Companion' || profile.isCompanionPro;
+  const isProElite = isBoostOrPremium || profile.membershipTier === 'Elite' || profile.isFeePaid;
 
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        whileHover={{ scale: 1.03, y: -4 }}
+        initial={{ opacity: 0, y: 25, scale: 0.97 }}
+        whileInView={{ opacity: 1, y: 0, scale: 1 }}
+        viewport={{ once: true, margin: "50px" }}
+        whileHover={{ scale: 1.02, y: -3 }}
         exit={{ opacity: 0, scale: 0.8, x: swipeX < 0 ? -150 : 150 }}
-        transition={{ duration: 0.35, delay: index * 0.04, ease: 'easeOut' }}
+        transition={{ duration: 0.4, delay: (index % 8) * 0.05, ease: 'easeOut' }}
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         onDrag={(e, info) => {
@@ -169,10 +173,29 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
           transform: `translateX(${swipeX * 0.4}px) rotate(${swipeX * 0.03}deg)`,
           transition: swipeX === 0 ? 'transform 0.2s ease' : 'none',
         }}
-        className={`relative group bg-[#1E1E1E] rounded-xl overflow-hidden cursor-pointer border border-neutral-800/80 hover:border-[#FFC107]/50 transition-all duration-300 shadow-md hover:shadow-2xl hover:scale-[1.03] aspect-[3/4] flex flex-col select-none ${
-          isBoostOrPremium ? 'ring-2 ring-amber-500/40 animate-pulse' : ''
+        className={`relative group bg-[#1E1E1E] rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-md hover:shadow-2xl hover:scale-[1.03] ${
+          layout === 'compact' ? 'aspect-square' : 'aspect-[3/4]'
+        } flex flex-col select-none ${
+          isProElite
+            ? 'border-2 border-amber-400 bg-gradient-to-tr from-amber-500/20 via-[#1E1E1E] to-amber-500/10 shadow-xl shadow-amber-500/30 ring-2 ring-amber-400/40'
+            : 'border border-neutral-800/80 hover:border-[#FFC107]/50'
         }`}
       >
+        {/* Pro Elite Status Ribbon */}
+        {isProElite && (
+          <div className="absolute top-2 left-2 z-20 bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1 border border-yellow-200 uppercase tracking-wider">
+            <Crown className="w-3 h-3 fill-current" />
+            <span>Pro Elite</span>
+          </div>
+        )}
+
+        {/* Status Indicator Dot (Green for online, amber for away, grey for offline) */}
+        <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-black/70 backdrop-blur-md px-2 py-1 rounded-full border border-neutral-700 text-[10px] font-bold text-white shadow">
+          <span className={`w-2.5 h-2.5 rounded-full ${
+            profile.status === 'online' ? 'bg-emerald-500 animate-pulse' : profile.status === 'away' ? 'bg-amber-400' : 'bg-neutral-500'
+          }`} />
+          <span className="capitalize">{profile.status || 'offline'}</span>
+        </div>
         {/* Swipe Feedback Overlay */}
         {swipeDirection === 'right' && (
           <div className="absolute inset-0 z-20 bg-emerald-500/20 backdrop-blur-[2px] flex items-center justify-center pointer-events-none border-4 border-emerald-500/60 rounded-xl">
@@ -245,6 +268,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
             <h3 style={{ fontSize: '14px', lineHeight: '18px' }} className="font-normal text-white inline-flex items-center gap-1.5 drop-shadow-md">
               <span>{profile.name}</span>
               {showAge && <span>,{profile.age}</span>}
+              {profile.isBirthdayToday && (
+                <span className="bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-md animate-bounce">
+                  🎂 Birthday
+                </span>
+              )}
               {profile.isFeePaid && (profile.membershipTier === 'Elite Companion' || profile.isCompanionPro) && (
                 <span className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-md">
                   <Crown className="w-3 h-3" /> Verified Elite
@@ -311,7 +339,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
                 {showStatus && (
                   <span className="inline-flex items-center gap-1 text-neutral-400">
                     <span className={`w-1.5 h-1.5 rounded-full ${profile.status === 'online' ? 'bg-emerald-500 animate-pulse' : profile.status === 'away' ? 'bg-yellow-500' : 'bg-neutral-500'}`} />
-                    <span style={{ fontSize: '6px', lineHeight: '10.5px' }}>
+                    <span style={{ fontSize: '6px', lineHeight: '10.5px', width: '43.6562px', height: '13px', display: 'inline-block' }}>
                       {profile.status === 'online' 
                         ? 'Online' 
                         : (profile.lastActive || (profile.lastLogin ? `Active ${Math.max(1, Math.floor((Date.now() - profile.lastLogin) / 60000))}m ago` : 'Active 1h ago'))}
@@ -348,21 +376,70 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, index = 0, on
                 )}
               </div>
             )}
+
+            {/* Expandable Details Section */}
+            {isExpanded && (
+              <div className="mt-3 pt-3 border-t border-white/10 space-y-2 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+                {profile.aboutMe && (
+                  <p className="text-xs text-neutral-200 leading-relaxed font-normal bg-black/40 p-2.5 rounded-xl border border-white/5">
+                    "{profile.aboutMe}"
+                  </p>
+                )}
+                {profile.interestTags && profile.interestTags.length > 0 && (
+                  <div>
+                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-1">Interests & Vibe</span>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.interestTags.map((tag, tIdx) => (
+                        <span key={tIdx} className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Quick Tap Button */}
-          {showTap && (
+          {/* Quick Message, Expand Toggle, & Quick Tap Buttons */}
+          <div className="flex items-center gap-1.5 flex-shrink-0 ml-1.5">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                triggerHaptic(30);
-                onTap(e, profile);
+                triggerHaptic(20);
+                setIsExpanded(!isExpanded);
               }}
-              className="p-2.5 rounded-full bg-black/60 hover:bg-[#FFC107] text-[#FFC107] hover:text-[#121212] backdrop-blur-md border border-white/10 transition group/btn active:scale-90 flex-shrink-0 ml-1.5 shadow-lg"
+              className="p-2.5 rounded-full bg-black/60 hover:bg-amber-500 text-amber-400 hover:text-black backdrop-blur-md border border-white/10 transition group/exp active:scale-90 shadow-lg"
+              title={isExpanded ? "Collapse details" : "Expand bio & interests"}
             >
-              <Flame className="w-4 h-4 fill-current group-hover/btn:scale-110 transition-transform" />
+              <Sparkles className="w-4 h-4 group-hover/exp:scale-110 transition-transform" />
             </button>
-          )}
+            {onOpenChat && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerHaptic(25);
+                  onOpenChat(profile);
+                }}
+                className="p-2.5 rounded-full bg-black/60 hover:bg-cyan-500 text-cyan-400 hover:text-black backdrop-blur-md border border-white/10 transition group/msg active:scale-90 shadow-lg"
+                title={`Quick Message ${profile.name}`}
+              >
+                <MessageSquare className="w-4 h-4 group-hover/msg:scale-110 transition-transform" />
+              </button>
+            )}
+            {showTap && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerHaptic(30);
+                  onTap(e, profile);
+                }}
+                className="p-2.5 rounded-full bg-black/60 hover:bg-[#FFC107] text-[#FFC107] hover:text-[#121212] backdrop-blur-md border border-white/10 transition group/btn active:scale-90 shadow-lg"
+              >
+                <Flame className="w-4 h-4 fill-current group-hover/btn:scale-110 transition-transform" />
+              </button>
+            )}
+          </div>
         </div>
       </motion.div>
 

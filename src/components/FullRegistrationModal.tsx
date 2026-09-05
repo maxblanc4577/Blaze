@@ -94,7 +94,8 @@ export const FullRegistrationModal: React.FC<FullRegistrationModalProps> = ({
     onCompleteRegistration(
       {
         name: displayName || fullName || 'New Member',
-        bio: bio || 'Excited to connect with local members on Blaze.',
+        headline: offerings || 'Travel Companion & VIP Host',
+        aboutMe: bio || 'Excited to connect with local members on Blaze.',
         locationName,
         weight,
         height,
@@ -106,6 +107,10 @@ export const FullRegistrationModal: React.FC<FullRegistrationModalProps> = ({
         isCompanionPro: isFeePaid,
         isFeePaid,
         photos: uploadedPhotos.length ? uploadedPhotos : ['https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=600&q=80'],
+        videos: uploadedVideos.length ? uploadedVideos : [],
+        interestTags: [...likes.split(',').map(l => l.trim()), ...offerings.split(',').map(o => o.trim())].filter(Boolean),
+        position: position as any,
+        relationshipStatus: meetingPreference,
       },
       assignedTier as any,
       isFeePaid

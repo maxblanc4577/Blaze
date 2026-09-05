@@ -112,7 +112,7 @@ app.post("/api/ai/icebreaker", async (req, res) => {
     const prompt = `Generate 3 catchy, flirty, or friendly dating app icebreaker messages from ${myName || 'Someone'} to ${targetName || 'a user'} who has the bio "${targetBio || 'No bio'}" and tribes: ${JSON.stringify(targetTribes || [])}. Keep them short, engaging, and in the style of Grindr chat starters. Return ONLY a JSON array of 3 strings.`;
     
     const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -143,7 +143,7 @@ app.post("/api/ai/chat", async (req, res) => {
     const systemPrompt = `You are ${profileName}, a user on a dating/social app. Your bio is: "${profileBio}". Keep your reply conversational, natural, friendly, concise (under 2 sentences), and matching your persona.`;
     
     const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+      model: "gemini-2.5-flash",
       contents: `${systemPrompt}\nUser says: "${messageHistory?.[messageHistory.length - 1]?.text || 'Hey'}"\nReply as ${profileName}:`,
     });
 
@@ -161,7 +161,7 @@ app.post("/api/ai/suggested-responses", async (req, res) => {
     const prompt = `Based on the incoming message "${lastMessageText || 'Hey'}" from ${profileName || 'your contact'} in a chat, generate 3 short, natural, engaging context-aware quick reply suggestions that the user can tap to reply. Return ONLY a JSON array of 3 strings (e.g. ["Sounds great!", "What are you up to?", "Let's meet up!"]).`;
     
     const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -187,7 +187,7 @@ app.post("/api/ai/translate", async (req, res) => {
     const { text, targetLanguage } = req.body;
     const prompt = `Translate the following text into ${targetLanguage || 'English'}. Detect the source language. Return ONLY a JSON object with keys "translatedText" and "detectedLanguage". Text: "${text}"`;
     const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: { responseMimeType: "application/json" },
     });

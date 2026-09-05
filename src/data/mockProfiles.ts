@@ -78,6 +78,7 @@ export const MOCK_PROFILES: UserProfile[] = [
     membershipTier: 'Elite Companion',
     isRightNowActive: true,
     rightNowNote: 'Coffee Time at Blue Bottle',
+    isBirthdayToday: true,
   },
 
 
@@ -124,7 +125,10 @@ export const MOCK_PROFILES: UserProfile[] = [
     lookingFor: ['Right Now', 'Chat', 'Friends'],
     tribes: ['Jock', 'Otter'],
     interestTags: ['Surfing', 'Music', 'DJ', 'Beach'],
-    isVerified: false,
+    isVerified: true,
+    isCompanionPro: true,
+    isFeePaid: true,
+    membershipTier: 'Pro',
     lockedAlbum: { photos: [], videos: [] },
     locationName: 'Beachside',
     latitude: 37.7450,

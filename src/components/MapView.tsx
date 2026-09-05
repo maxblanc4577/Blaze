@@ -13,6 +13,7 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
   const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState<string>(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '');
   const [useRealMap, setUseRealMap] = useState<boolean>(false);
+  const [isMapOnlyMode, setIsMapOnlyMode] = useState<boolean>(false);
   const [mapError, setMapError] = useState<boolean>(false);
   const [showHeatmap, setShowHeatmap] = useState<boolean>(true);
   const [searchRadius, setSearchRadius] = useState<number>(25); // miles
@@ -75,9 +76,64 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
         >
           {useRealMap ? 'Real Map Mode' : 'Interactive Radar Mode'}
         </button>
+        <span className="text-stone-700">|</span>
+        <button
+          onClick={() => setIsMapOnlyMode(!isMapOnlyMode)}
+          className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 shadow ${
+            isMapOnlyMode ? 'bg-amber-500 text-black' : 'bg-stone-800 text-stone-200 hover:bg-stone-700'
+          }`}
+          title="Switch between Map view and List-only view"
+        >
+          <span>{isMapOnlyMode ? '🗺️ Map View' : '📋 List View'}</span>
+        </button>
+        <span className="text-stone-700">|</span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setZoom(prev => Math.max(0.5, prev - 0.25))}
+            className="px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold"
+            title="Zoom Out (Group Clusters)"
+          >
+            -
+          </button>
+          <span className="text-[10px] font-mono text-amber-400 px-1">{zoom.toFixed(1)}x</span>
+          <button
+            onClick={() => setZoom(prev => Math.min(3, prev + 0.25))}
+            className="px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold"
+            title="Zoom In (Show Individual Pins)"
+          >
+            +
+          </button>
+        </div>
       </div>
 
-      {useRealMap ? (
+      {isMapOnlyMode ? (
+        <div className="w-full h-full p-6 overflow-y-auto bg-stone-950 text-white">
+          <div className="max-w-4xl mx-auto space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <span>📋 Nearby Users List View</span>
+                <span className="text-xs bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full font-mono">{filteredProfiles.length} users within {searchRadius} mi</span>
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {filteredProfiles.map(profile => (
+                <div
+                  key={profile.id}
+                  onClick={() => onSelectProfile(profile)}
+                  className="bg-stone-900 border border-stone-800 hover:border-amber-500/50 p-4 rounded-2xl cursor-pointer transition flex items-center gap-3.5 group shadow-lg"
+                >
+                  <img src={profile.photos[0]} alt="" className="w-14 h-14 rounded-xl object-cover border border-stone-700 group-hover:scale-105 transition" referrerPolicy="no-referrer" />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-bold text-sm text-white truncate group-hover:text-amber-400 transition">{profile.name}, {profile.age}</h4>
+                    <p className="text-xs text-stone-400 truncate">{profile.distance} miles away · {profile.locationName}</p>
+                    <span className="inline-block mt-1 text-[10px] bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded font-semibold">View Profile</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : useRealMap ? (
         <div className="w-full h-full relative">
           <APIProvider apiKey={effectiveApiKey} onError={() => setMapError(true)}>
             <Map
@@ -90,6 +146,7 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
                {/* Clustered profiles grouping logic */}
               {(() => {
                 const clusters: { centerLat: number; centerLng: number; profiles: typeof filteredProfiles }[] = [];
+                const clusterThreshold = 0.035 / zoom;
                 
                 filteredProfiles.forEach((profile, index) => {
                   const lat = profile.latitude || (37.7749 + (index * 0.01 - 0.05));
@@ -98,7 +155,7 @@ export const MapView: React.FC<MapViewProps> = ({ profiles, onSelectProfile }) =
                   let addedToCluster = false;
                   for (const cluster of clusters) {
                     const dist = Math.hypot(cluster.centerLat - lat, cluster.centerLng - lng);
-                    if (dist < 0.02) {
+                    if (dist < clusterThreshold) {
                       cluster.profiles.push(profile);
                       addedToCluster = true;
                       break;

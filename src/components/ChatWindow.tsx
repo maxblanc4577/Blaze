@@ -85,6 +85,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const currentTheme = conversation.chatTheme || 'gold';
   const getThemeBubbleClass = (theme?: string) => {
     switch (theme) {
+      case 'midnight': return 'bg-neutral-900 border border-neutral-700 text-white font-medium';
+      case 'sun': return 'bg-amber-400 text-black font-bold';
+      case 'cyber': return 'bg-fuchsia-600 text-white font-medium';
       case 'cyan': return 'bg-cyan-500 text-black font-medium';
       case 'emerald': return 'bg-emerald-500 text-black font-medium';
       case 'violet': return 'bg-violet-600 text-white font-medium';
@@ -378,6 +381,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        onSendMessage(conversation.id, 'Sent an image attachment', 'image', result);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const sendQuickPhoto = () => {
     const photos = [
       'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80',
@@ -388,7 +407,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const sendLocation = () => {
-    onSendMessage(conversation.id, 'Shared my location (1.2 miles away)', 'location');
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
+          onSendMessage(conversation.id, `Shared coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 'location', mapUrl);
+        },
+        () => {
+          onSendMessage(conversation.id, 'Shared location: San Francisco, CA (37.7749, -122.4194)', 'location', 'https://maps.google.com/?q=37.7749,-122.4194');
+        }
+      );
+    } else {
+      onSendMessage(conversation.id, 'Shared location: San Francisco, CA (37.7749, -122.4194)', 'location', 'https://maps.google.com/?q=37.7749,-122.4194');
+    }
   };
 
   const startRecording = async () => {
@@ -692,10 +725,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     />
                   </div>
                 ) : msg.type === 'location' ? (
-                  <div className="flex items-center space-x-2 mb-1 p-2 bg-black/20 rounded-lg">
-                    <MapPin className="w-5 h-5 text-red-400" />
-                    <span className="text-xs font-bold">Live Location Shared</span>
-                  </div>
+                  <a
+                    href={msg.mediaUrl || 'https://maps.google.com/?q=37.7749,-122.4194'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-3 mb-2 p-3 bg-black/40 hover:bg-black/60 rounded-xl border border-white/20 transition group block"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center shrink-0">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-white group-hover:underline flex items-center gap-1">
+                        <span>📍 Shared Map Coordinates</span>
+                      </h4>
+                      <p className="text-[10px] text-neutral-300">{msg.text || 'Click to view on Google Maps'}</p>
+                    </div>
+                  </a>
                 ) : msg.type === 'audio' ? (
                   <div className="flex items-center space-x-3 mb-2 bg-black/20 p-2.5 rounded-xl border border-white/10">
                     <button
@@ -1008,6 +1053,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
 
         <form onSubmit={handleSend} className="max-w-4xl mx-auto flex items-center space-x-2">
+          <input
+            type="file"
+            ref={imageInputRef}
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageFileSelect}
+          />
           <button
             type="button"
             onClick={() => setShowEmojiPicker(prev => !prev)}
@@ -1019,9 +1071,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
           <button
             type="button"
-            onClick={sendQuickPhoto}
+            onClick={() => imageInputRef.current?.click()}
             className="p-2.5 rounded-full bg-[#252525] hover:bg-[#333333] text-neutral-300 transition"
-            title="Send Photo"
+            title="Attach Image from Device"
           >
             <ImageIcon className="w-5 h-5 text-[#FFC107]" />
           </button>
@@ -1317,6 +1369,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 <div className="flex items-center gap-3 pt-1">
                   {[
                     { id: 'gold', name: 'Gold', color: 'bg-[#FFC107]' },
+                    { id: 'midnight', name: 'Midnight', color: 'bg-neutral-900 border border-neutral-700' },
+                    { id: 'sun', name: 'Sun', color: 'bg-amber-400' },
+                    { id: 'cyber', name: 'Cyber', color: 'bg-fuchsia-600' },
                     { id: 'cyan', name: 'Cyan', color: 'bg-cyan-500' },
                     { id: 'emerald', name: 'Emerald', color: 'bg-emerald-500' },
                     { id: 'violet', name: 'Violet', color: 'bg-violet-600' },

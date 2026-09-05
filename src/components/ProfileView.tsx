@@ -741,7 +741,85 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser, onUpdateU
         </div>
       )}
 
+      {/* ID Verification Workflow Card */}
+      <div className="bg-[#1E1E1E] border border-neutral-800 rounded-3xl p-6 space-y-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold shadow-inner">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-base font-bold text-white">ID Verification Workflow</h3>
+                {currentUser.isVerified ? (
+                  <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Verified Status Active
+                  </span>
+                ) : currentUser.verificationPending ? (
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 animate-pulse">
+                    ⏳ Pending Review
+                  </span>
+                ) : (
+                  <span className="text-[10px] bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded-full font-bold">
+                    Unverified
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Submit a government ID photo or verification selfie for review to gain trust and platform visibility.
+              </p>
+            </div>
+          </div>
 
+          <div className="flex items-center gap-2">
+            {!currentUser.isVerified && (
+              <button
+                type="button"
+                onClick={() => setShowUploadModal(true)}
+                className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs rounded-xl transition shadow-lg shadow-cyan-500/20 flex items-center gap-1.5"
+              >
+                <span>🛡️</span> Submit ID Photo for Review
+              </button>
+            )}
+            {currentUser.verificationPending && !currentUser.isVerified && (
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = {
+                    ...currentUser,
+                    isVerified: true,
+                    verificationPending: false,
+                    isPublished: true,
+                  };
+                  onUpdateUser(updated);
+                  setSuccessMsg('🛡️ ID Verification approved! Profile status is now Verified.');
+                  setTimeout(() => setSuccessMsg(''), 3000);
+                }}
+                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center gap-1.5"
+              >
+                <span>✓</span> Simulate Admin Approval
+              </button>
+            )}
+          </div>
+        </div>
+
+        {currentUser.verificationPhoto && (
+          <div className="flex items-center gap-4 bg-neutral-900 border border-neutral-800 p-3.5 rounded-2xl">
+            <img
+              src={currentUser.verificationPhoto}
+              alt="Submitted ID/Selfie"
+              className="w-16 h-16 rounded-xl object-cover border border-cyan-500/40"
+              referrerPolicy="no-referrer"
+            />
+            <div className="flex-1 text-xs space-y-1">
+              <p className="font-bold text-white">Submitted Document / Selfie</p>
+              <p className="text-neutral-400">
+                {currentUser.isVerified ? 'Approved and verified by platform security.' : currentUser.verificationPending ? 'Under review by moderation team. Typically verified within 5-10 minutes.' : 'Ready for submission.'}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Edit Form or Display View */}
       {isEditing ? (

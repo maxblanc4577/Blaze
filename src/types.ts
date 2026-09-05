@@ -108,6 +108,7 @@ export interface UserProfile {
   billingPausedUntil?: number; // timestamp until when billing is paused
   referralCount?: number;
   referralDiscountEarned?: string; // e.g. '10% Off Next Month'
+  isBirthdayToday?: boolean;
 }
 
 export interface PhotoFilterOption {

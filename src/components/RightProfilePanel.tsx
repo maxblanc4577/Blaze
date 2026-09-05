@@ -18,6 +18,11 @@ interface RightProfilePanelProps {
   hasWinked?: boolean;
   hasMessaged?: boolean;
   conversationMessages?: Array<{ id: string; sender: 'me' | 'them'; text: string; timestamp?: number }>;
+  isRightNowActive?: boolean;
+  rightNowNote?: string;
+  rightNowExpiresAt?: number;
+  onToggleRightNow?: () => void;
+  onMessageRightNow?: (profile: UserProfile, note: string) => void;
 }
 
 export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
@@ -34,7 +39,43 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
   hasWinked = false,
   hasMessaged = false,
   conversationMessages = [],
+  isRightNowActive = false,
+  rightNowNote,
+  rightNowExpiresAt,
+  onToggleRightNow,
+  onMessageRightNow,
 }) => {
+  if (!profile) return null;
+
+  const activeRightNowActive = profile.id === currentUser?.id ? isRightNowActive : !!profile.isRightNowActive;
+  const activeRightNowNote = profile.id === currentUser?.id ? rightNowNote : profile.rightNowNote;
+  const activeExpiresAt = profile.id === currentUser?.id ? rightNowExpiresAt : profile.rightNowExpiresAt;
+
+  const [remainingTimeStr, setRemainingTimeStr] = useState<string>('');
+
+  useEffect(() => {
+    const updateRemaining = () => {
+      if (!activeExpiresAt) {
+        setRemainingTimeStr('');
+        return;
+      }
+      const diff = activeExpiresAt - Date.now();
+      if (diff <= 0) {
+        setRemainingTimeStr('Expired');
+        return;
+      }
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      if (hours > 0) {
+        setRemainingTimeStr(`${hours}h ${minutes}m remaining`);
+      } else {
+        setRemainingTimeStr(`${minutes}m remaining`);
+      }
+    };
+    updateRemaining();
+    const timer = setInterval(updateRemaining, 10000);
+    return () => clearInterval(timer);
+  }, [activeExpiresAt]);
   const [copied, setCopied] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('Inappropriate Content');
@@ -296,6 +337,79 @@ export const RightProfilePanel: React.FC<RightProfilePanelProps> = ({
             <MessageCircle className="w-3.5 h-3.5" /> Message
           </button>
         </div>
+
+        {/* Pulsating Right Now Status Badge & Remaining Time / Message Button for Viewers */}
+        {activeRightNowActive && !onToggleRightNow && (
+          <div className="mb-4 bg-gradient-to-r from-amber-500/20 via-neutral-900 to-neutral-900 border border-amber-500/50 p-3.5 rounded-2xl flex flex-col gap-2 shadow-xl animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 text-xs font-black text-amber-300 animate-pulse bg-amber-500/30 px-3 py-1 rounded-full border border-amber-500/60 shadow">
+                ⚡ Right Now Status Active
+              </span>
+              {remainingTimeStr && (
+                <span className="text-xs font-mono text-amber-400 font-bold bg-black/40 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                  ⏳ {remainingTimeStr}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-neutral-100 italic bg-black/30 p-2.5 rounded-xl border border-white/5 font-medium">
+              "{activeRightNowNote || 'Ready to meet!'}"
+            </p>
+            {profile.id !== currentUser?.id && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onMessageRightNow) {
+                    onMessageRightNow(profile, activeRightNowNote || 'Ready to meet!');
+                  } else {
+                    onStartChat(profile);
+                  }
+                }}
+                className="w-full bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-lg transition transform active:scale-95"
+              >
+                <span>⚡ Message about Right Now: "{activeRightNowNote || 'Ready to meet!'}"</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Right Now Visibility Toggle Button */}
+        {onToggleRightNow && (
+          <div className="mb-4 bg-gradient-to-r from-amber-500/15 via-neutral-900 to-neutral-900 border border-amber-500/40 p-3.5 rounded-2xl flex flex-col gap-2.5 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm ${isRightNowActive ? 'bg-amber-500 text-black animate-pulse' : 'bg-neutral-800 text-stone-400'}`}>
+                  ⚡
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Right Now Status</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${isRightNowActive ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-neutral-800 text-stone-400'}`}>
+                      {isRightNowActive ? 'Broadcasting (Active)' : 'Hidden'}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-stone-400">Instantly broadcast or hide active status</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onToggleRightNow}
+                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition shadow flex items-center gap-1 ${
+                  isRightNowActive
+                    ? 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40'
+                    : 'bg-amber-500 hover:bg-amber-400 text-black'
+                }`}
+              >
+                {isRightNowActive ? 'Hide Status' : 'Broadcast Active'}
+              </button>
+            </div>
+            {isRightNowActive && remainingTimeStr && (
+              <div className="flex items-center justify-between pt-2 border-t border-white/10 text-xs">
+                <span className="text-neutral-300 italic">"{activeRightNowNote || 'Ready to meet!'}"</span>
+                <span className="font-mono text-amber-400 font-bold">⏳ {remainingTimeStr}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {(profile.phone || profile.whatsapp) && (
           <div className="flex items-center gap-2 mb-4">
